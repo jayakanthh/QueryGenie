@@ -1,0 +1,2 @@
+run_id,timestamp,tier,model,dataset,seed,metric_name,metric_value,runtime_s,gpu,torch_version,transformers_version,notes
+T1-001,2026-08-14T07:46:35,Tier 1 - smoke test,seeklhy/codes-1b,hand-built toy schema (not Spider),"n/a (beam search, deterministic)",query_executed_without_error,True,61.86,Tesla T4,2.11.0+cu128,5.15.0,"Liveness check only. Not a faithful reproduction - modern transformers, simplified prompt. Ran on Google Colab T4 (14.6GB), Python 3.12.13. Generated SQL executed against SQLite and returned the correct row [('Meera',)]."

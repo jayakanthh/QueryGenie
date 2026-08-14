@@ -1,0 +1,22 @@
+{
+  "dataset": "xlangai/spider",
+  "source": "https://huggingface.co/datasets/xlangai/spider",
+  "source_approved_by_sop": true,
+  "approved_source_name": "Hugging Face Datasets",
+  "source_note": "Loaded from 'xlangai/spider' (original authors' XLang AI org). The legacy bare 'spider' repo id was a script-based dataset that no longer loads on datasets>=3.x; 'xlangai/spider' is the maintained parquet copy of the same data. Splits: train=7000, validation(dev)=1034.",
+  "kaggle_used": false,
+  "dataset_paper": "https://arxiv.org/abs/1809.08887",
+  "downloaded_at": "2026-08-14T13:02:31",
+  "split_sizes": {
+    "train": 7000,
+    "validation": 1034
+  },
+  "datasets_library_version": "5.0.1",
+  "python_version": "3.13.5",
+  "saved_to": "data/spider",
+  "metrics_used": [
+    "Exact-set Match (EM)",
+    "Execution Accuracy (EX)"
+  ],
+  "notes": "Spider is cross-domain: train/dev/test use disjoint databases, so the model must generalise to unseen schemas rather than memorise them."
+}
