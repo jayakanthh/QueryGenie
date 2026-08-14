@@ -17,6 +17,9 @@ data/
 .DS_Store
 *.swp
 
+# Generated sample DBs (rebuilt on app startup via build_sample_db.py)
+src/sample_data/*.sqlite
+
 # Scratch
 scratchpad/
 tmp/

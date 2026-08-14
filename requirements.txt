@@ -1,0 +1,11 @@
+# QueryGenie prototype app (local Apple Silicon / CPU).
+# The reproduction pipeline (Tier 2) has its own pinned environment; this file is
+# for running the demo app locally.
+torch>=2.2
+transformers>=4.38
+accelerate>=0.27
+sentencepiece
+gradio>=4.0
+pandas>=2.0
+plotly>=5.18
+datasets>=2.18   # used by scripts/download_spider.py

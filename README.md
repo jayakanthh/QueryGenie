@@ -26,7 +26,7 @@ QueryGenie lets a non-technical user ask a question in plain English (e.g. *"whi
 
 ## Dataset
 
-- **Spider** — https://huggingface.co/datasets/spider (Hugging Face — approved data source)
+- **Spider** — https://huggingface.co/datasets/xlangai/spider (Hugging Face — approved data source)
 - Dataset paper: https://arxiv.org/abs/1809.08887
 - Metrics: Exact-set Match (EM) and Execution Accuracy (EX) on the Spider dev set
 
@@ -80,12 +80,37 @@ therefore uses a current PyTorch/transformers stack on the MPS backend. **This i
 documented deviation** and must be stated in the reproducibility report: local runs are
 liveness checks and development work; all graded reproduction metrics come from Tier 2.
 
+## Prototype app (demo)
+
+A working end-to-end prototype lives in `src/`: ask a plain-English question, and
+QueryGenie generates SQL with the local CodeS-1B model, executes it, self-corrects on
+failure (showing each attempt), and returns a results table + an auto-selected chart.
+Everything runs locally — the schema never leaves the machine.
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+python src/app.py          # opens the Gradio UI; first run downloads codes-1b (~4.5 GB)
+```
+
+UI-only development without the model download:
+
+```bash
+QUERYGENIE_BACKEND=mock python src/app.py
+```
+
+Modules: `model.py` (codes-1b, MPS/CPU) · `database.py` (schema serialization + execution)
+· `engine.py` (generate → execute → self-correct loop) · `charts.py` (auto chart) ·
+`app.py` (Gradio UI). The schema is serialized in table-creation order and generation uses
+beam search — both materially affect codes-1b's accuracy.
+
 ## Status
 
 - [x] Week 1 — Paper shortlist + feasibility matrix
 - [x] Review 1 — Topic, literature review (44 papers), objectives, deliverables
-- [ ] Week 2 — Faculty approval, dataset download, repo clone
-- [ ] Weeks 3–4 — Paper annotation, environment setup, first run
-- [ ] Weeks 5–8 — Reproduction, ablation, Reproducibility Report v1.0
+- [x] Week 2 — Dataset downloaded (Spider via `xlangai/spider`, provenance recorded)
+- [x] Week 4 gate — CodeS-1B loaded, generated + executed SQL (Tier 1, run T1-001)
+- [x] Prototype — local self-correcting NL→SQL app with results table + auto chart
+- [ ] Weeks 5–8 — Reproduction (Tier 2), ablation, Reproducibility Report v1.0
 - [ ] Weeks 9–12 — Enhancement implementation and comparison
 - [ ] Weeks 13–16 — Final experiments, report, repository, presentation
