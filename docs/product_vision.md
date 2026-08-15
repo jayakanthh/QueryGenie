@@ -51,6 +51,19 @@ The main risk is scope: this is a real product, not a semester's work, so it bel
 - **Per-DB fine-tuning cost**: fine-tuning a model for every customer DB is expensive to operate.
   The retrieval/indexing path (no training) is the cheaper MVP; offer training as a premium tier.
 
+## Serving optimizations (future, for the platform — not the capstone demo)
+
+- **TurboQuant (Google Research, 2026)** — compresses the **KV cache** to ~3 bits with no
+  training and near-lossless accuracy (~8× faster attention). Note: it compresses the KV cache,
+  **not the model weights**, so it helps the *enterprise-serving* case (many concurrent users,
+  long enterprise schemas → large KV cache on GPU servers), letting us serve far more queries per
+  GPU. It does **not** help the local 16 GB Mac demo (bottleneck there is weight size, and
+  sequences are short); it's also Triton/vLLM (CUDA) today, not Apple MPS.
+  Ref: https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/
+- **Weight quantization (MLX / GGUF 4-bit)** — the right lever for running larger CodeS sizes on
+  constrained local hardware (e.g. 7B on a 16 GB Mac). Slight accuracy cost, so keep the graded
+  Tier-2 reproduction unquantized.
+
 ## Suggested phasing (if pursued after Phase-I)
 1. **MVP**: schema browser + connect to 2–3 DB engines (SQLite, Postgres, Spark) via a connector
    abstraction; dialect-aware prompting; existing self-correction. No training, no auth.
