@@ -19,7 +19,7 @@ repository, and its status. Update the status column as each item is completed a
 | 2 | Approved paper | CodeS confirmed at Review 1 (arXiv:2402.16347) | ✅ |
 | 2 | Dataset downloaded | `scripts/download_spider.py` → writes `results/dataset_provenance.json` | ✅ run 2026-08-14 (train 7000 / dev 1034; source `xlangai/spider`) |
 | 2 | Weekly report | `docs/weekly-reports/Week 2/Weekly_Report.docx` | 🟡 needs supervisor signature |
-| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` | 🟡 **worksheet built, blanks to fill by reading the PDF** |
+| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` | ✅ **filled from the CodeS PDF** — target metric CodeS-1B Spider dev **EX 77.9% / TS 72.2% (Table 5)**; equations, hyperparameters, ablations recorded |
 | 3 | Algorithm / architecture flowchart | `docs/weekly-reports/Week 3/CodeS_Architecture_Flowchart.png` | 🟡 **drafted, verify against Figure 1** |
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
 | 4 | **Working environment + run log (RED-FLAG GATE)** | `notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
