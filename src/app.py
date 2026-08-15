@@ -23,7 +23,7 @@ import pandas as pd
 from build_sample_db import ensure_sample_dbs
 from charts import pick_chart
 from engine import run_query
-from model import DEFAULT_MODEL, UI_MODELS, ModelManager
+from model import ModelManager, available_models, default_model
 
 SAMPLE_DBS = ensure_sample_dbs()
 MANAGER = ModelManager()
@@ -79,8 +79,8 @@ def build_ui():
         with gr.Row():
             db = gr.Dropdown(choices=list(SAMPLE_DBS.keys()),
                              value=list(SAMPLE_DBS.keys())[0], label="Database")
-            model = gr.Dropdown(choices=UI_MODELS, value=DEFAULT_MODEL, label="Model",
-                                info="Larger = more accurate, slower. Switching reloads the model.")
+            model = gr.Dropdown(choices=available_models(), value=default_model(), label="Model",
+                                info="MLX 4-bit = fast + small; transformers = beam search. Switching reloads the model.")
         question = gr.Textbox(label="Ask in plain English", placeholder=EXAMPLES[0])
         submit = gr.Button("Generate SQL & run", variant="primary")
         gr.Examples(examples=[[e] for e in EXAMPLES], inputs=[question])

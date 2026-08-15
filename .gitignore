@@ -20,6 +20,9 @@ data/
 # Generated sample DBs (rebuilt on app startup via build_sample_db.py)
 src/sample_data/*.sqlite
 
+# Quantized MLX weights — rebuilt by scripts/convert_mlx.py (large, regenerable)
+mlx_models/
+
 # Scratch
 scratchpad/
 tmp/

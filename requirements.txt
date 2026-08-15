@@ -9,3 +9,8 @@ gradio>=4.0
 pandas>=2.0
 plotly>=5.18
 datasets>=2.18   # used by scripts/download_spider.py
+
+# Apple Silicon only — 4-bit quantized inference (scripts/convert_mlx.py + MLX backend).
+# Safe to skip on non-Mac; the transformers backend still works everywhere.
+mlx>=0.32 ; sys_platform == "darwin"
+mlx-lm>=0.31 ; sys_platform == "darwin"

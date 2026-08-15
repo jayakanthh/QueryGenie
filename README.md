@@ -93,9 +93,21 @@ pip install -r requirements.txt
 python src/app.py          # opens the Gradio UI; first run downloads the model
 ```
 
-A **Model** dropdown switches between **CodeS-1B** (fast) and **CodeS-3B** (more accurate) — the
-two sizes that fit a 16 GB Apple-Silicon Mac in bf16. CodeS also has 7B/15B, but those need more
-RAM. Switching size unloads the previous model first to free memory.
+A **Model** dropdown switches models. Two backends, both fully local:
+
+- **transformers (bf16)** — `CodeS-1B` / `CodeS-3B`; uses beam search (accurate), larger + slower.
+- **MLX 4-bit (Apple Silicon)** — quantized weights, ~4× smaller and much faster. Greedy decoding
+  only, so it needs a big-enough model: **`CodeS-3B (MLX 4-bit)` is the recommended default** —
+  as accurate as bf16-3B here, but ~1.6 GB and sub-second to a few seconds per query.
+
+Build the MLX weights first (they're git-ignored, regenerable):
+
+```bash
+python scripts/convert_mlx.py 3b     # -> mlx_models/codes-3b-4bit  (do 1b too if you like)
+```
+
+7B/15B: convert on a machine with more RAM (or Colab) and copy the small `mlx_models/codes-*-4bit`
+folder down — the 4-bit model then runs locally. Switching size unloads the previous model first.
 
 UI-only development without the model download:
 
