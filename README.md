@@ -90,8 +90,12 @@ Everything runs locally — the schema never leaves the machine.
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
-python src/app.py          # opens the Gradio UI; first run downloads codes-1b (~4.5 GB)
+python src/app.py          # opens the Gradio UI; first run downloads the model
 ```
+
+A **Model** dropdown switches between **CodeS-1B** (fast) and **CodeS-3B** (more accurate) — the
+two sizes that fit a 16 GB Apple-Silicon Mac in bf16. CodeS also has 7B/15B, but those need more
+RAM. Switching size unloads the previous model first to free memory.
 
 UI-only development without the model download:
 

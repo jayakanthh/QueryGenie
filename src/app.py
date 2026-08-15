@@ -1,12 +1,12 @@
 """
 QueryGenie — prototype web app.
 
-Ask a plain-English question about a database; QueryGenie generates SQL with the
-local CodeS-1B model, executes it, self-corrects if it fails, and shows the
-results table plus an auto-selected chart. Everything runs locally.
+Ask a plain-English question about a database; QueryGenie generates SQL with a local
+CodeS model, executes it, self-corrects if it fails, and shows the results table plus
+an auto-selected chart. Everything runs locally. You can switch model size in the UI.
 
 Run:
-    # real model (downloads ~4.5 GB the first time):
+    # real model (downloads weights the first time):
     python src/app.py
     # UI-only, no model download:
     QUERYGENIE_BACKEND=mock python src/app.py
@@ -23,21 +23,23 @@ import pandas as pd
 from build_sample_db import ensure_sample_dbs
 from charts import pick_chart
 from engine import run_query
-from model import get_backend
+from model import DEFAULT_MODEL, UI_MODELS, ModelManager
 
 SAMPLE_DBS = ensure_sample_dbs()
-BACKEND = get_backend()
+MANAGER = ModelManager()
 
 EXAMPLES = [
     "Which students failed more than two subjects? A subject is failed if marks are below 40.",
-    "What is the average marks per department?",
     "How many students are in each year?",
-    "List the top 3 students by total marks.",
+    "What is the highest marks for each subject?",
+    "List the subjects and the average marks for each subject.",
+    "List all students in the CSE department.",
+    "Which students scored above 70 in any subject?",
 ]
 
 
-def _attempts_markdown(run) -> str:
-    lines = [f"**Backend:** `{getattr(BACKEND, 'device', '?')}`  ·  "
+def _attempts_markdown(run, model_label, device) -> str:
+    lines = [f"**Model:** `{model_label}`  ·  **Device:** `{device}`  ·  "
              f"**Attempts:** {len(run.attempts)}"]
     if run.self_corrected:
         lines.append("✅ **Self-corrected** — the first query failed to execute and "
@@ -48,16 +50,17 @@ def _attempts_markdown(run) -> str:
     return "\n".join(lines)
 
 
-def ask(db_label: str, question: str):
+def ask(db_label: str, model_label: str, question: str):
     if not question.strip():
         return "Enter a question.", pd.DataFrame(), None
+    backend = MANAGER.get(model_label)
     conn = sqlite3.connect(SAMPLE_DBS[db_label])
     try:
-        run = run_query(BACKEND, conn, question)
+        run = run_query(backend, conn, question)
     finally:
         conn.close()
 
-    trace = _attempts_markdown(run)
+    trace = _attempts_markdown(run, model_label, getattr(backend, "device", "?"))
     if not run.ok:
         return trace, pd.DataFrame(), None
 
@@ -71,23 +74,23 @@ def build_ui():
         gr.Markdown(
             "# 🧞 QueryGenie\n"
             "A self-correcting natural-language → SQL interface. "
-            "Runs locally on open weights (CodeS-1B) — your schema never leaves this machine."
+            "Runs locally on open weights (CodeS) — your schema never leaves this machine."
         )
         with gr.Row():
             db = gr.Dropdown(choices=list(SAMPLE_DBS.keys()),
                              value=list(SAMPLE_DBS.keys())[0], label="Database")
-            question = gr.Textbox(label="Ask in plain English", scale=3,
-                                  placeholder=EXAMPLES[0])
-        with gr.Row():
-            submit = gr.Button("Generate SQL & run", variant="primary")
+            model = gr.Dropdown(choices=UI_MODELS, value=DEFAULT_MODEL, label="Model",
+                                info="Larger = more accurate, slower. Switching reloads the model.")
+        question = gr.Textbox(label="Ask in plain English", placeholder=EXAMPLES[0])
+        submit = gr.Button("Generate SQL & run", variant="primary")
         gr.Examples(examples=[[e] for e in EXAMPLES], inputs=[question])
 
         trace = gr.Markdown(label="Generated SQL & self-correction trace")
         table = gr.Dataframe(label="Results", interactive=False)
         chart = gr.Plot(label="Auto chart")
 
-        submit.click(ask, inputs=[db, question], outputs=[trace, table, chart])
-        question.submit(ask, inputs=[db, question], outputs=[trace, table, chart])
+        submit.click(ask, inputs=[db, model, question], outputs=[trace, table, chart])
+        question.submit(ask, inputs=[db, model, question], outputs=[trace, table, chart])
     return demo
 
 

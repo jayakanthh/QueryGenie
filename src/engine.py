@@ -42,7 +42,7 @@ class QueryRun:
 
 
 def run_query(backend, conn: sqlite3.Connection, question: str,
-              max_retries: int = 2) -> QueryRun:
+              max_retries: int = 1) -> QueryRun:
     schema = build_schema_string(conn)
     run = QueryRun(question=question)
 
