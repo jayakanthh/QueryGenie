@@ -33,30 +33,33 @@ TRANSFORMERS_MODELS = {
     "CodeS-15B": "seeklhy/codes-15b",
 }
 # 4-bit MLX checkpoints — local dirs built by scripts/convert_mlx.py.
+# The "-spider" variants are the Spider-fine-tuned (SFT) checkpoints — the ones the
+# paper actually evaluates — and are the recommended default for the app.
 MLX_MODELS = {
-    "CodeS-1B (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-1b-4bit"),
-    "CodeS-3B (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-3b-4bit"),
-    "CodeS-7B (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-7b-4bit"),
+    "CodeS-3B-Spider · SFT (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-3b-spider-4bit"),
+    "CodeS-7B-Spider · SFT (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-7b-spider-4bit"),
+    "CodeS-3B base (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-3b-4bit"),
+    "CodeS-1B base (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-1b-4bit"),
 }
 DEFAULT_MODEL = "CodeS-1B"
 _DEFAULT_MAX_NEW_TOKENS = 200
 
 
 def available_models() -> list[str]:
-    """Labels to show in the UI: the two safe transformers sizes, plus any MLX
-    models actually present on disk (best-first)."""
-    labels = []
-    for lbl in ("CodeS-3B (MLX 4-bit)", "CodeS-7B (MLX 4-bit)", "CodeS-1B (MLX 4-bit)"):
-        if os.path.isdir(MLX_MODELS[lbl]):
-            labels.append(lbl)
+    """Labels to show in the UI: any MLX models present on disk (best-first: the
+    fine-tuned '-spider' checkpoints ahead of the base ones), then the two safe
+    transformers sizes."""
+    labels = [lbl for lbl in MLX_MODELS if os.path.isdir(MLX_MODELS[lbl])]
     labels += ["CodeS-1B", "CodeS-3B"]
     return labels
 
 
 def default_model() -> str:
-    """Prefer MLX-3B if it's been built (fast + accurate on a Mac), else 1B."""
-    if os.path.isdir(MLX_MODELS["CodeS-3B (MLX 4-bit)"]):
-        return "CodeS-3B (MLX 4-bit)"
+    """Prefer the fine-tuned SFT MLX model if built (best on a Mac), then base MLX-3B,
+    else the transformers 1B (always available)."""
+    for lbl in ("CodeS-3B-Spider · SFT (MLX 4-bit)", "CodeS-3B base (MLX 4-bit)"):
+        if os.path.isdir(MLX_MODELS[lbl]):
+            return lbl
     return DEFAULT_MODEL
 
 

@@ -97,17 +97,28 @@ A **Model** dropdown switches models. Two backends, both fully local:
 
 - **transformers (bf16)** — `CodeS-1B` / `CodeS-3B`; uses beam search (accurate), larger + slower.
 - **MLX 4-bit (Apple Silicon)** — quantized weights, ~4× smaller and much faster. Greedy decoding
-  only, so it needs a big-enough model: **`CodeS-3B (MLX 4-bit)` is the recommended default** —
-  as accurate as bf16-3B here, but ~1.6 GB and sub-second to a few seconds per query.
+  only, so it needs a big-enough model. **Default: `CodeS-3B-Spider · SFT (MLX 4-bit)`** — the
+  Spider *fine-tuned* checkpoint (the one the paper evaluates), ~1.6 GB, a few seconds per query.
 
-Build the MLX weights first (they're git-ignored, regenerable):
+> **Use the `-spider` (SFT) checkpoints, not the base ones.** `seeklhy/codes-Nb` are the base
+> pre-trained models; `seeklhy/codes-Nb-spider` are fine-tuned on Spider and generate much better
+> SQL (e.g. joins/aggregations like "top 3 students by total marks"). Same size and speed.
+
+Build the MLX weights first (git-ignored, regenerable):
 
 ```bash
-python scripts/convert_mlx.py 3b     # -> mlx_models/codes-3b-4bit  (do 1b too if you like)
+python scripts/convert_mlx.py 3b --variant spider   # -> mlx_models/codes-3b-spider-4bit
+python scripts/convert_mlx.py 3b                     # base 3B (optional)
 ```
 
-7B/15B: convert on a machine with more RAM (or Colab) and copy the small `mlx_models/codes-*-4bit`
-folder down — the 4-bit model then runs locally. Switching size unloads the previous model first.
+**7B on a 16 GB Mac** — MLX conversion needs Apple Silicon *and* enough RAM to hold the weights,
+which 16 GB can't for 7B. Two ways around it:
+1. **Online, no local RAM:** quantize to **GGUF** with the [gguf-my-repo](https://huggingface.co/spaces/ggml-org/gguf-my-repo)
+   Hugging Face Space, then run it on the Mac via `llama.cpp` (Metal). CodeS GGUFs already exist,
+   so the architecture is supported.
+2. Convert MLX on a bigger Apple-Silicon machine and copy the ~4 GB `mlx_models/…-4bit` folder down.
+
+Switching model unloads the previous one first to free memory.
 
 UI-only development without the model download:
 

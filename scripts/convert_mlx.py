@@ -28,13 +28,17 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def main() -> int:
     ap = argparse.ArgumentParser(description="Convert a CodeS size to 4-bit MLX")
     ap.add_argument("size", choices=["1b", "3b", "7b", "15b"], help="CodeS scale")
+    ap.add_argument("--variant", choices=["base", "spider", "bird"], default="base",
+                    help="base = pre-trained; spider/bird = fine-tuned (SFT) checkpoints")
     ap.add_argument("--bits", type=int, default=4)
     ap.add_argument("--group-size", type=int, default=64)
     args = ap.parse_args()
 
-    hf_id = f"seeklhy/codes-{args.size}"
-    st_dir = os.path.join(REPO_ROOT, "mlx_models", f"_hf_codes-{args.size}_st")
-    out_dir = os.path.join(REPO_ROOT, "mlx_models", f"codes-{args.size}-{args.bits}bit")
+    suffix = "" if args.variant == "base" else f"-{args.variant}"
+    hf_id = f"seeklhy/codes-{args.size}{suffix}"
+    tag = f"codes-{args.size}{suffix}"
+    st_dir = os.path.join(REPO_ROOT, "mlx_models", f"_hf_{tag}_st")
+    out_dir = os.path.join(REPO_ROOT, "mlx_models", f"{tag}-{args.bits}bit")
 
     if os.path.isdir(out_dir):
         print(f"[skip] {out_dir} already exists")

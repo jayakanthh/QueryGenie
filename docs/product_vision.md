@@ -63,6 +63,14 @@ The main risk is scope: this is a real product, not a semester's work, so it bel
 - **Weight quantization (MLX / GGUF 4-bit)** — the right lever for running larger CodeS sizes on
   constrained local hardware (e.g. 7B on a 16 GB Mac). Slight accuracy cost, so keep the graded
   Tier-2 reproduction unquantized.
+  - **MLX** is Apple-Silicon only (can't be built on Colab/x86), and quantizing 7B needs enough
+    RAM to hold the weights — a 16 GB Mac can't. **GGUF is the way around this:** the
+    [gguf-my-repo](https://huggingface.co/spaces/ggml-org/gguf-my-repo) Hugging Face Space
+    quantizes any HF model **online** (no local RAM), then it runs on the Mac via `llama.cpp`
+    (Metal). This is the practical path to 7B locally.
+- **Use the fine-tuned checkpoints.** `seeklhy/codes-Nb-spider` (and `-bird`) are SFT models that
+  generate much better SQL than the base `seeklhy/codes-Nb` — the base ones aren't fine-tuned for
+  text-to-SQL. Always ship the SFT checkpoint in the product.
 
 ## Suggested phasing (if pursued after Phase-I)
 1. **MVP**: schema browser + connect to 2–3 DB engines (SQLite, Postgres, Spark) via a connector

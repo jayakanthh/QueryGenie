@@ -35,6 +35,7 @@ EXAMPLES = [
     "List the subjects and the average marks for each subject.",
     "List all students in the CSE department.",
     "Which students scored above 70 in any subject?",
+    "List the top 3 students by total marks.",
 ]
 
 
