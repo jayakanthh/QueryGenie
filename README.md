@@ -111,12 +111,20 @@ python scripts/convert_mlx.py 3b --variant spider   # -> mlx_models/codes-3b-spi
 python scripts/convert_mlx.py 3b                     # base 3B (optional)
 ```
 
-**7B on a 16 GB Mac** — MLX conversion needs Apple Silicon *and* enough RAM to hold the weights,
-which 16 GB can't for 7B. Two ways around it:
-1. **Online, no local RAM:** quantize to **GGUF** with the [gguf-my-repo](https://huggingface.co/spaces/ggml-org/gguf-my-repo)
-   Hugging Face Space, then run it on the Mac via `llama.cpp` (Metal). CodeS GGUFs already exist,
-   so the architecture is supported.
-2. Convert MLX on a bigger Apple-Silicon machine and copy the ~4 GB `mlx_models/…-4bit` folder down.
+**7B on a 16 GB Mac — via a ready-made GGUF (no conversion).** MLX conversion of 7B needs more RAM
+than 16 GB has, so instead the app runs a pre-quantized **GGUF** through `llama.cpp` (Metal):
+
+```bash
+# build llama.cpp with Metal, then download the ready-made 7B GGUF
+CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
+huggingface-cli download tensorblock/seeklhy_codes-7b-spider-GGUF \
+    codes-7b-spider-Q2_K.gguf --local-dir gguf_models
+```
+
+It then appears as **`CodeS-7B-Spider · SFT (GGUF Q2_K)`** in the dropdown. This is the official
+`seeklhy/codes-7b-spider` model, quantized to 2-bit by the community — it still answers the demo
+questions correctly on Metal in ~1–3 s. (To make your own GGUF at a higher quant, use the
+[gguf-my-repo](https://huggingface.co/spaces/ggml-org/gguf-my-repo) Space.)
 
 Switching model unloads the previous one first to free memory.
 

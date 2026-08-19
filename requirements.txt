@@ -14,3 +14,8 @@ datasets>=2.18   # used by scripts/download_spider.py
 # Safe to skip on non-Mac; the transformers backend still works everywhere.
 mlx>=0.32 ; sys_platform == "darwin"
 mlx-lm>=0.31 ; sys_platform == "darwin"
+
+# GGUF inference via llama.cpp (Metal). Ready-made quantized .gguf models, no
+# local conversion. On Apple Silicon build with Metal:
+#   CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
+llama-cpp-python>=0.3 ; sys_platform == "darwin"

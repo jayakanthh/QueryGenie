@@ -23,6 +23,9 @@ src/sample_data/*.sqlite
 # Quantized MLX weights — rebuilt by scripts/convert_mlx.py (large, regenerable)
 mlx_models/
 
+# GGUF weights — downloaded from the Hub (large, re-downloadable)
+gguf_models/
+
 # Scratch
 scratchpad/
 tmp/

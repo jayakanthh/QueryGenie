@@ -41,15 +41,21 @@ MLX_MODELS = {
     "CodeS-3B base (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-3b-4bit"),
     "CodeS-1B base (MLX 4-bit)": os.path.join(_REPO_ROOT, "mlx_models", "codes-1b-4bit"),
 }
+# GGUF (llama.cpp / Metal) checkpoints — single .gguf files. These are ready-made
+# quantizations downloaded from the Hub (no local conversion needed). Q2_K is 2-bit
+# and aggressive, but a 7B SFT model handles it well on our schemas.
+GGUF_MODELS = {
+    "CodeS-7B-Spider · SFT (GGUF Q2_K)": os.path.join(_REPO_ROOT, "gguf_models", "codes-7b-spider-Q2_K.gguf"),
+}
 DEFAULT_MODEL = "CodeS-1B"
 _DEFAULT_MAX_NEW_TOKENS = 200
 
 
 def available_models() -> list[str]:
-    """Labels to show in the UI: any MLX models present on disk (best-first: the
-    fine-tuned '-spider' checkpoints ahead of the base ones), then the two safe
-    transformers sizes."""
+    """Labels to show in the UI: MLX models present on disk (fine-tuned '-spider'
+    first), then any GGUF models present, then the two safe transformers sizes."""
     labels = [lbl for lbl in MLX_MODELS if os.path.isdir(MLX_MODELS[lbl])]
+    labels += [lbl for lbl in GGUF_MODELS if os.path.exists(GGUF_MODELS[lbl])]
     labels += ["CodeS-1B", "CodeS-3B"]
     return labels
 
@@ -166,6 +172,35 @@ class MLXBackend:
         return _clean_sql(text)
 
 
+class LlamaCppBackend:
+    """A GGUF checkpoint run via llama.cpp with Metal (greedy). Loads lazily.
+
+    Lets us run larger sizes (e.g. 7B) from a ready-made quantized .gguf with no
+    local conversion. All transformer layers are offloaded to the GPU (Metal)."""
+
+    def __init__(self, path: str, label: str = ""):
+        self.path = path
+        self.label = label or path
+        self.device = "metal (GGUF)"
+        self._llm = None
+
+    def load(self):
+        if self._llm is not None:
+            return
+        from llama_cpp import Llama
+        self._llm = Llama(model_path=self.path, n_gpu_layers=-1, n_ctx=2048, verbose=False)
+
+    def unload(self):
+        self._llm = None
+        gc.collect()
+
+    def generate(self, schema, question, prior_error=None, max_new_tokens=_DEFAULT_MAX_NEW_TOKENS):
+        self.load()
+        out = self._llm(_build_prompt(schema, question, prior_error),
+                        max_tokens=max_new_tokens, temperature=0.0, echo=False)
+        return _clean_sql(out["choices"][0]["text"])
+
+
 class MockBackend:
     """Rule-based stand-in for offline UI development. NOT for the demo."""
 
@@ -191,6 +226,8 @@ class MockBackend:
 def _make_backend(label: str):
     if label in MLX_MODELS:
         return MLXBackend(MLX_MODELS[label], label=label)
+    if label in GGUF_MODELS:
+        return LlamaCppBackend(GGUF_MODELS[label], label=label)
     if label in TRANSFORMERS_MODELS:
         return CodesBackend(TRANSFORMERS_MODELS[label], label=label)
     return CodesBackend(TRANSFORMERS_MODELS[DEFAULT_MODEL], label=DEFAULT_MODEL)
