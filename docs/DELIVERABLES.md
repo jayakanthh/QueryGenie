@@ -23,7 +23,7 @@ repository, and its status. Update the status column as each item is completed a
 | 3 | Algorithm / architecture flowchart | `docs/weekly-reports/Week 3/CodeS_Architecture_Flowchart.png` | 🟡 **drafted, verify against Figure 1** |
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
 | 4 | **Working environment + run log (RED-FLAG GATE)** | `notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
-| 4 | Weekly report | — | ⬜ |
+| 4 | Weekly report | `docs/weekly-reports/Week 4/Weekly_Report.docx` | 🟡 written, needs supervisor signature |
 
 ## Month 2 — Reproducibility
 
@@ -66,7 +66,7 @@ repository, and its status. Update the status column as each item is completed a
    be measured against.
 4. **Get Weeks 2 and 3 weekly reports signed.** Three missed reports is an automatic
    rejection; unsigned reports count as not submitted.
-5. **Write the Week 4 weekly report** (still outstanding in the Month 1 table).
+5. ✅ **DONE — Week 4 weekly report written** (`docs/weekly-reports/Week 4/Weekly_Report.docx`); needs the supervisor's physical signature.
 6. **Tier 2 (graded 45%)** — faithful reproduction on a CUDA machine with the authors' pinned
    environment. Not started; this is the next big block.
 
