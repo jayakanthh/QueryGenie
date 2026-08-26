@@ -19,3 +19,7 @@ mlx-lm>=0.31 ; sys_platform == "darwin"
 # local conversion. On Apple Silicon build with Metal:
 #   CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
 llama-cpp-python>=0.3 ; sys_platform == "darwin"
+
+# Tier-2 faithful evaluation (CodeS value retriever)
+rapidfuzz>=3.0
+func_timeout>=4.3
