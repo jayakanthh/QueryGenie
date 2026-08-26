@@ -29,10 +29,10 @@ repository, and its status. Update the status column as each item is completed a
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 5 | Reproduction log, 3 runs (20%) | `results/Reproduction_Log.xlsx` | ⬜ template ready, no runs |
-| 6 | Comparison table vs paper (±5–10%) | `results/Reproduction_Log.xlsx` (Diff % auto-computes) | ⬜ |
+| 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` | 🟡 T2-001 done (full Spider dev); 2 more runs pending (full-prompt config) |
+| 6 | Comparison table vs paper (±5–10%) | `src/eval_spider.py` → `results/reproduction_log.csv` | 🟡 **EX 64.8%** vs paper 77.9% — outside ±10%, documented cause (prompt fidelity) |
 | 7 | Ablation study — disable schema filter | — | ⬜ |
-| 8 | **Reproducibility Report v1.0 (25%)** | — | ⬜ |
+| 8 | **Reproducibility Report v1.0 (25%)** | `docs/Code_Reproducibility_Report_v1.docx` | ✅ ~14-page report (incl. Tier-2 result + gap analysis) |
 
 ## Month 3 — Enhancement
 
