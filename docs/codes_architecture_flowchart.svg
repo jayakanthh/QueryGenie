@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 880" font-family="Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="1320" height="880" fill="#ffffff"/>
+  <defs>
+    <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2e5496"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#538135"/></marker>
+    <marker id="ay" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#bf9000"/></marker>
+  </defs>
+
+  <text x="30" y="42" font-size="30" font-weight="bold" fill="#1f3864">CodeS — Algorithm / Architecture Flowchart</text>
+  <text x="30" y="70" font-size="17" fill="#666">Towards Building Open-source Language Models for Text-to-SQL · SIGMOD 2024 · arXiv:2402.16347 · verified against Figure 3 &amp; Sections 5–8</text>
+
+  <!-- STAGE 1 -->
+  <rect x="20" y="90" width="1280" height="140" rx="8" fill="none" stroke="#2e5496" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="36" y="115" font-size="17" font-weight="bold" fill="#1f3864">STAGE 1 — Incremental pre-training (performed by the authors; we consume the released weights)</text>
+  <g>
+    <rect x="40" y="128" width="270" height="86" rx="8" fill="#dbe5f1" stroke="#2e5496" stroke-width="1.5"/>
+    <text x="175" y="162" font-size="17" font-weight="bold" fill="#1f3864" text-anchor="middle">StarCoder base LM</text>
+    <text x="175" y="186" font-size="14" fill="#333" text-anchor="middle">pre-trained code LLM</text>
+    <rect x="350" y="128" width="270" height="86" rx="8" fill="#dbe5f1" stroke="#2e5496" stroke-width="1.5"/>
+    <text x="485" y="156" font-size="17" font-weight="bold" fill="#1f3864" text-anchor="middle">SQL-centric corpus</text>
+    <text x="485" y="180" font-size="14" fill="#333" text-anchor="middle">21.5 GB: SQL, NL-to-code, NL</text>
+    <rect x="660" y="128" width="270" height="86" rx="8" fill="#c9d8ee" stroke="#2e5496" stroke-width="1.5"/>
+    <text x="795" y="156" font-size="17" font-weight="bold" fill="#1f3864" text-anchor="middle">Incremental pre-training</text>
+    <text x="795" y="180" font-size="14" fill="#333" text-anchor="middle">continue-train the base LM</text>
+    <rect x="970" y="128" width="310" height="86" rx="8" fill="#c9d8ee" stroke="#2e5496" stroke-width="1.5"/>
+    <text x="1125" y="156" font-size="17" font-weight="bold" fill="#1f3864" text-anchor="middle">CodeS 1B / 3B / 7B / 15B</text>
+    <text x="1125" y="180" font-size="14" fill="#333" text-anchor="middle">released on Hugging Face (Apache-2.0)</text>
+    <text x="1125" y="198" font-size="13" fill="#555" text-anchor="middle">seeklhy/codes-1b … codes-15b</text>
+    <line x1="310" y1="171" x2="348" y2="171" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+    <line x1="620" y1="171" x2="658" y2="171" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+    <line x1="930" y1="171" x2="968" y2="171" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+  </g>
+
+  <!-- STAGE 2 -->
+  <rect x="20" y="248" width="1280" height="250" rx="8" fill="none" stroke="#538135" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="36" y="273" font-size="17" font-weight="bold" fill="#375623">STAGE 2 — Inference-time pipeline (this is what we reproduce): database prompt construction + generation</text>
+  <!-- inputs -->
+  <rect x="40" y="290" width="210" height="80" rx="8" fill="#ffffff" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="145" y="322" font-size="16" font-weight="bold" fill="#1f3864" text-anchor="middle">Natural-language question</text>
+  <text x="145" y="345" font-size="13" fill="#333" text-anchor="middle">e.g. "which students failed</text>
+  <text x="145" y="361" font-size="13" fill="#333" text-anchor="middle">more than two subjects?"</text>
+  <rect x="40" y="388" width="210" height="80" rx="8" fill="#ffffff" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="145" y="420" font-size="16" font-weight="bold" fill="#1f3864" text-anchor="middle">Target database</text>
+  <text x="145" y="443" font-size="13" fill="#333" text-anchor="middle">schema + stored cell values</text>
+  <!-- schema filter + value retriever -->
+  <rect x="290" y="290" width="240" height="80" rx="8" fill="#e2efda" stroke="#538135" stroke-width="1.5"/>
+  <text x="410" y="318" font-size="16" font-weight="bold" fill="#375623" text-anchor="middle">Schema item classifier</text>
+  <text x="410" y="340" font-size="13" fill="#333" text-anchor="middle">"schema filter": ranks &amp; keeps</text>
+  <text x="410" y="357" font-size="13" fill="#333" text-anchor="middle">top-k tables and columns</text>
+  <rect x="290" y="388" width="240" height="80" rx="8" fill="#e2efda" stroke="#538135" stroke-width="1.5"/>
+  <text x="410" y="416" font-size="16" font-weight="bold" fill="#375623" text-anchor="middle">Value retriever</text>
+  <text x="410" y="438" font-size="13" fill="#333" text-anchor="middle">BM25 coarse search +</text>
+  <text x="410" y="455" font-size="13" fill="#333" text-anchor="middle">LCS fine match of cell values</text>
+  <!-- prompt construction -->
+  <rect x="570" y="330" width="250" height="98" rx="8" fill="#e2efda" stroke="#538135" stroke-width="1.5"/>
+  <text x="695" y="358" font-size="16" font-weight="bold" fill="#375623" text-anchor="middle">Database prompt</text>
+  <text x="695" y="380" font-size="13" fill="#333" text-anchor="middle">filtered schema + matched values</text>
+  <text x="695" y="397" font-size="13" fill="#333" text-anchor="middle">+ metadata (types, comments,</text>
+  <text x="695" y="414" font-size="13" fill="#333" text-anchor="middle">PK/FK) + question</text>
+  <!-- generation -->
+  <rect x="860" y="318" width="420" height="122" rx="8" fill="#c9d8ee" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="1070" y="352" font-size="18" font-weight="bold" fill="#1f3864" text-anchor="middle">CodeS generation</text>
+  <text x="1070" y="378" font-size="14" fill="#333" text-anchor="middle">autoregressive decoding (SFT or few-shot ICL)</text>
+  <text x="1070" y="398" font-size="14" fill="#333" text-anchor="middle">beam search → 4 candidates,</text>
+  <text x="1070" y="415" font-size="14" fill="#333" text-anchor="middle">first executable one is selected</text>
+  <!-- arrows stage 2 -->
+  <line x1="250" y1="330" x2="288" y2="330" stroke="#538135" stroke-width="2" marker-end="url(#ag)"/>
+  <line x1="250" y1="428" x2="288" y2="428" stroke="#538135" stroke-width="2" marker-end="url(#ag)"/>
+  <line x1="530" y1="330" x2="600" y2="360" stroke="#538135" stroke-width="2" marker-end="url(#ag)"/>
+  <line x1="530" y1="428" x2="600" y2="400" stroke="#538135" stroke-width="2" marker-end="url(#ag)"/>
+  <line x1="820" y1="379" x2="858" y2="379" stroke="#538135" stroke-width="2" marker-end="url(#ag)"/>
+  <!-- released model into generation -->
+  <path d="M1125,214 L1125,300 L1075,300 L1075,316" fill="none" stroke="#2e5496" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ab)"/>
+
+  <!-- STAGE 3 -->
+  <rect x="20" y="516" width="760" height="150" rx="8" fill="none" stroke="#2e5496" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="36" y="541" font-size="17" font-weight="bold" fill="#1f3864">STAGE 3 — Output and evaluation</text>
+  <rect x="40" y="556" width="210" height="90" rx="8" fill="#dbe5f1" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="145" y="595" font-size="16" font-weight="bold" fill="#1f3864" text-anchor="middle">Generated SQL</text>
+  <text x="145" y="618" font-size="13" fill="#333" text-anchor="middle">predicted query</text>
+  <rect x="285" y="556" width="210" height="90" rx="8" fill="#dbe5f1" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="390" y="588" font-size="16" font-weight="bold" fill="#1f3864" text-anchor="middle">Execute on DB</text>
+  <text x="390" y="611" font-size="13" fill="#333" text-anchor="middle">run against the</text>
+  <text x="390" y="628" font-size="13" fill="#333" text-anchor="middle">target database</text>
+  <rect x="530" y="556" width="230" height="90" rx="8" fill="#dbe5f1" stroke="#2e5496" stroke-width="1.5"/>
+  <text x="645" y="588" font-size="16" font-weight="bold" fill="#1f3864" text-anchor="middle">Metrics</text>
+  <text x="645" y="611" font-size="13" fill="#333" text-anchor="middle">Execution Accuracy (EX)</text>
+  <text x="645" y="628" font-size="13" fill="#333" text-anchor="middle">Test-suite accuracy (TS)</text>
+  <line x1="250" y1="601" x2="283" y2="601" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+  <line x1="495" y1="601" x2="528" y2="601" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+  <!-- generation down to generated SQL -->
+  <path d="M1000,440 L1000,470 L145,470 L145,554" fill="none" stroke="#2e5496" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- STAGE 4 -->
+  <rect x="800" y="516" width="500" height="150" rx="8" fill="none" stroke="#bf9000" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="816" y="541" font-size="17" font-weight="bold" fill="#bf9000">STAGE 4 — Domain adaptation</text>
+  <rect x="820" y="556" width="460" height="90" rx="8" fill="#fff2cc" stroke="#bf9000" stroke-width="1.5"/>
+  <text x="1050" y="590" font-size="16" font-weight="bold" fill="#7f6000" text-anchor="middle">Bi-directional data augmentation</text>
+  <text x="1050" y="613" font-size="13" fill="#333" text-anchor="middle">question→SQL and SQL→question via GPT-3.5;</text>
+  <text x="1050" y="630" font-size="13" fill="#333" text-anchor="middle">adapt to a new database domain with little labelled data</text>
+  <!-- generation to stage4 (adapted model) -->
+  <path d="M1160,440 L1160,554" fill="none" stroke="#bf9000" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ay)"/>
+  <text x="1172" y="500" font-size="12" fill="#bf9000" font-style="italic">adapts model</text>
+
+  <!-- footer -->
+  <text x="30" y="700" font-size="16" font-weight="bold" fill="#1f3864">Reproduction scope for this project: Stage 2 and Stage 3, using the released CodeS-1B checkpoint on the Spider dev set (target EX 77.9%).</text>
+  <text x="30" y="726" font-size="15" fill="#375623">Week-7 ablation: disable the Stage-2 schema item classifier (schema filter) and re-measure EX to verify its contribution.</text>
+  <text x="30" y="752" font-size="14" fill="#666" font-style="italic">Verified against Figure 3 and Sections 5–8 of the paper (arXiv:2402.16347). Metrics are EX and Test-suite accuracy (TS); CodeS does not report Exact-set Match for Spider.</text>
+</svg>
