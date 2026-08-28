@@ -19,7 +19,7 @@ repository, and its status. Update the status column as each item is completed a
 | 2 | Approved paper | CodeS confirmed at Review 1 (arXiv:2402.16347) | ✅ |
 | 2 | Dataset downloaded | `scripts/download_spider.py` → writes `results/dataset_provenance.json` | ✅ run 2026-08-14 (train 7000 / dev 1034; source `xlangai/spider`) |
 | 2 | Weekly report | `docs/weekly-reports/Week 2/Weekly_Report.docx` | 🟡 needs supervisor signature |
-| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` + **`CodeS_Annotated_Paper.pdf`** | ✅ worksheet filled from the CodeS PDF; **annotated PDF** with highlights + margin notes on inputs/outputs, Eq 1–2, hyperparameters, metrics, and the 77.9% target |
+| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` + **`docs/CodeS_Annotated_Paper.pdf`** | ✅ worksheet filled from the CodeS PDF; **annotated PDF** with highlights + margin notes on inputs/outputs, Eq 1–2, hyperparameters, metrics, and the 77.9% target |
 | 3 | Algorithm / architecture flowchart | `docs/weekly-reports/Week 3/CodeS_Architecture_Flowchart.png` (source: `docs/codes_architecture_flowchart.svg`) | ✅ **verified against Figure 3** — corrected metrics to EX/TS, added LCS value-match + prompt metadata |
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
 | 4 | **Working environment + run log (RED-FLAG GATE)** | `notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
