@@ -484,6 +484,13 @@ def run_sql(path, sql):
         return True, sorted([tuple(str(c) for c in r) for r in rows])
     except Exception:
         return False, None
+def post_process(sql, schema_items):
+    sql=sql.replace("\n"," ")
+    for table in schema_items:
+        for cn in table["column_names"]:
+            if detect_special_char(cn) and cn in sql: sql=sql.replace(cn,"`"+cn+"`")
+    while "``" in sql: sql=sql.replace("``","`")
+    return sql
 def clean_sql(t):
     t=t.strip().replace("```sql","").replace("```","").strip()
     return t.split(";")[0].strip()
@@ -526,12 +533,16 @@ for i,ex in enumerate(dev):
     ids=[tok.bos_token_id]+tok(prefix,truncation=True,max_length=4096)["input_ids"]
     input_ids=torch.tensor([ids],device=device); attn=torch.ones_like(input_ids)
     with torch.no_grad():
-        out=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=1,pad_token_id=tok.eos_token_id)
-    pred=clean_sql(tok.decode(out[0][input_ids.shape[1]:],skip_special_tokens=True))
+        out=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=4,pad_token_id=tok.eos_token_id)
+    # Authors' text2sql_zero_shot.py: decode all 4 beams, post-process, keep the FIRST
+    # candidate that passes EXPLAIN QUERY PLAN; fall back to beam 0.
+    cands=[clean_sql(post_process(c,sch["schema_items"])) for c in
+           tok.batch_decode(out[:,input_ids.shape[1]:],skip_special_tokens=True,clean_up_tokenization_spaces=False)]
+    pred=next((c for c in cands if check_sql_executability(c,db_path(db_id)) is None), cands[0] if cands[0].strip() else "SQL placeholder")
     p_ok,p_rows=run_sql(db_path(db_id),pred); g_ok,g_rows=run_sql(db_path(db_id),gold)
     pexec+=p_ok; correct+=(p_ok and g_ok and p_rows==g_rows)
     if (i+1)%50==0 or i+1==len(dev):
         print(f"[{i+1}/{len(dev)}] EX={correct/(i+1):.4f} exec={pexec/(i+1):.2f} {(time.time()-t0)/(i+1):.1f}s/ex", flush=True)
 n=len(dev)
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
-print("COPY THIS BACK:  T2-002 EX=%.4f (%d/%d) executes=%.3f" % (correct/n,correct,n,pexec/n))
+print("COPY THIS BACK:  T2-003 EX=%.4f (%d/%d) executes=%.3f" % (correct/n,correct,n,pexec/n))

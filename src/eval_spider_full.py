@@ -26,7 +26,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src", "vendor"))
-from codes_db_utils import get_db_schema, get_db_schema_sequence, get_matched_content_sequence
+from codes_db_utils import (get_db_schema, get_db_schema_sequence, get_matched_content_sequence,
+                            check_sql_executability, detect_special_char)
 from codes_bridge import get_matched_entries, get_column_picklist
 
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
@@ -53,6 +54,18 @@ def run_sql(path, sql):
 def clean_sql(text):
     text = text.strip().replace("```sql", "").replace("```", "").strip()
     return text.split(";")[0].strip()
+
+
+def post_process(sql, schema_items):
+    """Authors' text2sql_zero_shot.post_process: backtick-quote special column names."""
+    sql = sql.replace("\n", " ")
+    for table in schema_items:
+        for cn in table["column_names"]:
+            if detect_special_char(cn) and cn in sql:
+                sql = sql.replace(cn, "`" + cn + "`")
+    while "``" in sql:
+        sql = sql.replace("``", "`")
+    return sql
 
 
 def matched_contents_for(path, schema, question):
@@ -88,7 +101,9 @@ def main():
     ap.add_argument("--model", default="seeklhy/codes-1b-spider")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--beams", type=int, default=4)
-    ap.add_argument("--run-id", default="T2-002")
+    ap.add_argument("--candidates", type=int, default=4,
+                    help="beams returned; first executable one is kept (authors use 4)")
+    ap.add_argument("--run-id", default="T2-003")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
@@ -124,10 +139,15 @@ def main():
         attn = torch.ones_like(input_ids)
         with torch.no_grad():
             out = model.generate(input_ids=input_ids, attention_mask=attn, max_new_tokens=256,
-                                 num_beams=args.beams, num_return_sequences=1,
+                                 num_beams=args.beams, num_return_sequences=args.candidates,
                                  pad_token_id=tok.eos_token_id)
-        pred = clean_sql(tok.decode(out[0][input_ids.shape[1]:], skip_special_tokens=True))
-
+        # Authors' selection rule: return all beams, keep the first that passes
+        # EXPLAIN QUERY PLAN, else fall back to beam 0 (text2sql_zero_shot.py).
+        cands = [clean_sql(post_process(c, sch["schema_items"])) for c in
+                 tok.batch_decode(out[:, input_ids.shape[1]:], skip_special_tokens=True,
+                                  clean_up_tokenization_spaces=False)]
+        pred = next((c for c in cands if check_sql_executability(c, db_path(db_id)) is None),
+                    cands[0] if cands[0].strip() else "SQL placeholder")
         p_ok, p_rows = run_sql(db_path(db_id), pred)
         g_ok, g_rows = run_sql(db_path(db_id), gold)
         pexec += p_ok
@@ -149,7 +169,7 @@ def main():
            "metric_name": "execution_accuracy_spider_dev", "metric_value": round(ex_acc, 4),
            "runtime_s": runtime, "gpu": device, "torch_version": torch.__version__,
            "transformers_version": transformers.__version__,
-           "notes": (f"beams={args.beams}; FULL CodeS prompt (schema+values+matched contents, "
+           "notes": (f"beams={args.beams}; candidates={args.candidates} (first executable kept); FULL CodeS prompt (schema+values+matched contents, "
                      f"BOS-prepended); EX by result-set match; distinct-scan value retriever "
                      f"(no Lucene). Target 77.9%. executes {pexec/n:.3f}.")}
     new = not os.path.exists(LOG)
