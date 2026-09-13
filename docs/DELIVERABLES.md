@@ -24,15 +24,16 @@ repository, and its status. Update the status column as each item is completed a
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
 | 4 | **Working environment + run log (RED-FLAG GATE)** | `notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
 | 4 | Weekly report | `docs/weekly-reports/Week 4/Weekly_Report.docx` | 🟡 written, needs supervisor signature |
+| 5 | Weekly report | `docs/weekly-reports/Week 5/Weekly_Report.docx` | 🟡 written (date blank), needs supervisor signature |
 
 ## Month 2 — Reproducibility
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` | 🟡 T2-001 (64.8%) + T2-002 (71.7%) logged; 1 more run pending |
-| 6 | Comparison table vs paper (±5–10%) | `src/eval_spider_full.py` → `results/reproduction_log.csv` | ✅ **EX 71.7%** (full CodeS prompt) vs paper 77.9% — **within ±10% tolerance** (~8% rel.); 64.8% with schema-only prompt |
-| 7 | Ablation study — disable schema filter | — | ⬜ |
-| 8 | **Reproducibility Report v1.0 (25%)** | `docs/Code_Reproducibility_Report_v1.docx` | ✅ ~14-page report (incl. Tier-2 result + gap analysis) |
+| 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` + `results/Reproduction_Log.xlsx` | ✅ T2-001 (64.8%), T2-002 (71.7%), T2-003 (73.8%) — 3 full runs logged with seed/hardware/runtime |
+| 6 | Comparison table vs paper (±5–10%) | `results/comparison_vs_paper.md` | ✅ best **EX 73.8%** (T2-003) vs paper 77.9% — −5.3% rel., **within tolerance**; remaining deviations listed with causes |
+| 7 | Ablation study | `results/comparison_vs_paper.md` (ablation section) | 🟡 value retriever (−6.9 pts) and candidate selection (−2.1 pts) measured; representative-values ablation pending |
+| 8 | **Reproducibility Report v1.0 (25%)** | `docs/Code_Reproducibility_Report_v1.docx` | 🟡 v1 written (T2-002); needs T2-003 + comparison table + ablation added |
 
 ## Month 3 — Enhancement
 
@@ -67,8 +68,9 @@ repository, and its status. Update the status column as each item is completed a
 4. **Get Weeks 2 and 3 weekly reports signed.** Three missed reports is an automatic
    rejection; unsigned reports count as not submitted.
 5. ✅ **DONE — Week 4 weekly report written** (`docs/weekly-reports/Week 4/Weekly_Report.docx`); needs the supervisor's physical signature.
-6. **Tier 2 (graded 45%)** — faithful reproduction on a CUDA machine with the authors' pinned
-   environment. Not started; this is the next big block.
+6. ✅ **DONE — Tier 2 reproduction:** 3 runs logged, best 73.8% vs 77.9% (within tolerance).
+7. **Next:** reviewer asked for ≥78% → run SFT CodeS-3B (T2-004, paper 83.4%); port SIC schema
+   filter to test the remaining 1B gap; update the reproducibility report.
 
 ## Standing rules
 
