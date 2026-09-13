@@ -515,6 +515,12 @@ def matched_contents_for(path, schema, question):
 
 MODEL=os.environ.get("QG_MODEL","seeklhy/codes-1b-spider")
 RUN_ID=os.environ.get("QG_RUN_ID","T2-003")
+# Week-7 ablations (comma-separated): no_values  = drop representative column values from schema
+#                                     no_content = drop matched-contents block (value retriever)
+#                                     no_select  = keep beam 0 instead of first executable candidate
+#                                     no_fk      = drop the foreign-keys block
+ABLATE=set(a.strip() for a in os.environ.get("QG_ABLATE","").split(",") if a.strip())
+print("ablations:",sorted(ABLATE) or "none")
 print("model:",MODEL,"| run:",RUN_ID)
 dev=json.load(open(os.path.join(SPIDER,"dev.json")))
 device="cuda" if torch.cuda.is_available() else "cpu"
@@ -524,13 +530,17 @@ model=AutoModelForCausalLM.from_pretrained(MODEL,torch_dtype=torch.float16 if de
 schema_cache={}
 def schema_for(db_id):
     if db_id not in schema_cache:
-        s=get_db_schema(db_path(db_id),{},db_id); schema_cache[db_id]=(s,get_db_schema_sequence(s))
+        s=get_db_schema(db_path(db_id),{},db_id)
+        if "no_values" in ABLATE:
+            for t in s["schema_items"]: t["column_contents"]=[[] for _ in t["column_names"]]
+        if "no_fk" in ABLATE: s["foreign_keys"]=[]
+        schema_cache[db_id]=(s,get_db_schema_sequence(s))
     return schema_cache[db_id]
 correct=pexec=0; t0=time.time()
 for i,ex in enumerate(dev):
     db_id,question,gold=ex["db_id"],ex["question"],ex["query"]
     sch,schema_seq=schema_for(db_id)
-    content_seq=get_matched_content_sequence(matched_contents_for(db_path(db_id),sch,question))
+    content_seq="" if "no_content" in ABLATE else get_matched_content_sequence(matched_contents_for(db_path(db_id),sch,question))
     prefix=schema_seq+"\n"+content_seq+"\n"+question+"\n"
     ids=[tok.bos_token_id]+tok(prefix,truncation=True,max_length=4096)["input_ids"]
     input_ids=torch.tensor([ids],device=device); attn=torch.ones_like(input_ids)
@@ -540,11 +550,13 @@ for i,ex in enumerate(dev):
     # candidate that passes EXPLAIN QUERY PLAN; fall back to beam 0.
     cands=[clean_sql(post_process(c,sch["schema_items"])) for c in
            tok.batch_decode(out[:,input_ids.shape[1]:],skip_special_tokens=True,clean_up_tokenization_spaces=False)]
-    pred=next((c for c in cands if check_sql_executability(c,db_path(db_id)) is None), cands[0] if cands[0].strip() else "SQL placeholder")
+    if "no_select" in ABLATE: pred=cands[0]
+    else: pred=next((c for c in cands if check_sql_executability(c,db_path(db_id)) is None), cands[0] if cands[0].strip() else "SQL placeholder")
     p_ok,p_rows=run_sql(db_path(db_id),pred); g_ok,g_rows=run_sql(db_path(db_id),gold)
     pexec+=p_ok; correct+=(p_ok and g_ok and p_rows==g_rows)
     if (i+1)%50==0 or i+1==len(dev):
         print(f"[{i+1}/{len(dev)}] EX={correct/(i+1):.4f} exec={pexec/(i+1):.2f} {(time.time()-t0)/(i+1):.1f}s/ex", flush=True)
 n=len(dev)
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
-print("COPY THIS BACK:  %s %s EX=%.4f (%d/%d) executes=%.3f" % (RUN_ID,MODEL,correct/n,correct,n,pexec/n))
+import transformers
+print("COPY THIS BACK:  %s %s ablate=%s EX=%.4f (%d/%d) executes=%.3f torch=%s transformers=%s" % (RUN_ID,MODEL,"+".join(sorted(ABLATE)) or "none",correct/n,correct,n,pexec/n,torch.__version__,transformers.__version__))
