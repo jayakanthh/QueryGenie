@@ -513,7 +513,9 @@ def matched_contents_for(path, schema, question):
                 if len(fine[tc])<25 and fv not in fine[tc]: fine[tc].append(fv)
     return fine
 
-MODEL="seeklhy/codes-1b-spider"
+MODEL=os.environ.get("QG_MODEL","seeklhy/codes-1b-spider")
+RUN_ID=os.environ.get("QG_RUN_ID","T2-003")
+print("model:",MODEL,"| run:",RUN_ID)
 dev=json.load(open(os.path.join(SPIDER,"dev.json")))
 device="cuda" if torch.cuda.is_available() else "cpu"
 print("device:",device,"| examples:",len(dev))
@@ -545,4 +547,4 @@ for i,ex in enumerate(dev):
         print(f"[{i+1}/{len(dev)}] EX={correct/(i+1):.4f} exec={pexec/(i+1):.2f} {(time.time()-t0)/(i+1):.1f}s/ex", flush=True)
 n=len(dev)
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
-print("COPY THIS BACK:  T2-003 EX=%.4f (%d/%d) executes=%.3f" % (correct/n,correct,n,pexec/n))
+print("COPY THIS BACK:  %s %s EX=%.4f (%d/%d) executes=%.3f" % (RUN_ID,MODEL,correct/n,correct,n,pexec/n))
