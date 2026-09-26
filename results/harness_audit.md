@@ -60,3 +60,17 @@ The earlier runs stay in the log: they are real measurements of the harness as i
 **not** directly comparable with the paper, because of discrepancies 1 and 3. The ablation deltas
 in `week7_ablation_study.md` remain valid as *relative* comparisons, since every run shared the same
 harness and metric, but should be re-measured with harness v2 before going in the final report.
+
+## Result with harness v2 — run T2-005 (2026-09-26, Colab Tesla T4, 2865 s)
+
+| Metric | Value | Paper (Table 5, SFT CodeS-1B) |
+|---|---|---|
+| **Official Spider EX** (`evaluation.py --etype exec`) | **77.80%** | 77.9% |
+| Simple sorted-rows EX (old metric) | 73.40% (759/1034) | — |
+| Executable predictions | 97.3% | — |
+
+**The reproduction matches the paper to within 0.1 points** when scored with the paper's own
+evaluator. Most of the apparent 4-point gap in earlier runs was the scoring metric, not the model:
+on the same predictions the two metrics differ by 4.4 points. The simple metric moved slightly
+(73.79 → 73.40) because the retriever fix changes 12.4% of prompts; that net −4 example change
+on our metric is within what prompt changes of this size produce and is reported as measured.
