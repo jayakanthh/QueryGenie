@@ -501,7 +501,18 @@ def matched_contents_for(path, schema, question):
         for cname in table["column_names"]:
             try: picklist=get_column_picklist(tname,cname,path)
             except Exception: continue
-            picklist=sorted([e.strip() for e in picklist if isinstance(e,str) and e.strip()])
+            # Authors' build_contents_index.py indexes str(value) for EVERY column (numbers
+            # included) and drops empty / >25-char values. The old harness kept only str
+            # values, so numbers in questions ("older than 20") were never matched.
+            vals=[]
+            for v in picklist:
+                if v is None: continue
+                if isinstance(v,bytes):
+                    try: v=v.decode("utf-8")
+                    except UnicodeDecodeError: v=v.decode("latin-1")
+                v=str(v).strip()
+                if 0<len(v)<=25 and v not in vals: vals.append(v)
+            picklist=sorted(vals)
             if not picklist: continue
             fm=get_matched_entries(question,picklist)
             if not fm: continue
@@ -527,22 +538,32 @@ device="cuda" if torch.cuda.is_available() else "cpu"
 print("device:",device,"| examples:",len(dev))
 tok=AutoTokenizer.from_pretrained(MODEL)
 model=AutoModelForCausalLM.from_pretrained(MODEL,torch_dtype=torch.float16 if device=="cuda" else torch.float32).to(device).eval()
+def _rsc(names,comments):  # prepare_sft_datasets.remove_similar_comments
+    return ["" if n.replace("_","").replace(" ","")==c.replace("_","").replace(" ","") else c for n,c in zip(names,comments)]
+DB_COMMENTS={}
+for d in json.load(open(os.path.join(SPIDER,"tables.json"))):
+    cn=[c.lower() for _,c in d["column_names_original"]]; ti=[t for t,_ in d["column_names_original"]]
+    cc=_rsc(cn,[c.lower() for _,c in d["column_names"]])
+    tn=[t.lower() for t in d["table_names_original"]]; tc=_rsc(tn,[t.lower() for t in d["table_names"]])
+    DB_COMMENTS[d["db_id"]]={t:{"table_comment":tcm,"column_comments":{c:m for tix,c,m in zip(ti,cn,cc) if tix==k}}
+                             for k,(t,tcm) in enumerate(zip(tn,tc))}
 schema_cache={}
 def schema_for(db_id):
     if db_id not in schema_cache:
-        s=get_db_schema(db_path(db_id),{},db_id)
+        s=get_db_schema(db_path(db_id),DB_COMMENTS,db_id)
         if "no_values" in ABLATE:
             for t in s["schema_items"]: t["column_contents"]=[[] for _ in t["column_names"]]
         if "no_fk" in ABLATE: s["foreign_keys"]=[]
         schema_cache[db_id]=(s,get_db_schema_sequence(s))
     return schema_cache[db_id]
-correct=pexec=0; t0=time.time()
+correct=pexec=0; t0=time.time(); PREDS=[]
 for i,ex in enumerate(dev):
-    db_id,question,gold=ex["db_id"],ex["question"],ex["query"]
+    db_id,question,gold=ex["db_id"],ex["question"].replace("\n"," "),ex["query"]
     sch,schema_seq=schema_for(db_id)
     content_seq="" if "no_content" in ABLATE else get_matched_content_sequence(matched_contents_for(db_path(db_id),sch,question))
     prefix=schema_seq+"\n"+content_seq+"\n"+question+"\n"
-    ids=[tok.bos_token_id]+tok(prefix,truncation=True,max_length=4096)["input_ids"]
+    ids=[tok.bos_token_id]+tok(prefix,truncation=False)["input_ids"]
+    if len(ids)>4096-256: ids=[tok.bos_token_id]+ids[-(4096-256-1):]   # load_sft_dataset.prepare_inputs
     input_ids=torch.tensor([ids],device=device); attn=torch.ones_like(input_ids)
     with torch.no_grad():
         out=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=4,pad_token_id=tok.eos_token_id)
@@ -552,11 +573,27 @@ for i,ex in enumerate(dev):
            tok.batch_decode(out[:,input_ids.shape[1]:],skip_special_tokens=True,clean_up_tokenization_spaces=False)]
     if "no_select" in ABLATE: pred=cands[0]
     else: pred=next((c for c in cands if check_sql_executability(c,db_path(db_id)) is None), cands[0] if cands[0].strip() else "SQL placeholder")
+    PREDS.append(pred.replace("\n"," ").replace("\t"," "))
     p_ok,p_rows=run_sql(db_path(db_id),pred); g_ok,g_rows=run_sql(db_path(db_id),gold)
     pexec+=p_ok; correct+=(p_ok and g_ok and p_rows==g_rows)
     if (i+1)%50==0 or i+1==len(dev):
         print(f"[{i+1}/{len(dev)}] EX={correct/(i+1):.4f} exec={pexec/(i+1):.2f} {(time.time()-t0)/(i+1):.1f}s/ex", flush=True)
 n=len(dev)
+PRED_FILE=f"/content/preds_{RUN_ID}.txt"
+open(PRED_FILE,"w").write("\n".join(PREDS)+"\n")
+# Official Spider evaluator (what the authors run: test_suite_sql_eval/evaluation.py --etype exec).
+# Order-sensitive when gold has ORDER BY, column-permutation tolerant, DISTINCT-insensitive.
+if not os.path.exists("/content/test-suite-sql-eval"):
+    subprocess.run(["git","clone","-q","--depth","1","https://github.com/taoyds/test-suite-sql-eval.git","/content/test-suite-sql-eval"])
+subprocess.run([sys.executable,"-m","pip","install","-q","sqlparse","nltk"])
+import nltk; nltk.download("punkt_tab",quiet=True); nltk.download("punkt",quiet=True)
+r=subprocess.run([sys.executable,"evaluation.py","--gold",os.path.join(SPIDER,"dev_gold.sql"),"--pred",PRED_FILE,
+                  "--db",DBDIR,"--table",os.path.join(SPIDER,"tables.json"),"--etype","exec"],
+                 cwd="/content/test-suite-sql-eval",capture_output=True,text=True)
+off=[l for l in r.stdout.splitlines() if l.strip().startswith("execution")]
+OFFICIAL=float(off[-1].split()[-1]) if off else float("nan")
+print("\n".join(l for l in r.stdout.splitlines() if l.strip().startswith(("count","execution"))) or r.stderr[-2000:])
+print(f"predictions saved to {PRED_FILE} (download it: Files panel, left sidebar)")
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
 import transformers
-print("COPY THIS BACK:  %s %s ablate=%s EX=%.4f (%d/%d) executes=%.3f torch=%s transformers=%s" % (RUN_ID,MODEL,"+".join(sorted(ABLATE)) or "none",correct/n,correct,n,pexec/n,torch.__version__,transformers.__version__))
+print("COPY THIS BACK:  %s %s ablate=%s harness=v2 OFFICIAL_EX=%.4f simpleEX=%.4f (%d/%d) executes=%.3f torch=%s transformers=%s" % (RUN_ID,MODEL,"+".join(sorted(ABLATE)) or "none",OFFICIAL,correct/n,correct,n,pexec/n,torch.__version__,transformers.__version__))

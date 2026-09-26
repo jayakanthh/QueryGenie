@@ -78,7 +78,20 @@ def matched_contents_for(path, schema, question):
                 picklist = get_column_picklist(tname, cname, path)
             except Exception:
                 continue
-            picklist = sorted([e.strip() for e in picklist if isinstance(e, str) and e.strip()])
+            # Authors' index = str(value) for every column, numbers included, 0 < len <= 25.
+            vals = []
+            for v in picklist:
+                if v is None:
+                    continue
+                if isinstance(v, bytes):
+                    try:
+                        v = v.decode("utf-8")
+                    except UnicodeDecodeError:
+                        v = v.decode("latin-1")
+                v = str(v).strip()
+                if 0 < len(v) <= 25 and v not in vals:
+                    vals.append(v)
+            picklist = sorted(vals)
             if not picklist:
                 continue
             fm = get_matched_entries(question, picklist)
@@ -94,6 +107,24 @@ def matched_contents_for(path, schema, question):
                 if len(fine[tc]) < 25 and fv not in fine[tc]:
                     fine[tc].append(fv)
     return fine
+
+
+def load_db_comments():
+    """Column/table comments from tables.json, as prepare_sft_datasets.py builds them."""
+    def rsc(names, comments):
+        return ["" if n.replace("_", "").replace(" ", "") == c.replace("_", "").replace(" ", "") else c
+                for n, c in zip(names, comments)]
+    out = {}
+    for d in json.load(open(os.path.join(SPIDER, "tables.json"))):
+        cn = [c.lower() for _, c in d["column_names_original"]]
+        ti = [t for t, _ in d["column_names_original"]]
+        cc = rsc(cn, [c.lower() for _, c in d["column_names"]])
+        tn = [t.lower() for t in d["table_names_original"]]
+        tc = rsc(tn, [t.lower() for t in d["table_names"]])
+        out[d["db_id"]] = {t: {"table_comment": tcm,
+                               "column_comments": {c: m for tix, c, m in zip(ti, cn, cc) if tix == k}}
+                           for k, (t, tcm) in enumerate(zip(tn, tc))}
+    return out
 
 
 def main():
@@ -118,23 +149,26 @@ def main():
     tok = AutoTokenizer.from_pretrained(args.model)
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype).to(device).eval()
 
+    db_comments = load_db_comments()
     schema_cache = {}
     def schema_for(db_id):
         if db_id not in schema_cache:
-            sch = get_db_schema(db_path(db_id), {}, db_id)
+            sch = get_db_schema(db_path(db_id), db_comments, db_id)
             schema_cache[db_id] = (sch, get_db_schema_sequence(sch))
         return schema_cache[db_id]
 
     correct = pexec = 0
     t0 = time.time()
     for i, ex in enumerate(dev):
-        db_id, question, gold = ex["db_id"], ex["question"], ex["query"]
+        db_id, question, gold = ex["db_id"], ex["question"].replace("\n", " "), ex["query"]
         sch, schema_seq = schema_for(db_id)
         matched = matched_contents_for(db_path(db_id), sch, question)
         content_seq = get_matched_content_sequence(matched)
         prefix = schema_seq + "\n" + content_seq + "\n" + question + "\n"
 
-        ids = [tok.bos_token_id] + tok(prefix, truncation=True, max_length=4096)["input_ids"]
+        ids = [tok.bos_token_id] + tok(prefix, truncation=False)["input_ids"]
+        if len(ids) > 4096 - 256:  # authors keep the END of the prompt (the question)
+            ids = [tok.bos_token_id] + ids[-(4096 - 256 - 1):]
         input_ids = torch.tensor([ids], device=device)
         attn = torch.ones_like(input_ids)
         with torch.no_grad():
