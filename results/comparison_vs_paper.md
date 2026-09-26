@@ -2,6 +2,9 @@
 
 Anchor paper: CodeS (SIGMOD 2024, arXiv:2402.16347), Table 5 (page 11).
 Metric: Execution Accuracy (EX) on the Spider development set (1,034 examples).
+**Update 2026-09-26:** a harness audit (`harness_audit.md`) found that runs T2-001–T2-003 used a
+simpler EX metric than the paper's official evaluator, and a value-retriever bug. T2-005 fixes both
+and is the headline comparison.
 Tolerance (department SOP): ±5–10% of the reported value. All values below are
 measured; nothing is estimated. Raw rows: `reproduction_log.csv` / `Reproduction_Log.xlsx`.
 
@@ -11,7 +14,11 @@ measured; nothing is estimated. Raw rows: `reproduction_log.csv` / `Reproduction
 |---|---|---|---|---|---|---|
 | T2-001 | schema + foreign keys only; beam 0 of 4 | Apple M4, MPS bf16 | 64.8% (670/1034) | −13.1 | −16.8% | **No** — cause: value retriever absent |
 | T2-002 | full CodeS prompt; beam 0 of 4 | Colab T4, fp16 | 71.7% (741/1034) | −6.2 | −8.0% | Yes |
-| T2-003 | full CodeS prompt + authors' selection rule (first of 4 beams that passes `EXPLAIN QUERY PLAN`) | Colab T4, fp16 | **73.8% (763/1034)** | −4.1 | −5.3% | **Yes** |
+| T2-003 | full CodeS prompt + authors' selection rule (first of 4 beams that passes `EXPLAIN QUERY PLAN`) | Colab T4, fp16 | 73.8% (763/1034) | −4.1 | −5.3% | Yes |
+| **T2-005** | **harness v2** (retriever fix, tables.json comments) — **scored with the official Spider evaluator** | Colab T4, fp16 | **77.8% official** (73.4% simple) | **−0.1** | **−0.1%** | **Yes** |
+
+T2-001–T2-003 are scored with a simple sorted-rows metric (not the paper's); only T2-005 is on the
+paper's scale. On T2-005's predictions the two metrics differ by 4.4 points.
 
 Executable-prediction rate: 93.5% (T2-002) → 97.3% (T2-003).
 
@@ -22,7 +29,7 @@ Executable-prediction rate: 93.5% (T2-002) → 97.3% (T2-003).
 | SFT CodeS-3B | 83.4% | TBD | planned run T2-004 (same harness, Colab T4) |
 | SFT CodeS-7B / 15B | 85.4% / 84.9% | — | do not fit a free Colab GPU in fp16 |
 
-## Remaining deviations from the authors' setup (stated causes for the −4.1 pt gap)
+## Remaining deviations from the authors' setup (the gap is now −0.1 pts; kept for the record)
 
 | # | Authors | Ours | Expected effect |
 |---|---|---|---|

@@ -30,9 +30,9 @@ repository, and its status. Update the status column as each item is completed a
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` + `results/Reproduction_Log.xlsx` | ✅ T2-001 (64.8%), T2-002 (71.7%), T2-003 (73.8%) — 3 full runs logged with seed/hardware/runtime |
-| 6 | Comparison table vs paper (±5–10%) | `results/comparison_vs_paper.md` | ✅ best **EX 73.8%** (T2-003) vs paper 77.9% — −5.3% rel., **within tolerance**; remaining deviations listed with causes |
-| 7 | Ablation study | `results/comparison_vs_paper.md` (ablation section) | 🟡 value retriever (−6.9 pts) and candidate selection (−2.1 pts) measured; representative-values ablation pending |
+| 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` + `results/Reproduction_Log.xlsx` | ✅ T2-001, T2-002, T2-003 (+ repeat), T2-005 — full runs logged with seed/hardware/runtime/versions |
+| 6 | Comparison table vs paper (±5–10%) | `results/comparison_vs_paper.md` | ✅ **Official EX 77.8%** (T2-005, harness v2, paper's evaluator) vs paper 77.9% — **−0.1 pts**; earlier runs used a simpler metric (see `harness_audit.md`) |
+| 7 | Ablation study | `results/week7_ablation_study.md` | ✅ 4 single-component ablations measured (−1.5 to −2.7 pts, simple metric); re-measure on harness v2 for the final report |
 | 8 | **Reproducibility Report v1.0 (25%)** | `docs/Code_Reproducibility_Report_v1.docx` | 🟡 v1 written (T2-002); needs T2-003 + comparison table + ablation added |
 
 ## Month 3 — Enhancement
