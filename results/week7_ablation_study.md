@@ -3,6 +3,12 @@
 **Deliverable:** SOP Week 7 — disable a component of the reproduced pipeline, re-measure, and show
 the contribution of each part.
 
+> **Note (2026-09-26):** these runs used harness v1 and the simple sorted-rows metric, not the
+> paper's official evaluator (see `harness_audit.md`). The deltas are valid *relative* comparisons
+> because every run shares the same harness and metric. A re-measurement on harness v2 with the
+> official metric (AB-103 to AB-106, baseline T2-005 = 77.8%) is in progress and will replace
+> this table in the final report.
+
 **Setup.** Model `seeklhy/codes-1b-spider` (SFT CodeS-1B), Spider development set, all 1034
 examples per run. Metric: Execution Accuracy (EX) by sorted result-set match against the gold
 query. Hardware: Tesla T4 (Google Colab), torch 2.11.0+cu128, transformers 5.16.1, seed 42.
