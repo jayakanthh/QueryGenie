@@ -47,6 +47,13 @@ MLX_MODELS = {
 GGUF_MODELS = {
     "CodeS-7B-Spider · SFT (GGUF Q2_K)": os.path.join(_REPO_ROOT, "gguf_models", "codes-7b-spider-Q2_K.gguf"),
 }
+# The pipeline evaluated in the reproduction (harness v2): Spider-fine-tuned CodeS, full
+# CodeS database prompt, 4 beams, execution-agreement confidence and abstention. Only
+# these backends report confidence; the abstention threshold was calibrated on 1B.
+SFT_PIPELINE_MODELS = {
+    "CodeS-1B-Spider · evaluated pipeline + confidence": "seeklhy/codes-1b-spider",
+    "CodeS-3B-Spider · evaluated pipeline + confidence (threshold from 1B)": "seeklhy/codes-3b-spider",
+}
 DEFAULT_MODEL = "CodeS-1B"
 _DEFAULT_MAX_NEW_TOKENS = 200
 
@@ -54,19 +61,16 @@ _DEFAULT_MAX_NEW_TOKENS = 200
 def available_models() -> list[str]:
     """Labels to show in the UI: MLX models present on disk (fine-tuned '-spider'
     first), then any GGUF models present, then the two safe transformers sizes."""
-    labels = [lbl for lbl in MLX_MODELS if os.path.isdir(MLX_MODELS[lbl])]
+    labels = list(SFT_PIPELINE_MODELS)
+    labels += [lbl for lbl in MLX_MODELS if os.path.isdir(MLX_MODELS[lbl])]
     labels += [lbl for lbl in GGUF_MODELS if os.path.exists(GGUF_MODELS[lbl])]
     labels += ["CodeS-1B", "CodeS-3B"]
     return labels
 
 
 def default_model() -> str:
-    """Prefer the fine-tuned SFT MLX model if built (best on a Mac), then base MLX-3B,
-    else the transformers 1B (always available)."""
-    for lbl in ("CodeS-3B-Spider · SFT (MLX 4-bit)", "CodeS-3B base (MLX 4-bit)"):
-        if os.path.isdir(MLX_MODELS[lbl]):
-            return lbl
-    return DEFAULT_MODEL
+    """The evaluated pipeline (the one whose accuracy and abstention were measured)."""
+    return next(iter(SFT_PIPELINE_MODELS))
 
 
 def _pick_device():
@@ -139,6 +143,53 @@ class CodesBackend:
         text = self._tok.decode(out[0][inputs["input_ids"].shape[1]:],
                                 skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return _clean_sql(text)
+
+
+class CodesSFTBackend:
+    """The evaluated pipeline: SFT CodeS + full CodeS prompt + 4 scored beam candidates.
+    Unlike the other backends it returns a Decision (candidates, selection, confidence,
+    abstain flag) — see codes_prompt.py."""
+
+    has_confidence = True
+
+    def __init__(self, model_id: str, label: str = ""):
+        self.model_id = model_id
+        self.label = label or model_id
+        self._tok = None
+        self._model = None
+        self.device = None
+        self._schema_cache = {}
+
+    def load(self):
+        if self._model is not None:
+            return
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        self.device = _pick_device()
+        self._tok = AutoTokenizer.from_pretrained(self.model_id)
+        self._model = AutoModelForCausalLM.from_pretrained(self.model_id, dtype=_dtype_for(self.device))
+        self._model.to(self.device)
+        self._model.eval()
+
+    unload = CodesBackend.unload
+
+    def decide(self, db_path: str, question: str, max_new_tokens: int = 256):
+        import torch
+        from codes_prompt import build_prefix, decide, encode
+
+        self.load()
+        key = (db_path, os.path.getmtime(db_path))
+        schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key))
+        self._schema_cache[key] = schema
+        ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
+        with torch.no_grad():
+            gen = self._model.generate(input_ids=ids, attention_mask=torch.ones_like(ids),
+                                       max_new_tokens=max_new_tokens, num_beams=4,
+                                       num_return_sequences=4, pad_token_id=self._tok.eos_token_id,
+                                       return_dict_in_generate=True, output_scores=True)
+        texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
+                                       clean_up_tokenization_spaces=False)
+        return decide(db_path, schema, texts, [float(x) for x in gen.sequences_scores])
 
 
 class MLXBackend:
@@ -224,6 +275,8 @@ class MockBackend:
 
 
 def _make_backend(label: str):
+    if label in SFT_PIPELINE_MODELS:
+        return CodesSFTBackend(SFT_PIPELINE_MODELS[label], label=label)
     if label in MLX_MODELS:
         return MLXBackend(MLX_MODELS[label], label=label)
     if label in GGUF_MODELS:

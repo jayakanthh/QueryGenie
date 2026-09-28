@@ -87,3 +87,22 @@ with its coverage; it is not a replacement for the 77.8% reproduction figure.
 - Clarifying-question generation and the abstention UI in the application (Week 11 code, app side).
 - Week 12: comparative results table in the final report format; optional combined signal.
 - Week 13 (SOP): 5–10 trials — satisfied by the 10 splits plus the bootstrap; re-state in the report.
+
+## Application integration (2026-09-28)
+
+`src/app.py` now runs the evaluated pipeline (`src/codes_prompt.py`, shared with the evaluation:
+same prompt, same 4-beam candidates, same selection rule, same result hash for agreement). For each
+question it shows a confidence badge (how many of the 4 candidates return the answer), the SQL behind
+the table, and — when the candidates disagree — the alternative interpretations to choose from.
+A strictness setting offers the measured operating points (`results/abstention_operating_points.json`,
+Spider dev, CodeS-1B): answer everything 100% / 77.8%, balanced (the tested rule) 90.4% / 83.3%,
+3-of-4 agree 62.8% / 86.1%, all 4 agree 39.9% / 88.3%. In the strict settings the app withholds the
+table and asks "Did you mean…" instead.
+
+Qualitative check on the bundled academic database (5 questions each; illustrative, not a metric):
+- CodeS-1B pipeline: on the flagship question ("students who failed more than two subjects") the
+  selected answer is wrong (it returns students who failed any subject and took more than two); the
+  candidates split 2–2, the badge shows *low* confidence and the correct reading (Meera) is offered as
+  an alternative; the strict setting abstains.
+- CodeS-3B pipeline: answers the flagship question correctly (still 2 of 4, low confidence); on
+  "Average marks per department" no candidate that runs is selected, and it abstains.

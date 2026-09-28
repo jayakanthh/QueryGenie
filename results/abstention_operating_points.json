@@ -1,0 +1,31 @@
+{
+  "source": "results/dump_T2-006.jsonl (SFT CodeS-1B, Spider dev 1034, official evaluator)",
+  "tau": 0.2526,
+  "operating_points": {
+    "answer_all": {
+      "coverage": 1.0,
+      "accuracy": 0.7776,
+      "answered": 1034
+    },
+    "calibrated_90": {
+      "coverage": 0.9043,
+      "accuracy": 0.8332,
+      "answered": 935
+    },
+    "min_2_of_4": {
+      "coverage": 0.8453,
+      "accuracy": 0.8341,
+      "answered": 874
+    },
+    "min_3_of_4": {
+      "coverage": 0.6277,
+      "accuracy": 0.8613,
+      "answered": 649
+    },
+    "all_4": {
+      "coverage": 0.3985,
+      "accuracy": 0.8835,
+      "answered": 412
+    }
+  }
+}
