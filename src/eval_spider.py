@@ -1,4 +1,7 @@
 """
+LEGACY — superseded by scripts/colab_eval_tier2.py (kept because it produced logged run
+T2-001; see results/harness_audit.md). Do not use for new results.
+
 Tier-2 reproduction: Execution Accuracy of CodeS on the Spider development set.
 
 This is an inference-only reproduction (no training), so it does not need the

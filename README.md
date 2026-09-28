@@ -1,151 +1,162 @@
 # QueryGenie
 
-**A Self-Correcting Natural Language to SQL Interface**
+**A self-correcting natural-language-to-SQL interface that tells you when it isn't sure.**
 
-Final Year Project — Phase I
-Department of Computer Science & Information Technology
-Domain: Artificial Intelligence and Machine Learning — Computation and Language (with Databases crossover)
+Ask a database a question in plain English — *“Which students failed more than two subjects?”* —
+and QueryGenie writes the SQL, runs it, and shows the result as a table and a chart. It runs
+locally on open weights ([CodeS](https://arxiv.org/abs/2402.16347)), so no schema or data leaves the
+machine. Unlike most text-to-SQL systems, it measures its own confidence: when its candidate
+queries disagree, it asks *“Did you mean…?”* instead of returning a confident wrong answer.
 
----
+Engineering Capstone Project (Phase I), Department of Computer Science & Information Technology,
+Koneru Lakshmaiah Education Foundation (KL University). Team 21 — supervisor M Parameswar.
 
-## Overview
+![Pipeline](docs/final_pipeline.png)
 
-QueryGenie lets a non-technical user ask a question in plain English (e.g. *"which students failed more than two subjects?"*), automatically generates the corresponding SQL query, validates and self-corrects it if execution fails, and returns the results as a table together with an automatically selected chart.
+## Results
+
+All numbers are on the Spider development set (1,034 questions), scored with the official Spider
+evaluator, using the released fine-tuned CodeS-1B checkpoint.
+
+| | Questions answered | Execution accuracy on answered |
+|---|---|---|
+| CodeS-1B, as reported in the paper | 100% | 77.9% |
+| **CodeS-1B, reproduced here** | 100% | **77.8%** |
+| **+ confidence-aware abstention** (tested setting) | 90.4% | **83.3%** |
+
+- **Reproduction:** within 0.1 points of the paper. Getting there required an audit of our own
+  evaluation harness, which found a scoring mismatch and a value-retriever bug
+  ([`results/harness_audit.md`](results/harness_audit.md)).
+- **Enhancement:** wrong answers fall from 230 to 156 (−32%). The gain is significant under a paired
+  t-test (p = 7.7 × 10⁻¹⁰), a Wilcoxon signed-rank test (p = 9.8 × 10⁻⁴) and a question-level
+  bootstrap (95% CI +4.5 to +6.7 points)
+  ([`results/week12_comparative_results.md`](results/week12_comparative_results.md)).
+- **Ablation:** every part of the CodeS prompt contributes 0.9–1.9 points; the value retriever
+  matters most ([`results/week7_ablation_study.md`](results/week7_ablation_study.md)).
+- **Not yet measured:** Test-suite accuracy (the paper reports 72.2%) — TBD.
+
+## Run the app
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python src/app.py            # then open http://127.0.0.1:7860
+```
+
+The first question downloads `seeklhy/codes-1b-spider` (about 4.5 GB) and takes a little longer;
+after that each question takes a few seconds on an Apple M-series Mac or a GPU. A bundled academic
+database is created on first start. Stop the app with `Ctrl+C`.
+
+In the app:
+
+- **Model** — *evaluated pipeline + confidence* runs exactly the setup measured above (1B or 3B).
+  The optional MLX and GGUF models (below) are faster but report no confidence.
+- **When should it abstain?** — four settings, each showing its measured coverage and accuracy:
+  answer everything (100% / 77.8%), balanced (90% / 83.3%), strict (63% / 86.1%), very strict
+  (40% / 88.3%).
+- Every answer shows a confidence badge (how many of the 4 candidate queries agree) and the SQL
+  behind the table. When the candidates disagree, the alternative interpretations are listed.
+
+UI development without downloading a model: `QUERYGENIE_BACKEND=mock python src/app.py`.
+
+### Optional: faster local models on Apple Silicon
+
+```bash
+pip install -r requirements-apple.txt           # see the file for the llama.cpp build flag
+python scripts/convert_mlx.py 3b --variant spider   # CodeS-3B-Spider, 4-bit MLX
+huggingface-cli download tensorblock/seeklhy_codes-7b-spider-GGUF \
+    codes-7b-spider-Q2_K.gguf --local-dir gguf_models   # CodeS-7B-Spider, 2-bit GGUF
+```
+
+## Reproduce the results
+
+**1. Reproduction and the candidate record (GPU, about 1 hour).** Open
+[`notebooks/02_tier2_colab_eval.ipynb`](notebooks/02_tier2_colab_eval.ipynb) in Google Colab with a
+T4 GPU runtime and run the Week-10 cell. It runs
+[`scripts/colab_eval_tier2.py`](scripts/colab_eval_tier2.py), which downloads Spider and the model
+from Hugging Face, evaluates all 1,034 questions with the official evaluator, and saves
+`preds_<run>.txt` and `dump_<run>.jsonl` (all 4 candidates per question). Ablations are set with
+`QG_ABLATE` (`no_values`, `no_content`, `no_fk`, `no_select`); another model with `QG_MODEL`.
+
+**2. Enhancement analysis (CPU, seconds).**
+
+```bash
+python src/abstention.py results/dump_T2-006.jsonl
+```
+
+This reproduces the significance tests, the operating points and the accuracy–coverage figure
+from the committed candidate record.
+
+**3. Tests (no model needed).** `python -m pytest tests/ -q`
+
+**4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
+(`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.
+
+Every run — including superseded ones — is logged with seed, hardware, runtime and library versions
+in [`results/reproduction_log.csv`](results/reproduction_log.csv) and
+`results/Reproduction_Log.xlsx`.
+
+### Deviations from the authors' setup
+
+Inference-only reproduction with the released checkpoint (the authors' pre-training used 8 × A800
+GPUs). Newer PyTorch / transformers than the pinned versions; a scan of all column values instead of
+the authors' Lucene BM25 index before their (unchanged) value matcher; no schema item classifier;
+Tesla T4 with the same fp16 precision and batch size as the authors' inference. Details and their
+effects: final report, Section 6.
+
+## Repository layout
+
+```
+src/
+  app.py              Gradio web app (confidence badge, "Did you mean…?", strictness modes)
+  codes_prompt.py     The evaluated CodeS pipeline: prompt, candidates, selection, agreement
+  engine.py           Answer/abstain logic and the simple generate→execute→self-correct loop
+  model.py            Model backends: evaluated pipeline, transformers, MLX, GGUF, mock
+  abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
+  database.py, charts.py, build_sample_db.py   schema helpers, auto chart, sample database
+  eval_spider_full.py local (simple-metric) variant of the evaluation
+  eval_spider.py      legacy harness that produced run T2-001
+  vendor/             authors' CodeS utilities, unmodified (Apache-2.0)
+scripts/              Colab evaluation harness, dataset download, MLX conversion, Week-4 smoke test
+notebooks/            Week-4 gate notebook; Colab notebook for all Tier-2 runs
+results/              run log, audit, ablation, abstention results, figures, candidate record
+tests/                model-free tests of selection, agreement and abstention
+docs/                 reports (final report, reproducibility report, proposal), weekly reports,
+                      department SOP and templates, diagrams
+```
+
+## Documents
+
+| Document | File |
+|---|---|
+| Final report (draft) | [`docs/Final_Report_Draft.docx`](docs/Final_Report_Draft.docx) |
+| Code reproducibility report v2 | [`docs/Code_Reproducibility_Report_v2.docx`](docs/Code_Reproducibility_Report_v2.docx) |
+| Enhancement proposal (Week 9) | [`docs/Enhancement_Proposal_Week9.docx`](docs/Enhancement_Proposal_Week9.docx) |
+| Comparative results (Week 12) | [`docs/Week12_Comparative_Results.docx`](docs/Week12_Comparative_Results.docx) |
+| Annotated CodeS paper (Week 3) | [`docs/CodeS_Annotated_Paper.pdf`](docs/CodeS_Annotated_Paper.pdf) |
+| Deliverables tracker | [`docs/DELIVERABLES.md`](docs/DELIVERABLES.md) |
+| Weekly status reports | [`docs/weekly-reports/`](docs/weekly-reports/) |
 
 ## Papers
 
-| Role | Paper | Venue | Link |
-|---|---|---|---|
-| **Anchor** (reproduced) | CodeS: Towards Building Open-source Language Models for Text-to-SQL | SIGMOD 2024 | https://arxiv.org/abs/2402.16347 |
-| Backup anchor | RESDSQL: Decoupling Schema Linking and Skeleton Parsing for Text-to-SQL | AAAI 2023 | https://arxiv.org/abs/2302.05965 |
-| Enhancement source | DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction | NeurIPS 2023 | https://arxiv.org/abs/2304.11015 |
-| Visualization layer | LIDA: Automatic Generation of Grammar-Agnostic Visualizations and Infographics using LLMs | ACL 2023 | https://arxiv.org/abs/2303.02927 |
-
-**Code (anchor):** https://github.com/RUCKBReasoning/codes
-**Model weights:** https://huggingface.co/seeklhy/codes-1b
-
-## Dataset
-
-- **Spider** — https://huggingface.co/datasets/xlangai/spider (Hugging Face — approved data source)
-- Dataset paper: https://arxiv.org/abs/1809.08887
-- Metrics: Exact-set Match (EM) and Execution Accuracy (EX) on the Spider dev set
-
-> Kaggle is **not** used — it is excluded by the department SOP.
-
-## Project Phases
-
-| Month | Phase | Key gate |
+| Role | Paper | arXiv |
 |---|---|---|
-| 1 | Topic & paper selection, environment setup | Week 4: original code must run |
-| 2 | Reproducibility | Metrics within ±5–10% or documented deviation |
-| 3 | Enhancement (execution-guided self-correction) | Statistically significant improvement |
-| 4 | Finalization: full-stack app, report, presentation | Public repo + final submission |
+| Anchor (reproduced) | CodeS: Towards Building Open-source Language Models for Text-to-SQL (SIGMOD 2024) | [2402.16347](https://arxiv.org/abs/2402.16347) |
+| Benchmark | Spider (EMNLP 2018) | [1809.08887](https://arxiv.org/abs/1809.08887) |
+| Evaluation | Semantic Evaluation for Text-to-SQL with Distilled Test Suites (EMNLP 2020) | [2010.02840](https://arxiv.org/abs/2010.02840) |
+| Self-correction (app feature) | DIN-SQL (NeurIPS 2023) | [2304.11015](https://arxiv.org/abs/2304.11015) |
+| Abstention | Selective Classification for Deep Neural Networks (NeurIPS 2017) | [1705.08500](https://arxiv.org/abs/1705.08500) |
+| Candidate agreement | Self-Consistency Improves Chain of Thought Reasoning in Language Models (ICLR 2023) | [2203.11171](https://arxiv.org/abs/2203.11171) |
+| Charts | LIDA (ACL 2023) | [2303.02927](https://arxiv.org/abs/2303.02927) |
 
-## Repository Structure
+## Team
 
-```
-QueryGenie/
-├── README.md
-├── docs/
-│   ├── reference/            # Department SOP and Phase-I guidelines
-│   ├── reviews/              # Review deliverables (Week 1, Review 1, ...)
-│   ├── weekly-reports/       # Signed weekly status reports
-│   └── Documentation_Brief_For_Teammate.txt
-├── scripts/                  # Local setup and smoke test
-├── src/                      # Application source code
-├── notebooks/                # Experiments and reproduction notebooks
-└── results/                  # Reproduction logs, metrics, figures
-```
+- N V V S S Jayakanth Kamisetti — 2320090050
+- Boddupally Narendar — 2320090009
+- Supervisor: M Parameswar
 
-## Running Locally (Apple Silicon Mac)
+## Licence
 
-```bash
-bash scripts/setup_local_mac.sh     # creates .venv, installs deps, checks MPS
-source .venv/bin/activate
-python scripts/smoke_test.py        # Tier 1: loads CodeS-1B, generates + executes SQL
-```
-
-The first run downloads the CodeS-1B weights (~2–3 GB). Results are appended to
-`results/reproduction_log.csv`.
-
-### Where each tier runs
-
-| Tier | What | Where | Why |
-|---|---|---|---|
-| **1 — Smoke test** | Load CodeS-1B, generate SQL, execute it | **Local Mac (MPS)** | Fast, no session limits, good for iteration |
-| **2 — Faithful reproduction** | Authors' environment + Spider evaluation | **Colab / CUDA machine** | Repo pins `pytorch-cuda`, `bitsandbytes`, `deepspeed` — all CUDA-only |
-
-Apple Silicon cannot run the anchor repository's pinned environment. The local setup
-therefore uses a current PyTorch/transformers stack on the MPS backend. **This is a
-documented deviation** and must be stated in the reproducibility report: local runs are
-liveness checks and development work; all graded reproduction metrics come from Tier 2.
-
-## Prototype app (demo)
-
-A working end-to-end prototype lives in `src/`: ask a plain-English question, and
-QueryGenie generates SQL with the local CodeS-1B model, executes it, self-corrects on
-failure (showing each attempt), and returns a results table + an auto-selected chart.
-Everything runs locally — the schema never leaves the machine.
-
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-python src/app.py          # opens the Gradio UI; first run downloads the model
-```
-
-A **Model** dropdown switches models. Two backends, both fully local:
-
-- **transformers (bf16)** — `CodeS-1B` / `CodeS-3B`; uses beam search (accurate), larger + slower.
-- **MLX 4-bit (Apple Silicon)** — quantized weights, ~4× smaller and much faster. Greedy decoding
-  only, so it needs a big-enough model. **Default: `CodeS-3B-Spider · SFT (MLX 4-bit)`** — the
-  Spider *fine-tuned* checkpoint (the one the paper evaluates), ~1.6 GB, a few seconds per query.
-
-> **Use the `-spider` (SFT) checkpoints, not the base ones.** `seeklhy/codes-Nb` are the base
-> pre-trained models; `seeklhy/codes-Nb-spider` are fine-tuned on Spider and generate much better
-> SQL (e.g. joins/aggregations like "top 3 students by total marks"). Same size and speed.
-
-Build the MLX weights first (git-ignored, regenerable):
-
-```bash
-python scripts/convert_mlx.py 3b --variant spider   # -> mlx_models/codes-3b-spider-4bit
-python scripts/convert_mlx.py 3b                     # base 3B (optional)
-```
-
-**7B on a 16 GB Mac — via a ready-made GGUF (no conversion).** MLX conversion of 7B needs more RAM
-than 16 GB has, so instead the app runs a pre-quantized **GGUF** through `llama.cpp` (Metal):
-
-```bash
-# build llama.cpp with Metal, then download the ready-made 7B GGUF
-CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
-huggingface-cli download tensorblock/seeklhy_codes-7b-spider-GGUF \
-    codes-7b-spider-Q2_K.gguf --local-dir gguf_models
-```
-
-It then appears as **`CodeS-7B-Spider · SFT (GGUF Q2_K)`** in the dropdown. This is the official
-`seeklhy/codes-7b-spider` model, quantized to 2-bit by the community — it still answers the demo
-questions correctly on Metal in ~1–3 s. (To make your own GGUF at a higher quant, use the
-[gguf-my-repo](https://huggingface.co/spaces/ggml-org/gguf-my-repo) Space.)
-
-Switching model unloads the previous one first to free memory.
-
-UI-only development without the model download:
-
-```bash
-QUERYGENIE_BACKEND=mock python src/app.py
-```
-
-Modules: `model.py` (codes-1b, MPS/CPU) · `database.py` (schema serialization + execution)
-· `engine.py` (generate → execute → self-correct loop) · `charts.py` (auto chart) ·
-`app.py` (Gradio UI). The schema is serialized in table-creation order and generation uses
-beam search — both materially affect codes-1b's accuracy.
-
-## Status
-
-- [x] Week 1 — Paper shortlist + feasibility matrix
-- [x] Review 1 — Topic, literature review (44 papers), objectives, deliverables
-- [x] Week 2 — Dataset downloaded (Spider via `xlangai/spider`, provenance recorded)
-- [x] Week 4 gate — CodeS-1B loaded, generated + executed SQL (Tier 1, run T1-001)
-- [x] Prototype — local self-correcting NL→SQL app with results table + auto chart
-- [ ] Weeks 5–8 — Reproduction (Tier 2), ablation, Reproducibility Report v1.0
-- [ ] Weeks 9–12 — Enhancement implementation and comparison
-- [ ] Weeks 13–16 — Final experiments, report, repository, presentation
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). The files in `src/vendor/` are
+from [RUCKBReasoning/codes](https://github.com/RUCKBReasoning/codes) (Apache-2.0), unmodified.
+Model weights and the Spider dataset are downloaded under their own licences and are not included.

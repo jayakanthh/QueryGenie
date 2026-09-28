@@ -1,6 +1,5 @@
-# QueryGenie prototype app (local Apple Silicon / CPU).
-# The reproduction pipeline (Tier 2) has its own pinned environment; this file is
-# for running the demo app locally.
+# QueryGenie — application, evaluation and analysis (Python 3.10+).
+# Optional Apple Silicon backends (MLX 4-bit, GGUF/llama.cpp): requirements-apple.txt
 torch>=2.2
 transformers>=4.38
 accelerate>=0.27
@@ -8,22 +7,16 @@ sentencepiece
 gradio>=4.0
 pandas>=2.0
 plotly>=5.18
-datasets>=2.18   # used by scripts/download_spider.py
+datasets>=2.18        # scripts/download_spider.py
 
-# Apple Silicon only — 4-bit quantized inference (scripts/convert_mlx.py + MLX backend).
-# Safe to skip on non-Mac; the transformers backend still works everywhere.
-mlx>=0.32 ; sys_platform == "darwin"
-mlx-lm>=0.31 ; sys_platform == "darwin"
-
-# GGUF inference via llama.cpp (Metal). Ready-made quantized .gguf models, no
-# local conversion. On Apple Silicon build with Metal:
-#   CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
-llama-cpp-python>=0.3 ; sys_platform == "darwin"
-
-# Tier-2 faithful evaluation (CodeS value retriever)
+# CodeS value retriever (vendored authors' code) and query timeouts
 rapidfuzz>=3.0
 func_timeout>=4.3
 
-# Week 11 abstention analysis (src/abstention.py)
+# Abstention analysis and figures (src/abstention.py)
+numpy>=1.26
 scipy>=1.11
 matplotlib>=3.8
+
+# Tests
+pytest>=8.0

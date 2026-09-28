@@ -1,22 +1,14 @@
 """
-Tier-2 reproduction, faithful-prompt variant: Spider-dev Execution Accuracy using
-the *full* CodeS database prompt the SFT model was trained on.
+Local (Apple Silicon / CPU) variant of the Tier-2 Spider evaluation.
 
-Prompt = schema_sequence + "\n" + content_sequence + "\n" + question + "\n", with a
-BOS token prepended — replicating utils/load_sft_dataset.prepare_text2sql_prefix_sequence.
-  - schema_sequence:  authors' get_db_schema_sequence (types, PK, representative
-    values via SELECT DISTINCT ... LIMIT 2, foreign keys).
-  - content_sequence: "matched contents" — cell values matched to the question by
-    the authors' get_matched_entries (difflib + fuzzy, score >= 0.9), replacing the
-    Lucene BM25 coarse step with a direct distinct-value scan (fine for small Spider DBs).
-
-Vendored authors' code lives in src/vendor/ (Apache-2.0). Compared with the
-schema+FK prompt in eval_spider.py (which gave EX 64.8%), this should recover most
-of the gap to the reported 77.9%.
+Runs the evaluated CodeS pipeline (src/codes_prompt.py: full CodeS database prompt,
+4 beams, authors' first-executable selection) and scores with the *simple* sorted-rows
+metric only. The reported numbers (T2-005, T2-006, AB-10x) come from the Colab harness,
+scripts/colab_eval_tier2.py, which also runs the official Spider evaluator and records
+all candidates — use that for anything that goes in a report.
 
 Usage:
-    python src/eval_spider_full.py --limit 50 --run-id T2-full-smoke
-    python src/eval_spider_full.py --run-id T2-002            # full 1034
+    python src/eval_spider_full.py --limit 50 --run-id local-smoke
 """
 from __future__ import annotations
 import argparse, csv, datetime, json, os, sqlite3, sys, time
@@ -25,10 +17,9 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO, "src", "vendor"))
-from codes_db_utils import (get_db_schema, get_db_schema_sequence, get_matched_content_sequence,
-                            check_sql_executability, detect_special_char)
-from codes_bridge import get_matched_entries, get_column_picklist
+sys.path.insert(0, os.path.join(REPO, "src"))
+from codes_prompt import (build_prefix, check_sql_executability, clean_sql, encode,  # noqa: E402
+                          get_db_schema, post_process)
 
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 DEV = os.path.join(SPIDER, "dev.json")
@@ -49,64 +40,6 @@ def run_sql(path, sql):
         return True, sorted([tuple(str(c) for c in r) for r in rows])
     except Exception:
         return False, None
-
-
-def clean_sql(text):
-    text = text.strip().replace("```sql", "").replace("```", "").strip()
-    return text.split(";")[0].strip()
-
-
-def post_process(sql, schema_items):
-    """Authors' text2sql_zero_shot.post_process: backtick-quote special column names."""
-    sql = sql.replace("\n", " ")
-    for table in schema_items:
-        for cn in table["column_names"]:
-            if detect_special_char(cn) and cn in sql:
-                sql = sql.replace(cn, "`" + cn + "`")
-    while "``" in sql:
-        sql = sql.replace("``", "`")
-    return sql
-
-
-def matched_contents_for(path, schema, question):
-    """Replicate prepare_sft's fine matching over a full distinct-value scan."""
-    fine = {}
-    for table in schema["schema_items"]:
-        tname = table["table_name"]
-        for cname in table["column_names"]:
-            try:
-                picklist = get_column_picklist(tname, cname, path)
-            except Exception:
-                continue
-            # Authors' index = str(value) for every column, numbers included, 0 < len <= 25.
-            vals = []
-            for v in picklist:
-                if v is None:
-                    continue
-                if isinstance(v, bytes):
-                    try:
-                        v = v.decode("utf-8")
-                    except UnicodeDecodeError:
-                        v = v.decode("latin-1")
-                v = str(v).strip()
-                if 0 < len(v) <= 25 and v not in vals:
-                    vals.append(v)
-            picklist = sorted(vals)
-            if not picklist:
-                continue
-            fm = get_matched_entries(question, picklist)
-            if not fm:
-                continue
-            tc = f"{tname}.{cname}"
-            for _m, (field_value, _s, match_score, _sm, _sz) in fm:
-                if match_score < 0.9:
-                    continue
-                fv = field_value.strip()
-                if tc not in fine:
-                    fine[tc] = []
-                if len(fine[tc]) < 25 and fv not in fine[tc]:
-                    fine[tc].append(fv)
-    return fine
 
 
 def load_db_comments():
@@ -153,22 +86,16 @@ def main():
     schema_cache = {}
     def schema_for(db_id):
         if db_id not in schema_cache:
-            sch = get_db_schema(db_path(db_id), db_comments, db_id)
-            schema_cache[db_id] = (sch, get_db_schema_sequence(sch))
+            schema_cache[db_id] = get_db_schema(db_path(db_id), db_comments, db_id)
         return schema_cache[db_id]
 
     correct = pexec = 0
     t0 = time.time()
     for i, ex in enumerate(dev):
         db_id, question, gold = ex["db_id"], ex["question"].replace("\n", " "), ex["query"]
-        sch, schema_seq = schema_for(db_id)
-        matched = matched_contents_for(db_path(db_id), sch, question)
-        content_seq = get_matched_content_sequence(matched)
-        prefix = schema_seq + "\n" + content_seq + "\n" + question + "\n"
-
-        ids = [tok.bos_token_id] + tok(prefix, truncation=False)["input_ids"]
-        if len(ids) > 4096 - 256:  # authors keep the END of the prompt (the question)
-            ids = [tok.bos_token_id] + ids[-(4096 - 256 - 1):]
+        sch = schema_for(db_id)
+        _, prefix = build_prefix(db_path(db_id), question, schema=sch)
+        ids = encode(tok, prefix)
         input_ids = torch.tensor([ids], device=device)
         attn = torch.ones_like(input_ids)
         with torch.no_grad():

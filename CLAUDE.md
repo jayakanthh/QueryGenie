@@ -69,7 +69,7 @@ DIN-SQL, NeurIPS 2023 — https://arxiv.org/abs/2304.11015 — execution-guided 
 LIDA, ACL 2023 — https://arxiv.org/abs/2303.02927
 
 **Benchmark:** Spider — https://huggingface.co/datasets/spider (approved source ✅)
-Paper: https://arxiv.org/abs/1809.08887 · Metrics: Exact-set Match (EM), Execution Accuracy (EX)
+Paper: https://arxiv.org/abs/1809.08887 · Metrics used by CodeS: Execution Accuracy (EX) and Test-suite accuracy (TS) — not EM
 
 ## Planned contributions (Month 3 enhancement)
 
@@ -86,57 +86,27 @@ Paper: https://arxiv.org/abs/1809.08887 · Metrics: Exact-set Match (EM), Execut
 Framing for reviewers who ask "how is this different from ChatGPT?": **trustworthiness** — it knows
 when it doesn't know, and it runs fully locally on open weights (no schema sent to a third party).
 
-## Current state (as of the handover to Claude Code)
+## Current state (updated 2026-09-28)
 
 `docs/DELIVERABLES.md` is the live tracker — read it, and keep it updated as things complete.
 
-Written and verified:
-- Week 1: 3-paper shortlist + feasibility matrix; abstract; weekly report; Review-1 deck
-- Review 1: **presented**. Topic, 44-paper literature review, objectives, deliverables
-- Week 2: weekly report; `scripts/download_spider.py` (dataset + provenance record)
-- Week 3: `Paper_Annotation_Worksheet.docx` (pre-filled with verified facts, blanks for the
-  paper values); `CodeS_Architecture_Flowchart.png`; weekly report
-- `notebooks/01_week4_gate_codes_setup.ipynb` — two-tier setup notebook
-- `results/Reproduction_Log.xlsx` — log template with tolerance formulas
-- `scripts/setup_local_mac.sh`, `scripts/smoke_test.py` — local Apple Silicon path
+Done and measured (all runs in `results/reproduction_log.csv`):
+- **Week-4 gate** cleared (T1-001). Spider downloaded (`xlangai/spider`).
+- **Reproduction:** SFT CodeS-1B, official Spider evaluator — **77.8%** EX vs paper 77.9% (T2-005,
+  fresh re-run T2-006 = 804/1034). Earlier 64.8/71.7/73.8% used a simplified metric and had a
+  value-retriever bug — see `results/harness_audit.md`. Test-suite accuracy: **TBD**.
+- **Ablation** (official metric): −0.9 to −1.9 pts per component (`results/week7_ablation_study.md`).
+- **Enhancement = confidence-aware abstention** (the ONE graded enhancement, Tier 4; proposal
+  `docs/Enhancement_Proposal_Week9.docx`). 83.3% on answered at 90.4% coverage vs 77.8%; t-test
+  p = 7.7e-10, Wilcoxon p = 9.8e-4, bootstrap CI [+4.5, +6.7] (`results/week12_comparative_results.md`).
+  Self-correction and charts are app features, not graded enhancements.
+- **App** (`src/app.py`) runs the evaluated pipeline (`src/codes_prompt.py`) with confidence badge,
+  "Did you mean…?" and strictness modes. Final report draft: `docs/Final_Report_Draft.docx`.
+- Weekly reports written through Week 12. **Signatures are collected at the end** (department
+  decision) — don't flag them as blockers.
 
-**Nothing has been EXECUTED yet.** No environment built, no model downloaded, no dataset pulled,
-no reproduction numbers. In priority order:
-
-1. **Run Tier 1 of the notebook — the Week-4 red-flag gate.** This is the only rejection-level
-   item outstanding, and all of Month 2 is blocked behind it.
-2. Run `scripts/download_spider.py` to close the Week 2 dataset deliverable.
-3. Fill the Week 3 worksheet blanks by reading the CodeS PDF — above all the reported Execution
-   Accuracy for CodeS-1B on Spider dev, which is the target the reproduction is measured against.
-4. Verify `CodeS_Architecture_Flowchart.png` against Figure 1 of the paper; it was reconstructed
-   from the abstract and repo structure, not from the figure, and says so on its face.
-
-Weeks 2 and 3 weekly reports still need the supervisor's signature.
-
-## Immediate task
-
-Clear the Week-4 gate, then reproduce.
-
-**Tier 1 (do this first — fast, low risk):** load `seeklhy/codes-1b`, generate SQL from a schema +
-question, execute it against SQLite to confirm it works. This satisfies "the original code runs."
-Log the run.
-
-**Tier 2 (the graded 45%):** recreate the authors' environment and run their evaluation on Spider
-dev to get real EX/EM numbers.
-
-### Known Tier 2 friction (verified by reading the actual repo — do not re-discover this the hard way)
-
-- Repo pins Python **3.8.5**, PyTorch **1.13.1**, transformers **4.28.1**, `scipy==1.5.4`.
-  Modern Python will not build some of these — an isolated 3.8.5 env is required.
-- `pyserini==0.21.0` needs **Java 11**.
-- `SimCSE` installs from a fork: https://github.com/lihaoyang-ruc/SimCSE
-- `data.zip`, `sic_ckpts.zip`, `test_suite_sql_eval.zip` are on **Google Drive** (rate-limited;
-  have a manual-download fallback). Drive IDs are in the notebook.
-- Authors evaluated on **8× A800 80GB**. Use `codes-1b` and reduce batch size.
-- `bitsandbytes` and `deepspeed` are CUDA-only — **cannot run on the user's Apple Silicon Mac.**
-  Tier 2 must run on Colab or another CUDA machine. Local Mac is for Tier 1 and app development.
-- The authors themselves warn that newer transformers versions shift inference results slightly.
-  If that shows up, it is a legitimate documented deviation, not a bug to hide.
+Remaining: Week 15 public repo (ask before changing visibility), Week 16 final deck; optional TS
+scoring and CodeS-3B evaluation.
 
 ## The Colab MCP
 
@@ -182,7 +152,7 @@ QueryGenie/
 ├── notebooks/                # 01_week4_gate_codes_setup.ipynb
 ├── scripts/                  # local mac setup + smoke test
 ├── results/                  # Reproduction_Log.xlsx, run logs, figures
-└── src/                      # application code (not yet created — Month 4)
+└── src/                      # application, evaluated pipeline, analysis (see README)
 ```
 
 The user reorganises files as submissions go out (e.g. `Week 1/` holds what was actually handed in,

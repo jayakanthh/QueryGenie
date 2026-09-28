@@ -29,3 +29,7 @@ gguf_models/
 # Scratch
 scratchpad/
 tmp/
+
+# Local renders / test caches
+docs/_render_tmp*.pdf
+.pytest_cache/

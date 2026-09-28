@@ -1,0 +1,15 @@
+QueryGenie
+Copyright 2026 N V V S S Jayakanth Kamisetti and Boddupally Narendar (Team 21,
+Koneru Lakshmaiah Education Foundation)
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software from CodeS (https://github.com/RUCKBReasoning/codes),
+licensed under the Apache License, Version 2.0: src/vendor/codes_db_utils.py and
+src/vendor/codes_bridge.py, used unmodified.
+
+The Spider evaluator (https://github.com/taoyds/test-suite-sql-eval) is downloaded at
+run time by scripts/colab_eval_tier2.py and is not redistributed here.
+
+Model weights (seeklhy/codes-*) and the Spider dataset are downloaded from Hugging Face
+under their own licences and are not included in this repository.

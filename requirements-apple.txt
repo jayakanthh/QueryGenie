@@ -1,0 +1,10 @@
+# Optional fast local backends for Apple Silicon. Not needed for the evaluated pipeline.
+-r requirements.txt
+
+# 4-bit MLX models (build them with scripts/convert_mlx.py)
+mlx>=0.32 ; sys_platform == "darwin"
+mlx-lm>=0.31 ; sys_platform == "darwin"
+
+# GGUF models via llama.cpp with Metal. Builds from source; install it with:
+#   CMAKE_ARGS="-DGGML_METAL=on" pip install --no-binary llama-cpp-python llama-cpp-python
+llama-cpp-python>=0.3 ; sys_platform == "darwin"
