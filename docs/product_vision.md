@@ -82,3 +82,43 @@ The main risk is scope: this is a real product, not a semester's work, so it bel
 ## Status
 Idea recorded. Not started — revisit after the Phase-I reproduction and enhancements are done.
 See also `README.md` (contributions) and `CLAUDE.md` (project constraints).
+
+---
+
+## Update 2026-09-28 — "plug and play" for any database, including NoSQL
+
+Goal restated by Jaikanth: companies connect QueryGenie to whatever they run — SQL or NoSQL —
+without custom work.
+
+### SQL family (Postgres, MySQL, SQL Server, Snowflake, Spark SQL) — feasible, Month-4 scope
+
+- **Connect + introspect** with SQLAlchemy (or Spark's catalog): a connection string is enough to
+  read tables, columns, types, keys and sample values, which is everything the CodeS prompt needs.
+- **Dialect:** the model writes SQLite-style SQL (Spider training). Transpile it to the target
+  engine with `sqlglot` instead of retraining; run the existing validate/repair loop on the target.
+- **Value retriever at scale:** our distinct-value scan (a documented deviation, fine for Spider) will
+  not scale to company databases. Build a per-database content index once, as the CodeS authors do
+  (BM25 over column values), and refresh it on a schedule.
+
+### NoSQL (MongoDB, Cassandra, …) — harder; post-capstone
+
+CodeS only generates SQL and was trained on relational schemas. Options, best first:
+
+1. **SQL gateway in front of the NoSQL store** (Trino connectors, MongoDB's SQL interface): collections
+   appear as tables, the model keeps writing SQL. Most plug-and-play, no research. **Recommended.**
+2. Infer a flattened relational view by sampling documents, generate SQL, translate to the native
+   query language. Works for simple collections; fragile with deep nesting and arrays.
+3. A model that emits the native query language (e.g. MongoDB aggregation) directly. Needs training
+   data that does not readily exist — a research project in itself.
+
+### Non-negotiables before any company connects
+
+Read-only database credentials, per-query timeout and row limit, rejection of any non-SELECT
+statement, and an audit log. Confidence-aware abstention (the Month-3 enhancement) is a selling
+point here: the system says when it is unsure instead of returning a confident wrong answer.
+
+### Sequencing
+
+Month 4 (graded full-stack app): connector layer with SQLite + Postgres + MySQL via SQLAlchemy +
+sqlglot, abstention in the UI. After the capstone: NoSQL via a SQL gateway, access levels, per-DB
+adaptation.
