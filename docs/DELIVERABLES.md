@@ -45,8 +45,11 @@ repository, and its status. Update the status column as each item is completed a
 | 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; **needs guide approval + signature** |
 | 9 | Weekly report | `docs/weekly-reports/Week 9/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 10 | Fresh baseline on our hardware | `results/reproduction_log.csv` (T2-006), `results/week11_abstention.md` | ✅ T2-006 (28 Sep): official EX 804/1034 = 77.76%, identical to T2-005; full candidate dump saved |
+| 10 | Weekly report | `docs/weekly-reports/Week 10/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 11 | Working enhanced code | `src/abstention.py`, `src/codes_prompt.py`, `src/app.py` | ✅ abstention analysis + in the app (confidence badge, 'Did you mean…', strictness with measured coverage/accuracy) |
+| 11 | Weekly report | `docs/weekly-reports/Week 11/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 12 | Comparative results + significance test (20%) | `docs/Week12_Comparative_Results.docx`, `results/week12_comparative_results.md` | ✅ original 77.76% vs enhanced 83.32% at 90.4% coverage; wrong answers 230→156; t=24.4 p=7.7e-10, Wilcoxon W=55 p=9.8e-4, bootstrap CI [+4.5,+6.7] |
+| 12 | Weekly report | `docs/weekly-reports/Week 12/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 
 ## Month 4 — Finalization
 
