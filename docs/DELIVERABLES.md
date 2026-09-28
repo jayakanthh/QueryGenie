@@ -32,7 +32,7 @@ repository, and its status. Update the status column as each item is completed a
 |---|---|---|---|
 | 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` + `results/Reproduction_Log.xlsx` | ✅ T2-001, T2-002, T2-003 (+ repeat), T2-005 — full runs logged with seed/hardware/runtime/versions |
 | 6 | Comparison table vs paper (±5–10%) | `results/comparison_vs_paper.md` | ✅ **Official EX 77.8%** (T2-005, harness v2, paper's evaluator) vs paper 77.9% — **−0.1 pts**; earlier runs used a simpler metric (see `harness_audit.md`) |
-| 7 | Ablation study | `results/week7_ablation_study.md` | ✅ 4 single-component ablations measured (−1.5 to −2.7 pts, simple metric); re-measure on harness v2 for the final report |
+| 7 | Ablation study | `results/week7_ablation_study.md` | ✅ 4 ablations on harness v2, official metric: −0.9 to −1.9 pts vs 77.8 (retriever −1.9 largest); significance test pending |
 | 8 | **Reproducibility Report (25%)** | `docs/Code_Reproducibility_Report_v2.docx` (v1 = Review-II submission, kept) | ✅ v2 (26 Sep): headline official EX 77.8% vs 77.9%, harness audit, ablation study; TS still TBD |
 
 ## Month 3 — Enhancement

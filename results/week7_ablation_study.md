@@ -3,11 +3,37 @@
 **Deliverable:** SOP Week 7 — disable a component of the reproduced pipeline, re-measure, and show
 the contribution of each part.
 
-> **Note (2026-09-26):** these runs used harness v1 and the simple sorted-rows metric, not the
-> paper's official evaluator (see `harness_audit.md`). The deltas are valid *relative* comparisons
-> because every run shares the same harness and metric. A re-measurement on harness v2 with the
-> official metric (AB-103 to AB-106, baseline T2-005 = 77.8%) is in progress and will replace
-> this table in the final report.
+## Headline results — harness v2, official Spider evaluator (2026-09-28)
+
+These are the numbers for the report. Same model, data and decoding as below, but on the audited
+harness v2 and scored with the paper's own evaluator (`test_suite_sql_eval/evaluation.py --etype
+exec`; see `harness_audit.md`). Baseline T2-005 = **77.8%**, against the paper's 77.9%.
+
+| Run | Component removed | Official EX | Δ vs 77.8 | Simple EX | Executable |
+|---|---|---|---|---|---|
+| T2-005 | — (full pipeline) | **77.8%** | — | 73.40% (759/1034) | 97.3% |
+| AB-105 | foreign-keys block | 76.9% | **−0.9** | 72.34% (748/1034) | 95.9% |
+| AB-103 | representative column values | 76.4% | **−1.4** | 72.24% (747/1034) | 98.1% |
+| AB-106 | candidate selection (beam 0 only) | 76.0% | **−1.8** | 71.66% (741/1034) | 94.1% |
+| AB-104 | matched contents (value retriever off) | 75.9% | **−1.9** | 71.57% (740/1034) | 97.2% |
+
+Every component still contributes, and the ranking at the top is unchanged: the value retriever
+and candidate selection matter most. With the official metric the drops are smaller (0.9–1.9
+points instead of 1.5–2.7). That is expected: the official evaluator forgives some differences
+(column order, `DISTINCT`) that the simple metric counted as errors, so some ablated predictions
+that were "wrong" before are now scored correct.
+
+**Caveat on significance.** A drop of 0.9–1.9 points is 9–20 questions out of 1,034. These
+differences have not yet been tested for statistical significance; a paired test (McNemar) needs
+the per-question results, which are in the prediction files saved on Colab
+(`/content/preds_<RUN_ID>.txt`). Until that is done, the ranking of the two smallest effects
+(foreign keys vs representative values) should not be over-interpreted.
+
+## Earlier measurement — harness v1, simple metric (superseded)
+
+Kept for the record. These runs used harness v1 and the simple sorted-rows metric, not the
+paper's evaluator. The deltas are valid *relative* comparisons (all runs share one harness and
+metric) but are on a different scale from the paper.
 
 **Setup.** Model `seeklhy/codes-1b-spider` (SFT CodeS-1B), Spider development set, all 1034
 examples per run. Metric: Execution Accuracy (EX) by sorted result-set match against the gold
