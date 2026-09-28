@@ -491,6 +491,17 @@ def post_process(sql, schema_items):
             if detect_special_char(cn) and cn in sql: sql=sql.replace(cn,"`"+cn+"`")
     while "``" in sql: sql=sql.replace("``","`")
     return sql
+from func_timeout import func_timeout, FunctionTimedOut
+import hashlib
+def result_sig(path, sql, limit_s=30):
+    """Execute one candidate (with a timeout) and return (ok, n_rows, hash of the sorted rows).
+    Used only for the Week-10/11 dump (candidate agreement); does not affect the prediction."""
+    try:
+        ok,rows=func_timeout(limit_s, run_sql, args=(path,sql))
+    except FunctionTimedOut:
+        return False,None,None
+    if not ok: return False,None,None
+    return True,len(rows),hashlib.md5(repr(rows).encode()).hexdigest()
 def clean_sql(t):
     t=t.strip().replace("```sql","").replace("```","").strip()
     return t.split(";")[0].strip()
@@ -556,7 +567,8 @@ def schema_for(db_id):
         if "no_fk" in ABLATE: s["foreign_keys"]=[]
         schema_cache[db_id]=(s,get_db_schema_sequence(s))
     return schema_cache[db_id]
-correct=pexec=0; t0=time.time(); PREDS=[]
+correct=pexec=0; t0=time.time(); PREDS=[]; DUMP=[]
+GOLD_LINES=[l.rstrip("\n").split("\t")[0] for l in open(os.path.join(SPIDER,"dev_gold.sql")) if l.strip()]
 for i,ex in enumerate(dev):
     db_id,question,gold=ex["db_id"],ex["question"].replace("\n"," "),ex["query"]
     sch,schema_seq=schema_for(db_id)
@@ -566,7 +578,10 @@ for i,ex in enumerate(dev):
     if len(ids)>4096-256: ids=[tok.bos_token_id]+ids[-(4096-256-1):]   # load_sft_dataset.prepare_inputs
     input_ids=torch.tensor([ids],device=device); attn=torch.ones_like(input_ids)
     with torch.no_grad():
-        out=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=4,pad_token_id=tok.eos_token_id)
+        gen=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=4,
+                           pad_token_id=tok.eos_token_id,return_dict_in_generate=True,output_scores=True)
+    out=gen.sequences   # identical to the plain generate() output; scores are only recorded
+    beam_scores=[round(float(x),5) for x in gen.sequences_scores]
     # Authors' text2sql_zero_shot.py: decode all 4 beams, post-process, keep the FIRST
     # candidate that passes EXPLAIN QUERY PLAN; fall back to beam 0.
     cands=[clean_sql(post_process(c,sch["schema_items"])) for c in
@@ -574,6 +589,12 @@ for i,ex in enumerate(dev):
     if "no_select" in ABLATE: pred=cands[0]
     else: pred=next((c for c in cands if check_sql_executability(c,db_path(db_id)) is None), cands[0] if cands[0].strip() else "SQL placeholder")
     PREDS.append(pred.replace("\n"," ").replace("\t"," "))
+    explain_ok=[check_sql_executability(c,db_path(db_id)) is None for c in cands]
+    sigs=[result_sig(db_path(db_id),c) for c in cands]
+    DUMP.append({"i":i,"db_id":db_id,"question":question,"gold":GOLD_LINES[i],"candidates":cands,
+                 "beam_scores":beam_scores,"explain_ok":explain_ok,
+                 "exec_ok":[sg[0] for sg in sigs],"n_rows":[sg[1] for sg in sigs],"result_hash":[sg[2] for sg in sigs],
+                 "selected":cands.index(pred) if pred in cands else -1,"prediction":PREDS[-1]})
     p_ok,p_rows=run_sql(db_path(db_id),pred); g_ok,g_rows=run_sql(db_path(db_id),gold)
     pexec+=p_ok; correct+=(p_ok and g_ok and p_rows==g_rows)
     if (i+1)%50==0 or i+1==len(dev):
@@ -594,6 +615,41 @@ off=[l for l in r.stdout.splitlines() if l.strip().startswith("execution")]
 OFFICIAL=float(off[-1].split()[-1]) if off else float("nan")
 print("\n".join(l for l in r.stdout.splitlines() if l.strip().startswith(("count","execution"))) or r.stderr[-2000:])
 print(f"predictions saved to {PRED_FILE} (download it: Files panel, left sidebar)")
+# ---- per-candidate official correctness (subprocess: the evaluator calls asyncio.run) ----
+SCORER="/content/score_candidates.py"
+open(SCORER,"w").write('''import json, sys
+sys.path.insert(0, "/content/test-suite-sql-eval")
+from exec_eval import eval_exec_match
+jobs = json.load(open(sys.argv[1])); out = []
+for j in jobs:
+    try:
+        s = eval_exec_match(db=j["db"], p_str=j["pred"], g_str=j["gold"], plug_value=False,
+                            keep_distinct=False, progress_bar_for_each_datapoint=False)
+    except Exception:
+        s = 0
+    out.append(int(s))
+json.dump(out, open(sys.argv[2], "w"))
+''')
+jobs=[{"db":db_path(d["db_id"]),"pred":c.replace("\n"," ").replace("\t"," "),"gold":d["gold"]} for d in DUMP for c in d["candidates"]]
+json.dump(jobs,open("/content/cand_jobs.json","w"))
+print(f"scoring {len(jobs)} candidates with the official evaluator ...", flush=True)
+sc=subprocess.run([sys.executable,SCORER,"/content/cand_jobs.json","/content/cand_scores.json"],
+                  cwd="/content/test-suite-sql-eval",capture_output=True,text=True)
+if sc.returncode!=0: print(sc.stderr[-2000:])
+flat=json.load(open("/content/cand_scores.json")); k=0
+for d in DUMP:
+    d["official_correct"]=flat[k:k+len(d["candidates"])]; k+=len(d["candidates"])
+    d["selected_official_correct"]=d["official_correct"][d["selected"]] if d["selected"]>=0 else 0
+per_ex=sum(d["selected_official_correct"] for d in DUMP)/len(DUMP)
+print(f"consistency check: per-question official EX = {per_ex:.4f} vs evaluation.py = {OFFICIAL:.4f}")
+DUMP_FILE=f"/content/dump_{RUN_ID}.jsonl"
+with open(DUMP_FILE,"w") as f:
+    for d in DUMP: f.write(json.dumps(d,ensure_ascii=False)+"\n")
+print(f"candidate dump saved to {DUMP_FILE}")
+try:
+    from google.colab import files; files.download(DUMP_FILE); files.download(PRED_FILE)
+except Exception as e:
+    print("auto-download unavailable:",e)
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
 import transformers
-print("COPY THIS BACK:  %s %s ablate=%s harness=v2 OFFICIAL_EX=%.4f simpleEX=%.4f (%d/%d) executes=%.3f torch=%s transformers=%s" % (RUN_ID,MODEL,"+".join(sorted(ABLATE)) or "none",OFFICIAL,correct/n,correct,n,pexec/n,torch.__version__,transformers.__version__))
+print("COPY THIS BACK:  %s %s ablate=%s harness=v2 OFFICIAL_EX=%.4f perQ=%.4f simpleEX=%.4f (%d/%d) executes=%.3f torch=%s transformers=%s" % (RUN_ID,MODEL,"+".join(sorted(ABLATE)) or "none",OFFICIAL,per_ex,correct/n,correct,n,pexec/n,torch.__version__,transformers.__version__))
