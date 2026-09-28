@@ -24,7 +24,7 @@ repository, and its status. Update the status column as each item is completed a
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
 | 4 | **Working environment + run log (RED-FLAG GATE)** | `notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
 | 4 | Weekly report | `docs/weekly-reports/Week 4/Weekly_Report.docx` | 🟡 written, needs supervisor signature |
-| 5 | Weekly report | `docs/weekly-reports/Week 5/Weekly_Report.docx` | 🟡 written (date blank), needs supervisor signature |
+| 5 | Weekly report | `docs/weekly-reports/Week 5/Weekly_Report.docx` | 🟡 written (13 Sep), needs supervisor signature |
 
 ## Month 2 — Reproducibility
 
@@ -32,14 +32,18 @@ repository, and its status. Update the status column as each item is completed a
 |---|---|---|---|
 | 5 | Reproduction log, 3 runs (20%) | `results/reproduction_log.csv` + `results/Reproduction_Log.xlsx` | ✅ T2-001, T2-002, T2-003 (+ repeat), T2-005 — full runs logged with seed/hardware/runtime/versions |
 | 6 | Comparison table vs paper (±5–10%) | `results/comparison_vs_paper.md` | ✅ **Official EX 77.8%** (T2-005, harness v2, paper's evaluator) vs paper 77.9% — **−0.1 pts**; earlier runs used a simpler metric (see `harness_audit.md`) |
+| 6 | Weekly report | `docs/weekly-reports/Week 6/Weekly_Report.docx` | 🟡 written (20 Sep), needs supervisor signature |
 | 7 | Ablation study | `results/week7_ablation_study.md` | ✅ 4 ablations on harness v2, official metric: −0.9 to −1.9 pts vs 77.8 (retriever −1.9 largest); significance test pending |
+| 7 | Weekly report | `docs/weekly-reports/Week 7/Weekly_Report.docx` | 🟡 written (22 Sep), needs supervisor signature |
 | 8 | **Reproducibility Report (25%)** | `docs/Code_Reproducibility_Report_v2.docx` (v1 = Review-II submission, kept) | ✅ v2 (26 Sep): headline official EX 77.8% vs 77.9%, harness audit, ablation study; TS still TBD |
+| 8 | Weekly report | `docs/weekly-reports/Week 8/Weekly_Report.docx` | 🟡 written (26 Sep), needs supervisor signature |
 
 ## Month 3 — Enhancement
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
 | 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; **needs guide approval + signature** |
+| 9 | Weekly report | `docs/weekly-reports/Week 9/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 10 | Fresh baseline on our hardware | — | ⬜ |
 | 11 | Working enhanced code | — | ⬜ |
 | 12 | Comparative results + significance test (20%) | — | ⬜ |
