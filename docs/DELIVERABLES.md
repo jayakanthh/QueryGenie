@@ -56,7 +56,7 @@ repository, and its status. Update the status column as each item is completed a
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
 | 13 | Final figures + statistics | — | ⬜ |
-| 14 | Draft final report | — | ⬜ |
+| 14 | Draft final report | `docs/Final_Report_Draft.docx` | ✅ draft (28 Sep, 14 pp): SOP structure Intro → Methodology → Results → Enhancement → Discussion → Conclusion; figures + appendices |
 | 15 | Public GitHub repo + README (10%) | `README.md` | 🟡 |
 | 16 | Final report + presentation (5%) | — | ⬜ |
 
