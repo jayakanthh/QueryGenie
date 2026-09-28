@@ -39,7 +39,7 @@ repository, and its status. Update the status column as each item is completed a
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 9 | Enhancement proposal (10%) | — | ⬜ |
+| 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; **needs guide approval + signature** |
 | 10 | Fresh baseline on our hardware | — | ⬜ |
 | 11 | Working enhanced code | — | ⬜ |
 | 12 | Comparative results + significance test (20%) | — | ⬜ |
