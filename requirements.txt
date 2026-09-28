@@ -23,3 +23,7 @@ llama-cpp-python>=0.3 ; sys_platform == "darwin"
 # Tier-2 faithful evaluation (CodeS value retriever)
 rapidfuzz>=3.0
 func_timeout>=4.3
+
+# Week 11 abstention analysis (src/abstention.py)
+scipy>=1.11
+matplotlib>=3.8
