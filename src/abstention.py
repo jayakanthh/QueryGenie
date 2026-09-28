@@ -129,8 +129,8 @@ def plot(correct, sig, path, run_id):
     fig.patch.set_facecolor(SURF); ax.set_facecolor(SURF)
     base = correct.mean()
     ax.axhline(base * 100, color=MUTED, lw=1.5, ls=(0, (4, 3)), zorder=1)
-    ax.text(99.5, base * 100 - 0.6, f"Random abstention / answer everything: {base*100:.1f}%",
-            color=INK2, fontsize=8, va="top")
+    ax.text(75, base * 100 + 0.3, f"Random abstention / answer everything: {base*100:.1f}%",
+            color=INK2, fontsize=8, va="bottom", ha="center")
     for name, (col, label) in SERIES.items():
         conf = np.array([s[name] for s in sig])
         cov, acc = curve(conf, correct)
@@ -140,7 +140,7 @@ def plot(correct, sig, path, run_id):
         a90 = at_coverage(conf, correct, 0.90)
         ax.plot([90], [a90 * 100], "o", ms=6, color=col, mec=SURF, mew=2, zorder=4)
     ax.axvline(90, color=GRID, lw=1, zorder=0)
-    ax.set_xlim(50, 100); ax.invert_xaxis()
+    ax.set_xlim(50, 100); ax.invert_xaxis(); ax.set_ylim(bottom=base * 100 - 1.5)
     ax.set_xlabel("Coverage — share of questions answered (%)", color=INK2, fontsize=9)
     ax.set_ylabel("Execution accuracy on answered questions (%)", color=INK2, fontsize=9)
     ax.set_title(f"Accuracy vs coverage, CodeS-1B on Spider dev ({run_id})", color=INK, fontsize=10,

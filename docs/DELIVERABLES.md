@@ -44,8 +44,8 @@ repository, and its status. Update the status column as each item is completed a
 |---|---|---|---|
 | 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; **needs guide approval + signature** |
 | 9 | Weekly report | `docs/weekly-reports/Week 9/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
-| 10 | Fresh baseline on our hardware | — | ⬜ |
-| 11 | Working enhanced code | — | ⬜ |
+| 10 | Fresh baseline on our hardware | `results/reproduction_log.csv` (T2-006), `results/week11_abstention.md` | ✅ T2-006 (28 Sep): official EX 804/1034 = 77.76%, identical to T2-005; full candidate dump saved |
+| 11 | Working enhanced code | `src/abstention.py`, `results/week11_abstention.md` | 🟡 analysis done: **83.3% accuracy at 90.5% coverage vs 77.8%** (+5.5 pts, t-test p=7.7e-10, Wilcoxon p=9.8e-4, bootstrap CI [+4.5,+6.7]); app-side abstention UI pending |
 | 12 | Comparative results + significance test (20%) | — | ⬜ |
 
 ## Month 4 — Finalization
