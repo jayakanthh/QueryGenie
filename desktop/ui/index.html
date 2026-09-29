@@ -80,7 +80,7 @@
         <button class="btn primary new-chat" id="new-chat" title="Start a new chat"><svg class="i sm"><use href="#i-message-square-plus"/></svg>New chat<span class="kbd" id="new-chat-kbd"></span></button>
         <div class="list-tools">
           <label class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" placeholder="Search chats" aria-label="Search chats"></label>
-          <button class="btn quiet icon" id="schema-btn" title="Schema"><svg class="i"><use href="#i-table"/></svg></button>
+          <button class="btn quiet icon" id="schema-btn" title="Schema map"><svg class="i"><use href="#i-network"/></svg></button>
         </div>
       </div>
       <div class="rows" id="rows" role="listbox" aria-label="Chats"></div>
@@ -88,17 +88,34 @@
 
     <section class="pane" aria-label="Chat">
       <div class="pane-bar" id="pane-bar">
+        <div class="seg" role="group" aria-label="View" id="view-seg">
+          <button data-view="chat" title="Chat"><svg class="i sm"><use href="#i-messages-square"/></svg><span class="lbl">Chat</span></button>
+          <button data-view="map" title="Schema map"><svg class="i sm"><use href="#i-network"/></svg><span class="lbl">Map</span></button>
+        </div>
         <div class="bar-title" id="chat-title"></div>
         <span class="spacer"></span>
-        <div class="seg" role="group" aria-label="Layout" id="layout-seg">
-          <button data-layout="answer" title="Answer first"><svg class="i sm"><use href="#i-sheet"/></svg><span class="lbl">Answer</span></button>
-          <button data-layout="confidence" title="Confidence first"><svg class="i sm"><use href="#i-circle-check"/></svg><span class="lbl">Confidence</span></button>
-          <button data-layout="split" title="Answer and SQL side by side"><svg class="i sm"><use href="#i-columns-2"/></svg><span class="lbl">Side by side</span></button>
-        </div>
-        <button class="btn quiet icon" id="rename-chat" title="Rename chat"><svg class="i sm"><use href="#i-pencil"/></svg></button>
-        <button class="btn quiet icon" id="delete-chat" title="Delete chat"><svg class="i sm"><use href="#i-trash-2"/></svg></button>
+        <span class="bar-group" id="bar-chat">
+          <div class="seg" role="group" aria-label="Layout" id="layout-seg">
+            <button data-layout="answer" title="Answer first"><svg class="i sm"><use href="#i-sheet"/></svg><span class="lbl">Answer</span></button>
+            <button data-layout="confidence" title="Confidence first"><svg class="i sm"><use href="#i-circle-check"/></svg><span class="lbl">Confidence</span></button>
+            <button data-layout="split" title="Answer and SQL side by side"><svg class="i sm"><use href="#i-columns-2"/></svg><span class="lbl">Side by side</span></button>
+          </div>
+          <button class="btn quiet icon" id="rename-chat" title="Rename chat"><svg class="i sm"><use href="#i-pencil"/></svg></button>
+          <button class="btn quiet icon" id="delete-chat" title="Delete chat"><svg class="i sm"><use href="#i-trash-2"/></svg></button>
+        </span>
       </div>
       <div class="pane-body thread" id="thread"></div>
+      <div class="map" id="map" hidden>
+        <svg id="map-svg" aria-label="Schema map"><g id="map-g"></g></svg>
+        <label class="search map-find"><svg class="i sm"><use href="#i-search"/></svg><input id="map-find" placeholder="Find a table or column" aria-label="Find a table or column"></label>
+        <div class="map-ctl" role="group" aria-label="Map controls">
+          <button class="btn icon" id="map-all" title="Show all columns"><svg class="i sm"><use href="#i-list-tree"/></svg></button>
+          <button class="btn icon" id="map-out" title="Zoom out"><svg class="i sm"><use href="#i-zoom-out"/></svg></button>
+          <button class="btn icon" id="map-in" title="Zoom in"><svg class="i sm"><use href="#i-zoom-in"/></svg></button>
+          <button class="btn icon" id="map-fit" title="Fit to window"><svg class="i sm"><use href="#i-maximize"/></svg></button>
+        </div>
+        <div class="map-pop" id="map-pop" hidden role="dialog"></div>
+      </div>
       <div class="dock">
         <form class="compose" id="compose">
           <textarea id="question" rows="1" placeholder="Ask a question…" aria-label="Your question"></textarea>
@@ -133,13 +150,6 @@
         <button class="btn primary" id="c-go" data-role="ok" value="default">Connect</button>
       </div>
     </form>
-  </dialog>
-
-  <dialog id="dlg-schema">
-    <div class="sheet">
-      <div class="sheet-body"><h2 id="schema-title">Schema</h2><div id="schema-list" class="selectable" style="max-height:52vh;overflow:auto;display:grid;gap:12px"></div></div>
-      <div class="sheet-foot"><button class="btn primary" data-close>Done</button></div>
-    </div>
   </dialog>
 
   <dialog id="dlg-settings">

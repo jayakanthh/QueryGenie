@@ -201,6 +201,13 @@ Dialog sheets on macOS square their top corners where they attach to the window.
 - **SQL block:** editable Plex Mono text area with Copy and "Run edit"; on live databases a second
   block shows the SQL actually sent to the server.
 - **Candidate card:** "Query n" with Agrees / Different result / Did not run, and its SQL.
+- **Schema map (Map view):** the reading pane's second view (Chat · Map). A left-to-right tree —
+  database (accent fill) → tables (accent outline, row count in mono, chevron) → columns (neutral outline,
+  type in mono, key icon for primary keys, link icon for foreign keys) — on a faint dot grid, joined by
+  tapering accent curves. Drag or scroll to move, pinch / ⌘-scroll to zoom, controls bottom-right, find box
+  top-left. Databases over ~32 columns start folded. Tapping a node opens a popover of ready-made
+  questions and "Use in my question"; choices go into the compose field and are never sent without
+  Return. A foreign key highlights its target table with a dashed outline and offers "Go to".
 - **Setup assistant:** step rail (Welcome · Your computer · Download · Ready) beside a content panel;
   a transform-animated progress meter with GB, MB/s and time left.
 

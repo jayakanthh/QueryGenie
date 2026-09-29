@@ -144,6 +144,10 @@ class Api:
         info = self._catalog()[db_id]
         return [{"table": t, "columns": cols, "rows": n} for t, cols, n in tables_of(info)]
 
+    def schema_map(self, db_id):
+        from databases import schema_graph
+        return schema_graph(self._catalog()[db_id])
+
     def add_sqlite(self):
         import webview
         from databases import add_upload

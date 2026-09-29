@@ -130,6 +130,7 @@ async function openApp() {
   $("#app").hidden = false;
   $("#new-chat-kbd").textContent = mod() + "N";
   S.dbs = await api.databases(); S.counts = await api.history_counts();
+  try { S.view = localStorage.getItem("qg.view") === "map" ? "map" : "chat"; } catch (e) { S.view = "chat"; }
   renderSources();
   const last = localStorage.getItem("qg.db");
   selectDb(S.dbs.find((d) => d.id === last) ? last : S.dbs[0]?.id);
@@ -164,7 +165,9 @@ async function selectDb(id) {
   $("#search").value = "";
   await loadChats();
   const last = localStorage.getItem("qg.chat." + id);
-  if (last && S.chats.some((c) => c.id === last)) openChat(last); else newChat();
+  S.mapSel = null; $("#map-pop").hidden = true;
+  if (last && S.chats.some((c) => c.id === last)) await openChat(last); else newChat();
+  showView();
 }
 async function loadChats() {
   S.chats = await api.chats(S.db.id, $("#search").value || null);
@@ -181,7 +184,7 @@ function renderChats() {
       <div class="q">${esc(c.title)}</div>
       <div class="meta">${cells(c.agree, c.agree > 0)}<span>${c.questions} question${c.questions === 1 ? "" : "s"}</span>${S.working && S.working.chat === c.id ? `<span>${icon("loader-circle", "i sm spin")}</span>` : ""}<span class="when">${when(c.updated)}</span></div>
     </button>`).join("");
-  $$("#rows [data-id]").forEach((b) => (b.onclick = () => openChat(b.dataset.id)));
+  $$("#rows [data-id]").forEach((b) => (b.onclick = () => { S.view = "chat"; openChat(b.dataset.id).then(showView); }));
 }
 function markSelected() { $$("#rows [data-id]").forEach((b) => b.setAttribute("aria-selected", !!S.chat && b.dataset.id === S.chat.id)); }
 
@@ -200,13 +203,15 @@ async function openChat(id, scroll = "end") {
 const turnState = (id) => (S.T[id] ||= { tab: null, reading: null, readingData: null, edited: null });
 
 function renderThread(scroll = "end") {
-  const c = S.chat, working = S.working && S.working.chat === (c ? c.id : null) && S.working.db === S.db.id;
+  const c = S.chat;
+  $("#question").placeholder = c ? "Ask another question…" : S.db.examples[0] ? `e.g. ${S.db.examples[0]}` : `Ask about ${S.db.label}…`;
+  if (S.view === "map") { markSelected(); return; }
+  const working = S.working && S.working.chat === (c ? c.id : null) && S.working.db === S.db.id;
   $("#chat-title").innerHTML = c ? `<span class="t selectable">${esc(c.title)}</span><span class="n">${c.turns.length} question${c.turns.length === 1 ? "" : "s"}</span>`
                                  : `<span class="t">New chat</span><span class="n">${esc(S.db.label)}</span>`;
   $("#rename-chat").hidden = $("#delete-chat").hidden = !c;
   $("#layout-seg").hidden = !c;
   $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
-  $("#question").placeholder = c ? "Ask another question…" : S.db.examples[0] ? `e.g. ${S.db.examples[0]}` : `Ask about ${S.db.label}…`;
   $("#dock-hint").innerHTML = c ? `${icon("info", "i sm")}Each question is answered on its own — the model doesn't see earlier questions, so name the table or filter again.`
                                 : `Return to ask · Shift+Return for a new line`;
   let html;
@@ -233,6 +238,7 @@ function autosize() { const t = $("#question"); t.style.height = "auto"; t.style
 async function submitQuestion(text) {
   const q = (text ?? $("#question").value).trim();
   if (!q || S.working) return;
+  if (S.view === "map") { closePop(); setView("chat"); }
   const chatId = S.chat ? S.chat.id : null, db = S.db.id;
   S.working = { q, chat: chatId, db, t0: Date.now() }; S.failed = null;
   $("#question").value = ""; autosize(); $("#ask-btn").disabled = true;
@@ -353,6 +359,238 @@ function candidatesHtml(it) {
   }).join("")}</div>`;
 }
 
+// ------------------------------------------------------------------ views: chat or schema map
+function setView(v) {
+  S.view = v; try { localStorage.setItem("qg.view", v); } catch (e) { /* per-viewer convenience only */ }
+  showView();
+}
+function showView() {
+  const map = S.view === "map";
+  $("#thread").hidden = map; $("#map").hidden = !map; $("#bar-chat").hidden = map;
+  $$("#view-seg [data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === S.view));
+  if (map) renderMap(); else renderThread("keep");
+}
+
+// ------------------------------------------------------------------ schema map
+// A left-to-right tree: database -> tables -> columns. Tap a node for questions to ask about it;
+// they are placed in the question box, never sent without the user pressing Return.
+const MAPS = {};                                            // db id -> { data, open:Set, t:{k,tx,ty}, fitted }
+const FONT = { root: "700 14px Montserrat", table: "700 13px Montserrat", col: "500 12px Montserrat", mono: "400 12px 'IBM Plex Mono'" };
+const G = { tableH: 34, colH: 26, colPitch: 32, blockGap: 16, gap1: 84, gap2: 64, rootH: 40 };
+function textW(text, font) { const c = (textW.c ||= document.createElement("canvas").getContext("2d")); c.font = font; return c.measureText(String(text)).width; }
+
+async function renderMap() {
+  const db = S.db, m = (MAPS[db.id] ||= { data: null, open: new Set(), t: { k: 1, tx: 0, ty: 0 }, fitted: false });
+  $("#chat-title").innerHTML = `<span class="t">Schema map</span><span class="n">${esc(db.label)}</span>`;
+  $("#dock-hint").innerHTML = `${icon("info", "i sm")}Tap a table or column to ask about it. Questions you pick appear here — edit, then press Return.`;
+  if (!m.data) {
+    $("#map-g").innerHTML = "";
+    try { m.data = await api.schema_map(db.id); } catch (e) { m.data = []; }
+    if (S.db.id !== db.id) return;
+    const cols = m.data.reduce((n, t) => n + t.columns.length, 0);
+    if (cols <= 32) m.data.forEach((t) => m.open.add(t.table));   // small databases open fully; larger ones fold
+    await document.fonts.ready;
+  }
+  const nT = m.data.length, nC = m.data.reduce((n, t) => n + t.columns.length, 0);
+  $("#chat-title").innerHTML = `<span class="t">Schema map</span><span class="n">${nT} table${nT === 1 ? "" : "s"} · ${nC} columns</span>`;
+  $("#map-all").title = m.open.size === nT ? "Hide all columns" : "Show all columns";
+  drawMap(m);
+  if (!m.fitted) { fitMap(m, false); m.fitted = true; } else applyT(m);
+}
+function layoutMap(m) {
+  const root = { kind: "root", id: "root", label: S.db.label, x: 0, w: textW(S.db.label, FONT.root) + 48, h: G.rootH };
+  const tables = m.data.map((t) => ({ kind: "table", id: "t:" + t.table, t, label: t.table, open: m.open.has(t.table),
+    w: 14 + textW(t.table, FONT.table) + 10 + textW(t.rows.toLocaleString(), FONT.mono) + 32, h: G.tableH }));
+  const tw = Math.max(120, ...tables.map((n) => n.w)), x1 = root.w + G.gap1, x2 = x1 + tw + G.gap2;
+  const cols = []; let y = 0;
+  tables.forEach((n) => {
+    n.x = x1; n.w = tw;
+    const list = n.open ? n.t.columns : [];
+    const block = Math.max(G.tableH, list.length * G.colPitch - (G.colPitch - G.colH));
+    n.y = y + block / 2 - G.tableH / 2;
+    list.forEach((c, i) => {
+      const extra = (c.pk ? 18 : 0) + (c.ref ? 18 : 0);
+      cols.push({ kind: "col", id: `c:${n.t.table}.${c.name}`, c, parent: n, label: c.name, x: x2, y: y + i * G.colPitch, h: G.colH,
+        w: 12 + extra + textW(c.name, FONT.col) + (c.type ? 8 + textW(c.type, FONT.mono) : 0) + 12 });
+    });
+    y += block + G.blockGap;
+  });
+  const H = Math.max(G.rootH, y - G.blockGap);
+  root.y = H / 2 - G.rootH / 2;
+  const W = cols.length ? Math.max(...cols.map((c) => c.x + c.w)) : x1 + tw;
+  return { root, tables, cols, W, H };
+}
+function curve(x1, y1, x2, y2) { const mx = x1 + (x2 - x1) * 0.55; return `M${x1},${y1} C${mx},${y1} ${x1 + (x2 - x1) * 0.45},${y2} ${x2},${y2}`; }
+function drawMap(m) {
+  const L = (m.L = layoutMap(m)), q = ($("#map-find").value || "").trim().toLowerCase();
+  const hit = (s) => q && s.toLowerCase().includes(q);
+  const match = (n) => !q || (n.kind === "table" ? hit(n.t.table) || n.t.columns.some((c) => hit(c.name)) : n.kind === "col" ? hit(n.c.name) || hit(n.parent.t.table) : true);
+  const sel = S.mapSel, linked = sel && sel.kind === "col" && sel.c.ref ? "t:" + sel.c.ref[0].toLowerCase() : null;
+  let edges = "", nodes = "";
+  L.tables.forEach((n) => { edges += `<path class="m-edge root${match(n) ? "" : " dim"}" d="${curve(L.root.x + L.root.w, L.root.y + L.root.h / 2, n.x, n.y + n.h / 2)}"/>`; });
+  L.cols.forEach((c) => { edges += `<path class="m-edge${match(c) ? "" : " dim"}" d="${curve(c.parent.x + c.parent.w, c.parent.y + c.parent.h / 2, c.x, c.y + c.h / 2)}"/>`; });
+  const r = L.root;
+  nodes += `<g class="m-node root" data-node="root" tabindex="0" role="button" aria-label="${esc(S.db.label)}" transform="translate(${r.x},${r.y})">
+    <rect width="${r.w}" height="${r.h}" rx="9"/><use href="#i-database" x="14" y="12" width="16" height="16"/>
+    <text x="38" y="${r.h / 2 + 5}">${esc(r.label)}</text></g>`;
+  L.tables.forEach((n) => {
+    const cls = ["m-node", "table", n.open ? "open" : "", match(n) ? "" : "dim", hit(n.t.table) ? "hit" : "", sel && sel.id === n.id ? "sel" : "", linked === n.id.toLowerCase() ? "linked" : ""].join(" ");
+    nodes += `<g class="${cls}" data-node="${esc(n.id)}" tabindex="0" role="button" aria-expanded="${n.open}" aria-label="Table ${esc(n.t.table)}, ${n.t.rows} rows" transform="translate(${n.x},${n.y})">
+      <rect width="${n.w}" height="${n.h}" rx="7"/><text x="14" y="${n.h / 2 + 4.5}">${esc(n.t.table)}</text>
+      <text class="m-rows" x="${n.w - 30}" y="${n.h / 2 + 4}" text-anchor="end">${n.t.rows.toLocaleString()}</text>
+      <g transform="translate(${n.w - 24},${n.h / 2 - 7})"><use class="m-chev" href="#i-chevron-right" width="14" height="14"${n.open ? ' transform="rotate(90 7 7)"' : ""}/></g></g>`;
+  });
+  L.cols.forEach((c) => {
+    const cls = ["m-node", "col", match(c) ? "" : "dim", hit(c.c.name) ? "hit" : "", sel && sel.id === c.id ? "sel" : ""].join(" ");
+    let x = 12, marks = "";
+    if (c.c.pk) { marks += `<use class="m-pk" href="#i-key-round" x="${x}" y="${c.h / 2 - 6}" width="12" height="12"/>`; x += 18; }
+    if (c.c.ref) { marks += `<use class="m-fk" href="#i-link" x="${x}" y="${c.h / 2 - 6}" width="12" height="12"/>`; x += 18; }
+    const nameW = textW(c.c.name, FONT.col);
+    nodes += `<g class="${cls}" data-node="${esc(c.id)}" tabindex="0" role="button" aria-label="Column ${esc(c.c.name)} in ${esc(c.parent.t.table)}${c.c.pk ? ", primary key" : ""}${c.c.ref ? `, links to ${esc(c.c.ref[0])}` : ""}" transform="translate(${c.x},${c.y})">
+      <rect width="${c.w}" height="${c.h}" rx="6"/>${marks}<text x="${x}" y="${c.h / 2 + 4}">${esc(c.c.name)}</text>
+      ${c.c.type ? `<text class="m-type" x="${x + nameW + 8}" y="${c.h / 2 + 4}">${esc(c.c.type)}</text>` : ""}</g>`;
+  });
+  $("#map-g").innerHTML = edges + nodes;
+  $$("#map-g [data-node]").forEach((g) => {
+    g.onclick = (e) => { if (S.mapDragged) return; e.stopPropagation(); tapNode(m, g.dataset.node); };
+    g.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapNode(m, g.dataset.node); } };
+  });
+}
+const nodeById = (m, id) => (id === "root" ? m.L.root : m.L.tables.find((n) => n.id === id) || m.L.cols.find((n) => n.id === id));
+function applyT(m) { const t = m.t; $("#map-g").setAttribute("transform", `translate(${t.tx.toFixed(1)},${t.ty.toFixed(1)}) scale(${t.k.toFixed(4)})`); placePop(m); }
+function mapBox() { const r = $("#map").getBoundingClientRect(); return { w: r.width, h: r.height }; }
+function fitMap(m, animate = true) {
+  const b = mapBox(), pad = 48, top = 56;                                   // leave room for the find box
+  const k = Math.max(0.2, Math.min(1.15, (b.w - pad * 2) / m.L.W, (b.h - top - pad) / m.L.H));
+  moveT(m, { k, tx: (b.w - m.L.W * k) / 2, ty: top + Math.max(0, (b.h - top - pad - m.L.H * k) / 2) }, animate);
+}
+function moveT(m, to, animate = true) {
+  if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { m.t = to; return applyT(m); }
+  const from = { ...m.t }, t0 = performance.now(), D = 220;
+  const step = (now) => { const p = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - p, 3);
+    m.t = { k: from.k + (to.k - from.k) * e, tx: from.tx + (to.tx - from.tx) * e, ty: from.ty + (to.ty - from.ty) * e }; applyT(m);
+    if (p < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function zoomAt(m, factor, px, py) {
+  const t = m.t, k = Math.max(0.2, Math.min(2.5, t.k * factor));
+  m.t = { k, tx: px - ((px - t.tx) * k) / t.k, ty: py - ((py - t.ty) * k) / t.k }; applyT(m);
+}
+function centerOn(m, n) {
+  const b = mapBox(), k = Math.max(m.t.k, 0.9);
+  moveT(m, { k, tx: b.w / 2 - (n.x + n.w / 2) * k, ty: b.h / 2 - (n.y + n.h / 2) * k });
+}
+function toggleTable(m, name) {
+  const id = "t:" + name, before = nodeById(m, id);
+  const y0 = before ? before.y : 0;
+  m.open.has(name) ? m.open.delete(name) : m.open.add(name);
+  drawMap(m);
+  const after = nodeById(m, id);                                             // keep the tapped table where it was
+  if (after) { m.t.ty -= (after.y - y0) * m.t.k; }
+  applyT(m);
+  $("#map-all").title = m.open.size === m.data.length ? "Hide all columns" : "Show all columns";
+}
+function tapNode(m, id) {
+  const n = nodeById(m, id); if (!n) return;
+  if (n.kind === "table" && !n.open) toggleTable(m, n.t.table);
+  S.mapSel = nodeById(m, id); drawMap(m); applyT(m); openPop(m);
+}
+
+// the menu shown next to a tapped node
+const CATEGORY = /type|status|categor|dep(t|artment)|city|country|state|gender|sex|year|level|class|genre|role|kind|group|nationality|language|region|brand|position/i;
+const numeric = (ty) => /int|real|float|double|num|dec|money/i.test(ty || "");
+function nodeQuestions(n) {
+  if (n.kind === "root") return S.db.examples.slice(0, 4);
+  if (n.kind === "table") {
+    const t = n.t.table, text = n.t.columns.find((c) => !c.pk && !c.ref && CATEGORY.test(c.name)), num = n.t.columns.find((c) => !c.pk && !c.ref && numeric(c.type));
+    return [`How many records are in the ${t} table?`, `Show the first 10 rows of ${t}.`,
+      text ? `How many ${t} records are there for each ${text.name}?` : null, num ? `What is the average ${num.name} in ${t}?` : null].filter(Boolean);
+  }
+  const t = n.parent.t.table, c = n.c.name;
+  if (n.c.ref) return [`For each ${n.c.ref[0]}, how many ${t} records are there?`, `Show the ${t} records with their ${n.c.ref[0]} details.`];
+  if (numeric(n.c.type) && !n.c.pk) return [`What is the average ${c} in ${t}?`, `Which ${t} record has the highest ${c}?`, `What are the minimum and maximum ${c} in ${t}?`];
+  return [`What are the distinct ${c} values in ${t}?`].concat(CATEGORY.test(c) ? [`How many ${t} records are there for each ${c}?`] : []);
+}
+function openPop(m) {
+  const n = S.mapSel, pop = $("#map-pop"); if (!n) { pop.hidden = true; return; }
+  let head, foot = "";
+  if (n.kind === "root") head = `<div class="pop-head"><b>${esc(S.db.label)}</b><span class="mono">${m.data.length} tables</span></div><p class="pop-note">Example questions for this database:</p>`;
+  else if (n.kind === "table") {
+    head = `<div class="pop-head"><b>${esc(n.t.table)}</b><span class="mono">${n.t.rows.toLocaleString()} rows · ${n.t.columns.length} columns</span></div>`;
+    foot = `<button class="btn quiet" data-pop="cols">${icon("list-tree", "i sm")}${m.open.has(n.t.table) ? "Hide columns" : "Show columns"}</button>`;
+  } else {
+    const c = n.c;
+    head = `<div class="pop-head"><b class="mono">${esc(n.parent.t.table)}.${esc(c.name)}</b><span class="mono">${esc(c.type || "")}</span></div>
+      ${c.pk || c.ref ? `<p class="pop-note">${c.pk ? `${icon("key-round", "i sm")}Primary key` : ""}${c.pk && c.ref ? " · " : ""}${c.ref ? `${icon("link", "i sm")}Links to ${esc(c.ref[0])}${c.ref[1] ? "." + esc(c.ref[1]) : ""}` : ""}</p>` : ""}`;
+    if (c.ref) foot = `<button class="btn quiet" data-pop="goto">${icon("chevron-right", "i sm")}Go to ${esc(c.ref[0])}</button>`;
+  }
+  const name = n.kind === "table" ? `the ${n.t.table} table` : n.kind === "col" ? `${n.c.name} in ${n.parent.t.table}` : null;
+  pop.innerHTML = head + `<div class="pop-qs">${nodeQuestions(n).map((q) => `<button data-q="${esc(q)}">${icon("message-square-text", "i sm")}<span>${esc(q)}</span></button>`).join("")}</div>
+    <div class="pop-foot">${name ? `<button class="btn" data-insert="${esc(name)}">${icon("text-cursor-input", "i sm")}Use in my question</button>` : ""}${foot}</div>`;
+  pop.hidden = false;
+  $$("[data-q]", pop).forEach((b) => (b.onclick = () => putQuestion(b.dataset.q, true)));
+  const ins = $("[data-insert]", pop); if (ins) ins.onclick = () => putQuestion(ins.dataset.insert, false);
+  const cols = $("[data-pop=cols]", pop); if (cols) cols.onclick = () => { toggleTable(m, n.t.table); S.mapSel = nodeById(m, n.id); drawMap(m); applyT(m); openPop(m); };
+  const go = $("[data-pop=goto]", pop);
+  if (go) go.onclick = () => { const tgt = m.L.tables.find((x) => x.t.table.toLowerCase() === n.c.ref[0].toLowerCase()); if (tgt) { S.mapSel = tgt; drawMap(m); centerOn(m, tgt); openPop(m); } };
+  placePop(m);
+}
+function placePop(m) {
+  const pop = $("#map-pop"), n = S.mapSel; if (pop.hidden || !n || !m.L) return;
+  const t = m.t, b = mapBox(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let x = t.tx + (n.x + n.w) * t.k + 12, y = t.ty + n.y * t.k - 6;
+  if (x + pw > b.w - 12) x = t.tx + n.x * t.k - pw - 12;                  // no room on the right: open to the left
+  if (x < 12) { x = Math.min(b.w - pw - 12, Math.max(12, t.tx + n.x * t.k)); y = t.ty + (n.y + n.h) * t.k + 10; }
+  y = Math.max(52, Math.min(b.h - ph - 12, y));
+  pop.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+}
+function closePop() { $("#map-pop").hidden = true; if (S.mapSel) { S.mapSel = null; const m = MAPS[S.db.id]; if (m && m.L) { drawMap(m); applyT(m); } } }
+function putQuestion(text, replace) {
+  const ta = $("#question");
+  if (replace || !ta.value.trim()) ta.value = text + (replace ? "" : " ");
+  else { const a = ta.selectionStart ?? ta.value.length, pre = ta.value.slice(0, a), post = ta.value.slice(a);
+    ta.value = pre + (pre && !/\s$/.test(pre) ? " " : "") + text + (post && !/^\s/.test(post) ? " " : "") + post; }
+  autosize(); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  const dock = $(".dock"); dock.classList.remove("flash"); void dock.offsetWidth; dock.classList.add("flash");
+}
+function wireMap() {
+  const svg = $("#map-svg"), cur = () => MAPS[S.db.id];
+  svg.addEventListener("wheel", (e) => {
+    const m = cur(); if (!m || !m.L) return; e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    if (e.ctrlKey || e.metaKey) zoomAt(m, Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+    else { m.t.tx -= e.deltaX; m.t.ty -= e.deltaY; applyT(m); }
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; S.mapDragged = false; });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return; const m = cur(); const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    if (!drag.moved) { drag.moved = true; svg.setPointerCapture?.(e.pointerId); svg.classList.add("grabbing"); }
+    drag.x = e.clientX; drag.y = e.clientY; m.t.tx += dx; m.t.ty += dy; applyT(m);
+  });
+  window.addEventListener("pointerup", () => { if (!drag) return; S.mapDragged = drag.moved; drag = null; svg.classList.remove("grabbing"); setTimeout(() => (S.mapDragged = false), 0); });
+  svg.addEventListener("click", (e) => { if (!S.mapDragged && !e.target.closest("[data-node]")) closePop(); });
+  const b = () => { const r = mapBox(); return [r.w / 2, r.h / 2]; };
+  $("#map-in").onclick = () => zoomAt(cur(), 1.25, ...b());
+  $("#map-out").onclick = () => zoomAt(cur(), 0.8, ...b());
+  $("#map-fit").onclick = () => fitMap(cur());
+  $("#map-all").onclick = () => { const m = cur(); const all = m.open.size === m.data.length;
+    m.open = new Set(all ? [] : m.data.map((t) => t.table)); closePop(); drawMap(m); fitMap(m); $("#map-all").title = all ? "Show all columns" : "Hide all columns"; };
+  let ft; $("#map-find").oninput = () => { clearTimeout(ft); ft = setTimeout(() => {
+    const m = cur(), q = $("#map-find").value.trim().toLowerCase();
+    if (q) m.data.forEach((t) => { if (t.columns.some((c) => c.name.toLowerCase().includes(q))) m.open.add(t.table); });
+    drawMap(m); applyT(m); }, 120); };
+  $("#map-find").onkeydown = (e) => {
+    if (e.key === "Escape") { e.currentTarget.value = ""; $("#map-find").oninput(); }
+    if (e.key !== "Enter") return;
+    const m = cur(), q = e.currentTarget.value.trim().toLowerCase(); if (!q) return;
+    const n = m.L.tables.find((t) => t.t.table.toLowerCase().includes(q)) || m.L.cols.find((c) => c.c.name.toLowerCase().includes(q));
+    if (n) { S.mapSel = n; drawMap(m); centerOn(m, n); openPop(m); }
+  };
+  window.addEventListener("resize", () => { const m = cur(); if (S.view === "map" && m && m.L) placePop(m); });
+}
+
 // ------------------------------------------------------------------ chart (SVG, one series)
 function chartSvg(spec) {
   if (!spec) return `<div class="chart-empty">No chart for this result — it needs a column of numbers to plot.</div>`;
@@ -460,10 +698,12 @@ function wireApp() {
   $("#question").addEventListener("input", autosize);
   let t; $("#search").oninput = () => { clearTimeout(t); t = setTimeout(() => loadChats(), 180); };
   $$("#layout-seg [data-layout]").forEach((b) => (b.onclick = () => { S.layout = b.dataset.layout; Object.values(S.T).forEach((x) => (x.tab = null)); api.settings_set({ layout: S.layout }); renderThread("keep"); }));
-  $("#new-chat").onclick = newChat;
+  $("#new-chat").onclick = () => { newChat(); setView("chat"); };
   $("#rename-chat").onclick = renameChat;
   $("#delete-chat").onclick = deleteChat;
-  $("#schema-btn").onclick = openSchema;
+  $("#schema-btn").onclick = () => setView("map");
+  $$("#view-seg [data-view]").forEach((b) => (b.onclick = () => setView(b.dataset.view)));
+  wireMap();
   $("#add-db").onclick = (e) => toggleMenu($("#add-menu"), e.currentTarget);
   $("#m-file").onclick = addFile;
   $("#m-server").onclick = () => { $("#add-menu").hidden = true; openConnect(); };
@@ -472,7 +712,8 @@ function wireApp() {
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db")) $$(".menu").forEach((m) => (m.hidden = true)); });
   document.addEventListener("keydown", (e) => {
     const m = S.os === "mac" ? e.metaKey : e.ctrlKey;
-    if (m && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); }
+    if (m && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); setView("chat"); }
+    if (e.key === "Escape" && S.view === "map" && !$("#map-pop").hidden) closePop();
     if (m && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
     if (m && e.key === ",") { e.preventDefault(); openSettings(); }
     if ((e.key === "ArrowDown" || e.key === "ArrowUp") && document.activeElement.closest("#rows")) {
@@ -517,14 +758,6 @@ function openConnect() {
     if (r.error) { $("#c-msg").className = "form-msg bad"; $("#c-msg").textContent = "Couldn't connect: " + r.error; return; }
     d.close(); S.dbs = await api.databases(); renderSources(); selectDb(r.id);
   };
-}
-async function openSchema() {
-  $("#schema-title").textContent = S.db.label;
-  $("#schema-list").innerHTML = '<div class="sk" style="width:60%"></div>';
-  $("#dlg-schema").showModal();
-  const tables = await api.schema(S.db.id);
-  $("#schema-list").innerHTML = tables.map((t) => `<div><b>${esc(t.table)}</b> <span style="color:var(--ink-3);font-size:var(--fs-xs)" class="mono">${t.rows.toLocaleString()} rows</span>
-    <div class="mono" style="color:var(--ink-2);font-size:var(--fs-sm);margin-top:3px">${t.columns.map(esc).join(", ")}</div></div>`).join("");
 }
 async function openSettings() {
   const d = $("#dlg-settings"); const ops = S.boot.operating_points || {};

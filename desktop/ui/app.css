@@ -385,6 +385,57 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.28); }
 .start-mark { width: 40px; height: 40px; border-radius: var(--radius-lg); background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
 .start-mark .i { width: 20px; height: 20px; }
 
+/* schema map ------------------------------------------------------- */
+.map { flex: 1; position: relative; overflow: hidden; min-height: 0; background:
+  radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0 / 22px 22px, var(--bg-pane); }
+.map[hidden] { display: none; }
+#map-svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#map-svg.grabbing { cursor: grabbing; }
+.m-edge { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: 0.55; }
+.m-edge.root { stroke-width: 3; opacity: 0.8; }
+.m-edge.dim, .m-node.dim { opacity: 0.18; }
+.m-node { cursor: pointer; outline: none; }
+.m-node text { font: 500 12px var(--font-ui); fill: var(--ink); }
+.m-node rect { fill: var(--bg-raised); stroke: var(--line-strong); stroke-width: 1; transition: stroke 120ms var(--ease); }
+.m-node:hover rect { stroke: var(--accent); }
+.m-node:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+.m-node.root rect { fill: var(--accent-fill); stroke: none; }
+.m-node.root text { font: 700 14px var(--font-ui); fill: var(--accent-ink); }
+.m-node.root use { color: var(--accent-ink); }
+.m-node.table rect { stroke: var(--accent); stroke-width: 1.5; }
+.m-node.table text { font: 700 13px var(--font-ui); }
+.m-node.table text.m-rows, .m-node text.m-type { font: 400 12px var(--font-mono); fill: var(--ink-3); }
+.m-node .m-chev { color: var(--ink-3); }
+.m-node .m-pk { color: var(--ink-2); }
+.m-node .m-fk { color: var(--accent); }
+.m-node.hit rect { fill: var(--accent-soft); }
+.m-node.sel rect, .m-node.linked rect { stroke: var(--accent); stroke-width: 2.5; }
+.m-node.linked rect { stroke-dasharray: 5 3; }
+
+.map-find { position: absolute; top: 12px; left: 14px; width: min(300px, 50%); background: var(--bg-raised); border: 1px solid var(--line); height: 30px; }
+.map-ctl { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-lg); background: var(--bg-raised); border: 1px solid var(--line); box-shadow: var(--shadow-pop); }
+.map-ctl .btn { border-color: transparent; }
+.map-pop { position: absolute; left: 0; top: 0; width: 320px; max-width: calc(100% - 24px); background: var(--bg-raised); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-pop); padding: 12px; display: grid; gap: 8px; z-index: 2; }
+.map-pop[hidden] { display: none; }
+.pop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pop-head b { font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pop-head b.mono { font-size: var(--fs-base); }
+.pop-head span { color: var(--ink-3); font-size: var(--fs-xs); white-space: nowrap; }
+.pop-note { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.pop-qs { display: grid; gap: 4px; }
+.pop-qs button { text-align: left; border: 1px solid var(--line); background: var(--bg-pane); border-radius: var(--radius); padding: 7px 9px; color: var(--ink); font-size: var(--fs-sm); display: flex; gap: 8px; align-items: flex-start; }
+.pop-qs button:hover { border-color: var(--accent); }
+.pop-qs svg { color: var(--accent); margin-top: 2px; }
+.pop-foot { display: flex; gap: 6px; flex-wrap: wrap; }
+.pop-foot:empty { display: none; }
+.dock.flash .compose { animation: dock-flash 700ms var(--ease); }
+@keyframes dock-flash { 0% { box-shadow: 0 0 0 0 var(--focus); } 30% { box-shadow: 0 0 0 5px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .dock.flash .compose { animation: none; } .m-node rect { transition: none; } }
+.bar-group { display: flex; align-items: center; gap: 8px; }
+.bar-group[hidden] { display: none; }
+#view-seg { margin-right: 6px; }
+
 .pane { container-type: inline-size; }
 .pane-bar .seg button { white-space: nowrap; }
 @container (max-width: 860px) {

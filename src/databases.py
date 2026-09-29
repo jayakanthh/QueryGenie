@@ -127,6 +127,32 @@ def tables_of(info):
     return info.conn.tables_summary() if info.conn is not None else list_tables(info.path)
 
 
+def schema_graph(info):
+    """Tables with typed columns, primary keys and foreign keys, for the desktop schema map.
+
+    [{"table", "rows", "columns": [{"name", "type", "pk", "ref": [table, column] | None}]}]
+    """
+    counts = {t: n for t, _cols, n in tables_of(info)}
+    if info.conn is not None:
+        schema = info.conn.introspect()
+        refs = {(a, b): [c, d] for a, b, c, d in schema["foreign_keys"]}
+        return [{"table": it["table_name"], "rows": counts.get(it["table_name"], 0),
+                 "columns": [{"name": n, "type": ty, "pk": bool(pk), "ref": refs.get((it["table_name"], n))}
+                             for n, ty, pk in zip(it["column_names"], it["column_types"], it["pk_indicators"])]}
+                for it in schema["schema_items"]]
+    con = _connect_ro(info.path)
+    try:
+        out = []
+        for t in counts:
+            refs = {r[3]: [r[2], r[4]] for r in con.execute(f'PRAGMA foreign_key_list("{t}")')}
+            cols = [{"name": r[1], "type": (r[2] or "").lower(), "pk": bool(r[5]), "ref": refs.get(r[1])}
+                    for r in con.execute(f'PRAGMA table_info("{t}")')]
+            out.append({"table": t, "rows": counts[t], "columns": cols})
+        return out
+    finally:
+        con.close()
+
+
 def schema_markdown(info) -> str:
     rows = []
     for t, cols, n in tables_of(info):
