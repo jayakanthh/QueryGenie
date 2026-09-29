@@ -13,6 +13,12 @@ datasets>=2.18        # scripts/download_spider.py
 rapidfuzz>=3.0
 func_timeout>=4.3
 
+# Live database connections (src/connectors.py)
+sqlalchemy>=2.0
+sqlglot>=25
+psycopg[binary]>=3.1   # PostgreSQL
+pymysql>=1.1          # MySQL / MariaDB
+
 # Abstention analysis and figures (src/abstention.py)
 numpy>=1.26
 scipy>=1.11

@@ -108,3 +108,8 @@ def run_confident(backend, db_path: str, question: str, mode: str = "balanced",
                   db_comments: dict | None = None) -> ConfidentRun:
     """Generate 4 candidates, select as in the evaluation, then answer or abstain."""
     return ConfidentRun(question, backend.decide(db_path, question, db_comments), mode)
+
+
+def run_confident_connected(backend, source, question: str, mode: str = "balanced") -> ConfidentRun:
+    """As run_confident, on a live database (SQL translated to its dialect, run read-only)."""
+    return ConfidentRun(question, backend.decide_connected(source, question), mode)

@@ -175,15 +175,29 @@ class CodesSFTBackend:
 
     def decide(self, db_path: str, question: str, db_comments: dict | None = None,
                max_new_tokens: int = 256):
-        import torch
-        from codes_prompt import build_prefix, decide, encode
+        """The evaluated setting: a local SQLite file."""
+        from codes_prompt import build_prefix
 
-        self.load()
         key = (db_path, os.path.getmtime(db_path))
         schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key),
                                       db_comments={os.path.splitext(os.path.basename(db_path))[0]: db_comments}
                                       if db_comments else None)
         self._schema_cache[key] = schema
+        return self._generate_and_decide(db_path, schema, prefix, max_new_tokens)
+
+    def decide_connected(self, source, question: str, max_new_tokens: int = 256):
+        """A connected database (connectors.SqlAlchemySource): same model, prompt shape and
+        selection; SQL is translated to the target dialect and run read-only."""
+        from codes_prompt import build_prefix_connected
+
+        schema, prefix = build_prefix_connected(source, question)
+        return self._generate_and_decide(source, schema, prefix, max_new_tokens)
+
+    def _generate_and_decide(self, target, schema, prefix, max_new_tokens):
+        import torch
+        from codes_prompt import decide, encode
+
+        self.load()
         ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
         with torch.no_grad():
             gen = self._model.generate(input_ids=ids, attention_mask=torch.ones_like(ids),
@@ -192,7 +206,7 @@ class CodesSFTBackend:
                                        return_dict_in_generate=True, output_scores=True)
         texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
                                        clean_up_tokenization_spaces=False)
-        return decide(db_path, schema, texts, [float(x) for x in gen.sequences_scores])
+        return decide(target, schema, texts, [float(x) for x in gen.sequences_scores])
 
 
 class MLXBackend:

@@ -65,6 +65,23 @@ In the app:
 
 ![Abstention in the app: the candidates disagree, so it asks "Did you mean…?"](docs/screenshots/app_abstain.png)
 
+### Connect your own database
+
+Open **🔌 Connect a live database** in the sidebar, choose PostgreSQL or MySQL/MariaDB, enter host,
+database, user and password, and click **Connect**. QueryGenie reads the schema, builds a value
+index once, and then answers questions on the live database:
+
+- the model's SQLite-style SQL is translated to the server's dialect (sqlglot) and shown next to
+  the original;
+- only a single read-only query is accepted, run inside a **READ ONLY transaction** with a
+  30-second timeout and a 1,000-row limit — use a read-only database user anyway;
+- the password is kept in memory only.
+
+On Spider's databases loaded into PostgreSQL, translated queries return the same answer as on
+SQLite for 94.4% of gold queries and 93.7% of model predictions
+([`results/postgres_translation_check.md`](results/postgres_translation_check.md)). Accuracy and
+confidence were calibrated on SQLite; on other engines they are not yet measured.
+
 UI development without downloading a model: `QUERYGENIE_BACKEND=mock python src/app.py`.
 
 ### Optional: faster local models on Apple Silicon
@@ -95,7 +112,7 @@ python src/abstention.py results/dump_T2-006.jsonl
 This reproduces the significance tests, the operating points and the accuracy–coverage figure
 from the committed candidate record.
 
-**3. Tests (no model needed).** `python -m pytest tests/ -q` (11 tests)
+**3. Tests (no model needed).** `python -m pytest tests/ -q` (13 tests)
 
 **4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
 (`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.
@@ -121,7 +138,8 @@ src/
   engine.py           Answer/abstain logic and the simple generate→execute→self-correct loop
   model.py            Model backends: evaluated pipeline, transformers, MLX, GGUF, mock
   abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
-  databases.py        database catalogue: sample, Spider dev databases, uploads (read-only)
+  databases.py        database catalogue: sample, Spider dev databases, uploads, live connections
+  connectors.py       live PostgreSQL / MySQL: schema, value index, SQL translation, read-only execution
   database.py, charts.py, build_sample_db.py   schema helpers, auto chart, sample database
   eval_spider_full.py local (simple-metric) variant of the evaluation
   eval_spider.py      legacy harness that produced run T2-001

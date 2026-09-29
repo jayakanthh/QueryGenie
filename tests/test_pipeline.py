@@ -113,3 +113,30 @@ def test_candidate_execution_is_read_only(db):
     ok, *_, err = result_signature(db, "DELETE FROM student")
     assert not ok and "readonly" in err.replace(" ", "").lower()
     con = sqlite3.connect(db); assert con.execute("SELECT COUNT(*) FROM student").fetchone()[0] == 3
+
+
+# ---- connector: translation + read-only guard, tested on SQLite (no server needed) ----
+@pytest.fixture()
+def pg_like(db):
+    from connectors import SqlAlchemySource
+    src = SqlAlchemySource(f"sqlite:///{db}")
+    src.dialect = "postgres"          # exercise the Postgres rewrites without a Postgres server
+    return src
+
+
+def test_translate_rejects_writes_and_multiple_statements(pg_like):
+    from connectors import ReadOnlyViolation
+    for bad in ["DELETE FROM student", "DROP TABLE student", "SELECT 1; SELECT 2",
+                "INSERT INTO student VALUES (9, 'x', 1)"]:
+        with pytest.raises(ReadOnlyViolation):
+            pg_like.translate(bad)
+
+
+def test_translate_sqlite_semantics_for_postgres(pg_like):
+    t = pg_like.translate
+    assert "'Asha'" in t('SELECT year FROM student WHERE name = "Asha"')          # "text" -> string
+    assert "'name'" not in t('SELECT "name" FROM student')                        # real column kept
+    assert "ILIKE" in t("SELECT name FROM student WHERE name LIKE '%a%'")          # case-insensitive LIKE
+    assert "MAX(name)" in t("SELECT name, COUNT(*) FROM student GROUP BY year")     # bare column wrapped
+    # SQLite's "row holding the max" idiom is left alone (it would fail -> lower agreement)
+    assert "MAX(name)" not in t("SELECT name, MAX(year) FROM student GROUP BY year")

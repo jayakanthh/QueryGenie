@@ -1,0 +1,78 @@
+{
+  "questions": 1034,
+  "gold_total": 1034,
+  "gold_same": 976,
+  "pred_total": 1006,
+  "pred_same": 943,
+  "pred_pg_error": 14,
+  "gold_pg_error": 17,
+  "pred_sqlite_error": 28,
+  "pred_different": 49,
+  "pred_different_order_limit": 35,
+  "gold_different": 41,
+  "gold_different_order_limit": 27,
+  "gold_same_rate": 0.9439071566731141,
+  "pred_same_rate": 0.937375745526839,
+  "top_failures": [
+    [
+      "gold",
+      "(psycopg.errors.UndefinedFunction) function avg(text) does n",
+      6
+    ],
+    [
+      "pred",
+      "(psycopg.errors.UndefinedFunction) function avg(text) does n",
+      6
+    ],
+    [
+      "pred",
+      "(psycopg.errors.UndefinedFunction) operator does not exist",
+      3
+    ],
+    [
+      "pred",
+      "(psycopg.errors.GroupingError) column \"singer.age\" must appe",
+      2
+    ],
+    [
+      "pred",
+      "(psycopg.errors.InvalidTextRepresentation) invalid input syn",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.UndefinedFunction) operator does not exist",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.GroupingError) column \"templates.template_ty",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.InvalidColumnReference) for SELECT DISTINCT,",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.SyntaxError) subquery in FROM must have an a",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.GroupingError) column \"countrylanguage.langu",
+      2
+    ],
+    [
+      "gold",
+      "(psycopg.errors.GroupingError) column \"stadium.average\" must",
+      1
+    ],
+    [
+      "pred",
+      "(psycopg.errors.GroupingError) column \"country.gnp\" must app",
+      1
+    ]
+  ]
+}

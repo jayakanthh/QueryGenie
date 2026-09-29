@@ -29,8 +29,9 @@ import gradio as gr
 import pandas as pd
 
 from charts import pick_chart
-from databases import add_upload, build_catalog, list_tables, schema_markdown
-from engine import MODES, operating_points, run_confident, run_query
+from connectors import KINDS
+from databases import add_upload, build_catalog, connect, schema_markdown, tables_of
+from engine import MODES, operating_points, run_confident, run_confident_connected, run_query
 from model import ModelManager, available_models, default_model
 
 CATALOG = build_catalog()
@@ -129,8 +130,16 @@ def _choices(d):
             for k, (i, n) in enumerate(d.interpretations())]
 
 
-def _sql_md(sql):
-    return f"**Query behind this table**\n```sql\n{sql}\n```" if sql else ""
+def _sql_md(sql, conn=None):
+    if not sql:
+        return ""
+    md = f"**Query behind this table**\n```sql\n{sql}\n```"
+    if conn is not None:
+        try:
+            md += f"\n**Sent to {conn.backend} (translated, read-only)**\n```sql\n{conn.translate(sql)}\n```"
+        except Exception:
+            pass
+    return md
 
 
 def ask(db_label, model_label, mode, question):
@@ -140,6 +149,11 @@ def ask(db_label, model_label, mode, question):
             NO_CHOICE, HIDE, "", None, ""
     info = CATALOG[db_label]
     backend = MANAGER.get(model_label)
+
+    if info.conn is not None and not getattr(backend, "has_confidence", False):
+        return card("critical", "Choose an “evaluated pipeline” model",
+                    "Live database connections use the evaluated CodeS pipeline (1B or 3B)."), EMPTY, None, \
+            NO_CHOICE, HIDE, "", None, ""
 
     if not getattr(backend, "has_confidence", False):
         conn = sqlite3.connect(f"file:{info.path}?mode=ro", uri=True)
@@ -160,7 +174,14 @@ def ask(db_label, model_label, mode, question):
             status, df, fig = card("critical", "🔴 The query failed", html.escape(run.attempts[-1].error)), EMPTY, None
         return status, df, fig, NO_CHOICE, HIDE, "\n".join(trace), None, _sql_md(run.sql if run.ok else "")
 
-    cr = run_confident(backend, info.path, question, mode, info.comments)
+    if info.conn is not None:
+        try:
+            cr = run_confident_connected(backend, info.conn, question, mode)
+        except Exception as exc:  # noqa: BLE001 - lost connection etc.
+            return card("critical", "🔴 Database error", html.escape(str(exc).splitlines()[0][:300])), EMPTY, \
+                None, NO_CHOICE, HIDE, "", None, ""
+    else:
+        cr = run_confident(backend, info.path, question, mode, info.comments)
     d = cr.decision
     trace = _candidates_markdown(d, model_label, getattr(backend, "device", "?"))
     choices = _choices(d)
@@ -175,9 +196,9 @@ def ask(db_label, model_label, mode, question):
             status = card(level, f"{icon} Answered · {word}",
                           f"{agree}. Other readings give different results — pick one below to compare.")
             radio = gr.update(choices=choices, value=d.selected, visible=True, label="Other interpretations")
-            return status, df, fig, radio, gr.update(visible=True), trace, d, _sql_md(cr.chosen.sql)
+            return status, df, fig, radio, gr.update(visible=True), trace, d, _sql_md(cr.chosen.sql, info.conn)
         return card(level, f"{icon} Answered · {word}", agree + "."), df, fig, NO_CHOICE, HIDE, trace, d, \
-            _sql_md(cr.chosen.sql)
+            _sql_md(cr.chosen.sql, info.conn)
 
     if not choices:
         status = card("critical", "🤔 I couldn't answer this reliably",
@@ -199,14 +220,14 @@ def show_interpretation(d, idx):
 
 def db_info(label):
     info = CATALOG[label]
-    tables = list_tables(info.path)
+    tables = tables_of(info)
     rows = sum(n for _, _, n in tables)
     return f"<div class='qg-dbinfo'>{info.source} · {len(tables)} tables · {rows:,} rows</div>"
 
 
 def on_db_change(label):
     info = CATALOG[label]
-    return (db_info(label), schema_markdown(info.path),
+    return (db_info(label), schema_markdown(info),
             gr.update(choices=info.examples, value=None, visible=bool(info.examples)),
             gr.update(value="", placeholder=info.examples[0] if info.examples else "Ask about this database"),
             card("neutral", "Ready", "Ask a question about this database, or pick an example."),
@@ -223,6 +244,18 @@ def on_upload(path):
     return gr.update(choices=list(CATALOG), value=label), card("neutral", "Database added", html.escape(label))
 
 
+def on_connect(kind, host, port, database, user, password):
+    global CATALOG
+    try:
+        label = connect(kind, host, port, database, user, password)
+    except Exception as exc:  # noqa: BLE001 - show the reason (bad password, host unreachable, ...)
+        return gr.update(), card("critical", "🔴 Could not connect", html.escape(str(exc).splitlines()[0][:300])), ""
+    CATALOG = build_catalog()
+    # the password is not kept in the form after connecting
+    return gr.update(choices=list(CATALOG), value=label), card("good", "✅ Connected", html.escape(label) +
+                                                                " — schema read and value index built."), ""
+
+
 def build_ui():
     first = next(iter(CATALOG))
     with gr.Blocks(title="QueryGenie") as demo:
@@ -233,9 +266,21 @@ def build_ui():
                                  info="Bundled sample, the 20 Spider dev databases, or your own upload")
                 info_md = gr.HTML(db_info(first))
                 with gr.Accordion("Schema", open=False):
-                    schema_md = gr.Markdown(schema_markdown(CATALOG[first].path))
+                    schema_md = gr.Markdown(schema_markdown(CATALOG[first]))
                 upload = gr.UploadButton("⬆ Upload a SQLite database", file_types=[".sqlite", ".db", ".sqlite3"],
                                          size="sm")
+                with gr.Accordion("🔌 Connect a live database", open=False):
+                    gr.Markdown("<span class='qg-cols'>PostgreSQL or MySQL/MariaDB. Queries run in a read-only "
+                                "transaction; use a read-only database user. The password is kept in memory only.</span>")
+                    kind = gr.Dropdown(choices=list(KINDS), value="PostgreSQL", label="Type")
+                    with gr.Row():
+                        host = gr.Textbox(label="Host", value="localhost", scale=3)
+                        port = gr.Textbox(label="Port", value="5432", scale=1, min_width=70)
+                    database = gr.Textbox(label="Database")
+                    with gr.Row():
+                        user = gr.Textbox(label="User")
+                        password = gr.Textbox(label="Password", type="password")
+                    connect_btn = gr.Button("Connect", size="sm", variant="secondary")
                 model = gr.Dropdown(choices=available_models(), value=default_model(), label="Model",
                                     info="“evaluated pipeline” = the setup measured on Spider, with confidence")
                 mode = gr.Radio(choices=MODE_CHOICES, value="balanced", label="When should it abstain?",
@@ -268,6 +313,8 @@ def build_ui():
         interp.change(show_interpretation, [state, interp], [table, chart, sql_box])
         db.change(on_db_change, db, [info_md, schema_md, examples, question] + outs)
         upload.upload(on_upload, upload, [db, status])
+        kind.change(lambda k: str(KINDS[k][1]), kind, port)
+        connect_btn.click(on_connect, [kind, host, port, database, user, password], [db, status, password])
     return demo
 
 

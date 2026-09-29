@@ -114,6 +114,32 @@ def matched_contents_for(path, schema, question):
     return fine
 
 
+def matched_contents_from_index(index, question):
+    """The same fine matching as matched_contents_for, over a prebuilt value index
+    {"table.column": [values]} — used for connected (non-SQLite) databases."""
+    fine = {}
+    for tc, picklist in index.items():
+        fm = get_matched_entries(question, picklist)
+        if not fm:
+            continue
+        for _m, (field_value, _s, match_score, _sm, _sz) in fm:
+            if match_score < 0.9:
+                continue
+            fv = field_value.strip()
+            fine.setdefault(tc, [])
+            if len(fine[tc]) < 25 and fv not in fine[tc]:
+                fine[tc].append(fv)
+    return fine
+
+
+def build_prefix_connected(source, question):
+    """Prompt for a connected database: introspected schema + matches from its value index."""
+    question = question.replace("\n", " ")
+    schema = source.introspect()
+    content_seq = get_matched_content_sequence(matched_contents_from_index(source.build_index(), question))
+    return schema, get_db_schema_sequence(schema) + "\n" + content_seq + "\n" + question + "\n"
+
+
 def build_prefix(db_path, question, db_comments=None, schema=None):
     """Return (schema dict, prompt text) for one question."""
     question = question.replace("\n", " ")
@@ -194,15 +220,31 @@ class Decision:
         return [(idx[0], len(idx)) for idx in ordered[:limit]]
 
 
-def decide(db_path, schema, raw_candidates, beam_scores):
-    """Post-process, execute and select exactly as in the evaluation, then score."""
+class SqliteTarget:
+    """A local SQLite file, executed exactly as in the evaluation."""
+
+    def __init__(self, path):
+        self.path = path
+
+    def signature(self, sql):
+        return result_signature(self.path, sql)
+
+    def explain_ok(self, sql):
+        return check_sql_executability(sql, self.path) is None
+
+
+def decide(target, schema, raw_candidates, beam_scores):
+    """Post-process, execute and select exactly as in the evaluation, then score.
+    `target` is a SQLite path (the evaluated setting) or a connected source with the same
+    signature() / explain_ok() methods (connectors.SqlAlchemySource)."""
+    if isinstance(target, str):
+        target = SqliteTarget(target)
     cands = []
     for text, score in zip(raw_candidates, beam_scores):
         sql = clean_sql(post_process(text, schema["schema_items"]))
-        ok, cols, rows, h, err = result_signature(db_path, sql) if sql else (False, [], [], None, "empty")
+        ok, cols, rows, h, err = target.signature(sql) if sql else (False, [], [], None, "empty")
         cands.append(Candidate(sql, float(score), ok, cols, rows, h, err))
-    selected = next((i for i, c in enumerate(cands)
-                     if c.sql and check_sql_executability(c.sql, db_path) is None), 0)
+    selected = next((i for i, c in enumerate(cands) if c.sql and target.explain_ok(c.sql)), 0)
     m = max(c.beam_score for c in cands)
     exps = [math.exp(c.beam_score - m) for c in cands]
     beam_prob = exps[selected] / sum(exps)

@@ -53,6 +53,7 @@ class DbInfo:
     source: str
     examples: list = field(default_factory=list)
     comments: dict = field(default_factory=dict)   # tables.json descriptions (Spider only)
+    conn: object = None                            # connectors.SqlAlchemySource for live databases
 
 
 def _spider_examples(dev, db_id, k=6):
@@ -84,7 +85,23 @@ def build_catalog() -> dict:
             if f.endswith((".sqlite", ".db", ".sqlite3")):
                 label = f"{os.path.splitext(f)[0]} · uploaded"
                 cat[label] = DbInfo(label, os.path.join(UPLOADS, f), "Uploaded by you")
+    cat.update(CONNECTED)
     return cat
+
+
+CONNECTED = {}   # label -> DbInfo for live connections (kept in memory only, never written to disk)
+
+
+def connect(kind, host, port, database, user, password) -> str:
+    """Open a live connection, read its schema and build the value index; return its label."""
+    from connectors import SqlAlchemySource, make_url
+    if not database:
+        raise ValueError("Enter a database name.")
+    src = SqlAlchemySource(make_url(kind, host, port, database, user, password),
+                           label=f"{database} · {kind.split(' ')[0]} @ {host or 'localhost'}")
+    src.introspect(); src.build_index()
+    CONNECTED[src.label] = DbInfo(src.label, "", f"Live {kind} connection (read-only)", conn=src)
+    return src.label
 
 
 def _connect_ro(path):
@@ -106,9 +123,13 @@ def list_tables(path):
         con.close()
 
 
-def schema_markdown(path) -> str:
+def tables_of(info):
+    return info.conn.tables_summary() if info.conn is not None else list_tables(info.path)
+
+
+def schema_markdown(info) -> str:
     rows = []
-    for t, cols, n in list_tables(path):
+    for t, cols, n in tables_of(info):
         shown = ", ".join(cols[:8]) + (f", … (+{len(cols) - 8})" if len(cols) > 8 else "")
         rows.append(f"**{t}** · {n:,} rows  \n<span class='qg-cols'>{shown}</span>")
     return "\n\n".join(rows) or "_No tables found._"

@@ -122,3 +122,15 @@ point here: the system says when it is unsure instead of returning a confident w
 Month 4 (graded full-stack app): connector layer with SQLite + Postgres + MySQL via SQLAlchemy +
 sqlglot, abstention in the UI. After the capstone: NoSQL via a SQL gateway, access levels, per-DB
 adaptation.
+
+---
+
+## Update 2026-09-30 — live PostgreSQL / MySQL connections built
+
+`src/connectors.py` + the sidebar "Connect a live database" panel. Schema introspection in the
+authors' format, a value index built once at connect time (≤ 5,000 values per column), sqlglot
+translation with SQLite-semantics rewrites, single-SELECT guard, READ ONLY transaction, timeout and
+row limit. Measured on Spider-in-PostgreSQL: 94.4% of gold / 93.7% of predicted queries give the
+same answer as on SQLite (`results/postgres_translation_check.md`). MySQL is supported in code but
+not yet tested against a server. Next: MySQL test (Docker), calibration on non-SQLite engines,
+access levels, NoSQL via a SQL gateway.
