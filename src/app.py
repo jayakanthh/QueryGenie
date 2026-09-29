@@ -1,9 +1,8 @@
 """
 QueryGenie — web app.
 
-Ask a plain-English question about a database; QueryGenie generates SQL with a local
-CodeS model, executes it and shows the results table plus an auto-selected chart.
-Everything runs locally.
+Ask a database a question in plain English; QueryGenie generates SQL with a local CodeS
+model, executes it (read-only) and shows the results table plus an auto-selected chart.
 
 With the evaluated pipeline (SFT CodeS + full CodeS prompt + 4 beam candidates) the app
 also reports how confident it is — how many of its 4 candidate queries return the same
@@ -12,6 +11,9 @@ interpretation instead of returning a confident wrong table (the Month-3 enhance
 results/week11_abstention.md). The fast MLX / GGUF models keep the simpler
 generate -> execute -> self-correct flow and do not report confidence.
 
+Databases: a bundled academic database, the 20 Spider development databases (if
+downloaded — scripts/download_spider_dbs.py) and any SQLite file you upload.
+
 Run:
     python src/app.py                        # real models (downloads weights once)
     QUERYGENIE_BACKEND=mock python src/app.py  # UI only, no model
@@ -19,30 +21,21 @@ Run:
 
 from __future__ import annotations
 
+import html
 import os
 import sqlite3
 
 import gradio as gr
 import pandas as pd
 
-from build_sample_db import ensure_sample_dbs
 from charts import pick_chart
+from databases import add_upload, build_catalog, list_tables, schema_markdown
 from engine import MODES, operating_points, run_confident, run_query
 from model import ModelManager, available_models, default_model
 
-SAMPLE_DBS = ensure_sample_dbs()
+CATALOG = build_catalog()
 MANAGER = ModelManager()
 OPS = operating_points()
-
-EXAMPLES = [
-    "Which students failed more than two subjects? A subject is failed if marks are below 40.",
-    "How many students are in each year?",
-    "What is the highest marks for each subject?",
-    "List the subjects and the average marks for each subject.",
-    "Average marks per department",
-    "Who is the best student?",
-    "List the top 3 students by total marks.",
-]
 
 
 def _mode_label(mode: str, text: str) -> str:
@@ -60,11 +53,52 @@ MODE_CHOICES = [
 ]
 
 NO_CHOICE = gr.update(choices=[], value=None, visible=False)
+EMPTY = pd.DataFrame(columns=["Results will appear here"])
 HIDE = gr.update(visible=False)
+
+CSS = """
+.qg-header {padding: 6px 2px 2px;}
+.qg-header h1 {font-size: 2rem; margin: 0;}
+.qg-header p {margin: 4px 0 10px; color: var(--body-text-color-subdued);}
+.qg-chips {display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px;}
+.qg-chip {border: 1px solid var(--border-color-primary); border-radius: 999px; padding: 4px 12px;
+          font-size: 0.85rem; background: var(--block-background-fill);}
+.qg-chip b {color: var(--body-text-color);}
+.qg-card {width: 100%; box-sizing: border-box; border: 1px solid var(--border-color-primary); border-left-width: 6px; border-radius: 12px;
+          padding: 12px 16px; background: var(--block-background-fill); margin: 4px 0;}
+.qg-card .qg-title {font-weight: 700; font-size: 1.05rem;}
+.qg-card .qg-sub {color: var(--body-text-color-subdued); margin-top: 2px;}
+.qg-good {border-left-color: #0ca30c;} .qg-warning {border-left-color: #fab219;}
+.qg-serious {border-left-color: #ec835a;} .qg-critical {border-left-color: #d03b3b;}
+.qg-neutral {border-left-color: var(--border-color-primary);}
+.qg-cols {color: var(--body-text-color-subdued); font-size: 0.85rem;}
+.qg-dbinfo {font-size: 0.9rem;}
+"""
+
+HEADER = """
+<div class="qg-header">
+  <h1>🧞 QueryGenie</h1>
+  <p>Ask a database a question in plain English. Runs locally on open weights (CodeS) — your data never
+  leaves this machine. <b>It tells you when it isn't sure.</b></p>
+  <div class="qg-chips">
+    <span class="qg-chip">Reproduced CodeS-1B: <b>77.8%</b> on Spider (paper 77.9%)</span>
+    <span class="qg-chip">With abstention: <b>83.3%</b> correct on 90% answered</span>
+    <span class="qg-chip">Wrong answers <b>−32%</b></span>
+    <span class="qg-chip">Read-only · local</span>
+  </div>
+</div>
+"""
+
+
+def card(level: str, title: str, sub: str = "") -> str:
+    sub_html = f'<div class="qg-sub">{sub}</div>' if sub else ""
+    return f'<div class="qg-card qg-{level}"><div class="qg-title">{title}</div>{sub_html}</div>'
 
 
 def _table_and_chart(columns, rows):
-    df = pd.DataFrame(rows[:200], columns=columns) if columns else pd.DataFrame()
+    if not columns:
+        return EMPTY, None
+    df = pd.DataFrame(rows[:200], columns=columns)
     return df.round(2), pick_chart(df)   # round for display only; the chart uses exact values
 
 
@@ -76,18 +110,13 @@ def _preview(cand, n=3):
     return f"{len(cand.rows)} row(s): {shown}{more}"
 
 
-def _confidence_badge(d) -> str:
-    if not d.candidates[d.selected].runs:
-        return "⚪ **None of the candidate queries ran**"
-    k = d.n_agree
-    word = {4: "🟢 high", 3: "🟡 medium", 2: "🟠 low", 1: "🔴 very low"}[k]
-    return f"**Confidence: {word}** — {k} of 4 candidate queries return this answer"
+LEVELS = {4: ("good", "✅", "High confidence"), 3: ("warning", "🟡", "Medium confidence"),
+          2: ("serious", "🟠", "Low confidence"), 1: ("critical", "🔴", "Very low confidence")}
 
 
 def _candidates_markdown(d, model_label, device) -> str:
-    lines = [f"**Model:** `{model_label}` · **Device:** `{device}` · "
-             f"agreement {d.n_agree}/4 · beam probability {d.beam_prob:.2f} · "
-             f"confidence score {d.confidence:.3f}"]
+    lines = [f"**Model:** `{model_label}` · **Device:** `{device}` · agreement {d.n_agree}/4 · "
+             f"beam probability {d.beam_prob:.2f} · confidence score {d.confidence:.3f}"]
     for i, c in enumerate(d.candidates):
         mark = "➡️ selected" if i == d.selected else f"candidate {i + 1}"
         status = _preview(c) if c.runs else f"❌ {c.error}"
@@ -100,15 +129,20 @@ def _choices(d):
             for k, (i, n) in enumerate(d.interpretations())]
 
 
+def _sql_md(sql):
+    return f"**Query behind this table**\n```sql\n{sql}\n```" if sql else ""
+
+
 def ask(db_label, model_label, mode, question):
     """Returns: status, table, chart, interpretations radio, pick button, trace, state, sql."""
-    if not question.strip():
-        return "Enter a question.", pd.DataFrame(), None, NO_CHOICE, HIDE, "", None, ""
+    if not question or not question.strip():
+        return card("neutral", "Type a question, or pick one of the examples."), EMPTY, None, \
+            NO_CHOICE, HIDE, "", None, ""
+    info = CATALOG[db_label]
     backend = MANAGER.get(model_label)
-    db_path = SAMPLE_DBS[db_label]
 
     if not getattr(backend, "has_confidence", False):
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(f"file:{info.path}?mode=ro", uri=True)
         try:
             run = run_query(backend, conn, question)
         finally:
@@ -117,89 +151,126 @@ def ask(db_label, model_label, mode, question):
                  f"(single greedy candidate). Attempts: {len(run.attempts)}"]
         for i, a in enumerate(run.attempts, 1):
             trace.append(f"\n**Attempt {i}** — {'✅ executed' if a.ok else '❌ ' + a.error}\n```sql\n{a.sql}\n```")
-        if run.self_corrected:
-            trace.insert(1, "✅ **Self-corrected** — the first query failed and was repaired.")
-        status = "✅ Answered (no confidence estimate for this model)" if run.ok else "❌ The query failed."
-        df, fig = _table_and_chart(run.result.columns, run.result.rows) if run.ok else (pd.DataFrame(), None)
-        return status, df, fig, NO_CHOICE, HIDE, "\n".join(trace), None, _sql_md(run.sql)
+        if run.ok:
+            sub = "Self-corrected: the first query failed and was repaired." if run.self_corrected else \
+                "This model gives no confidence estimate — use an “evaluated pipeline” model for that."
+            status = card("neutral", "Answered", sub)
+            df, fig = _table_and_chart(run.result.columns, run.result.rows)
+        else:
+            status, df, fig = card("critical", "🔴 The query failed", html.escape(run.attempts[-1].error)), EMPTY, None
+        return status, df, fig, NO_CHOICE, HIDE, "\n".join(trace), None, _sql_md(run.sql if run.ok else "")
 
-    cr = run_confident(backend, db_path, question, mode)
+    cr = run_confident(backend, info.path, question, mode, info.comments)
     d = cr.decision
-    badge = _confidence_badge(d)
     trace = _candidates_markdown(d, model_label, getattr(backend, "device", "?"))
     choices = _choices(d)
+    runs = d.candidates[d.selected].runs
+    level, icon, word = LEVELS.get(d.n_agree, ("critical", "⚪", "No candidate ran")) if runs else \
+        ("critical", "⚪", "No candidate query ran")
+    agree = f"{d.n_agree} of 4 candidate queries return this answer" if runs else "none of the 4 candidates executed"
 
     if cr.answered:
         df, fig = _table_and_chart(cr.chosen.columns, cr.chosen.rows)
         if len(choices) > 1:
-            status = (f"✅ **Answered.** {badge}\n\nOther readings of the question give different "
-                      f"results — pick one below to see it.")
-            radio = gr.update(choices=choices, value=d.selected, visible=True,
-                              label="Other interpretations")
+            status = card(level, f"{icon} Answered · {word}",
+                          f"{agree}. Other readings give different results — pick one below to compare.")
+            radio = gr.update(choices=choices, value=d.selected, visible=True, label="Other interpretations")
             return status, df, fig, radio, gr.update(visible=True), trace, d, _sql_md(cr.chosen.sql)
-        return f"✅ **Answered.** {badge}", df, fig, NO_CHOICE, HIDE, trace, d, _sql_md(cr.chosen.sql)
+        return card(level, f"{icon} Answered · {word}", agree + "."), df, fig, NO_CHOICE, HIDE, trace, d, \
+            _sql_md(cr.chosen.sql)
 
-    # abstain: no table — ask the user to choose
     if not choices:
-        status = (f"🤔 **I couldn't answer this reliably.** {badge}. "
-                  "Try rephrasing the question or naming the table/column you mean.")
-        return status, pd.DataFrame(), None, NO_CHOICE, HIDE, trace, d, ""
-    status = (f"🤔 **I'm not confident enough to answer.** {badge}.\n\n"
-              "My candidate queries disagree. Which of these did you mean?")
+        status = card("critical", "🤔 I couldn't answer this reliably",
+                      f"{agree}. Try rephrasing, or name the table or column you mean.")
+        return status, EMPTY, None, NO_CHOICE, HIDE, trace, d, ""
+    status = card("critical", "🤔 I'm not confident enough to answer",
+                  f"{word}: {agree}. My candidate queries disagree — which of these did you mean?")
     radio = gr.update(choices=choices, value=None, visible=True, label="Did you mean…")
-    return status, pd.DataFrame(), None, radio, gr.update(visible=True), trace, d, ""
-
-
-def _sql_md(sql):
-    return f"**Query behind this table**\n```sql\n{sql}\n```" if sql else ""
+    return status, EMPTY, None, radio, gr.update(visible=True), trace, d, ""
 
 
 def show_interpretation(d, idx):
     if d is None or idx is None:
-        return pd.DataFrame(), None, ""
+        return EMPTY, None, ""
     c = d.candidates[int(idx)]
     df, fig = _table_and_chart(c.columns, c.rows)
     return df, fig, _sql_md(c.sql)
 
 
-def build_ui():
-    with gr.Blocks(title="QueryGenie") as demo:
-        gr.Markdown(
-            "# 🧞 QueryGenie\n"
-            "Ask a database a question in plain English. Runs locally on open weights (CodeS) — "
-            "your schema never leaves this machine. **It tells you when it isn't sure.**"
-        )
-        with gr.Row():
-            db = gr.Dropdown(choices=list(SAMPLE_DBS.keys()),
-                             value=list(SAMPLE_DBS.keys())[0], label="Database")
-            model = gr.Dropdown(choices=available_models(), value=default_model(), label="Model",
-                                info="'evaluated pipeline' = the setup measured on Spider (77.8%), "
-                                     "with confidence. MLX / GGUF = faster, no confidence.")
-        mode = gr.Radio(choices=MODE_CHOICES, value="balanced", label="When should it abstain?",
-                        info="Coverage and accuracy measured on the Spider dev set (1,034 questions) "
-                             "with CodeS-1B.")
-        question = gr.Textbox(label="Ask in plain English", placeholder=EXAMPLES[0])
-        submit = gr.Button("Ask", variant="primary")
-        gr.Examples(examples=[[e] for e in EXAMPLES], inputs=[question])
+def db_info(label):
+    info = CATALOG[label]
+    tables = list_tables(info.path)
+    rows = sum(n for _, _, n in tables)
+    return f"<div class='qg-dbinfo'>{info.source} · {len(tables)} tables · {rows:,} rows</div>"
 
-        status = gr.Markdown()
-        interp = gr.Radio(choices=[], visible=False, label="Did you mean…")
-        pick = gr.Button("Show this interpretation", visible=False)
-        table = gr.Dataframe(label="Results", interactive=False)
-        sql_box = gr.Markdown()
-        chart = gr.Plot(label="Auto chart")
-        with gr.Accordion("Generated SQL and candidates", open=False):
-            trace = gr.Markdown()
+
+def on_db_change(label):
+    info = CATALOG[label]
+    return (db_info(label), schema_markdown(info.path),
+            gr.update(choices=info.examples, value=None, visible=bool(info.examples)),
+            gr.update(value="", placeholder=info.examples[0] if info.examples else "Ask about this database"),
+            card("neutral", "Ready", "Ask a question about this database, or pick an example."),
+            EMPTY, None, NO_CHOICE, HIDE, "", None, "")
+
+
+def on_upload(path):
+    global CATALOG
+    try:
+        label = add_upload(path)
+    except ValueError as exc:
+        return gr.update(), card("critical", "🔴 Upload rejected", html.escape(str(exc)))
+    CATALOG = build_catalog()
+    return gr.update(choices=list(CATALOG), value=label), card("neutral", "Database added", html.escape(label))
+
+
+def build_ui():
+    first = next(iter(CATALOG))
+    with gr.Blocks(title="QueryGenie") as demo:
+        gr.HTML(HEADER)
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1, min_width=320):
+                db = gr.Dropdown(choices=list(CATALOG), value=first, label="Database",
+                                 info="Bundled sample, the 20 Spider dev databases, or your own upload")
+                info_md = gr.HTML(db_info(first))
+                with gr.Accordion("Schema", open=False):
+                    schema_md = gr.Markdown(schema_markdown(CATALOG[first].path))
+                upload = gr.UploadButton("⬆ Upload a SQLite database", file_types=[".sqlite", ".db", ".sqlite3"],
+                                         size="sm")
+                model = gr.Dropdown(choices=available_models(), value=default_model(), label="Model",
+                                    info="“evaluated pipeline” = the setup measured on Spider, with confidence")
+                mode = gr.Radio(choices=MODE_CHOICES, value="balanced", label="When should it abstain?",
+                                info="Measured on the Spider dev set (1,034 questions), CodeS-1B")
+            with gr.Column(scale=3):
+                with gr.Row(equal_height=True):
+                    question = gr.Textbox(label="Ask in plain English", scale=5, lines=1,
+                                          placeholder=CATALOG[first].examples[0] if CATALOG[first].examples else "")
+                    submit = gr.Button("Ask", variant="primary", scale=1, min_width=100)
+                examples = gr.Radio(choices=CATALOG[first].examples, label="Try a question for this database",
+                                    visible=bool(CATALOG[first].examples))
+                status = gr.HTML(card("neutral", "Ready", "Ask a question, or pick an example."))
+                interp = gr.Radio(choices=[], visible=False, label="Did you mean…")
+                pick = gr.Button("Show this interpretation", visible=False, size="sm")
+                with gr.Tabs():
+                    with gr.Tab("Table"):
+                        table = gr.Dataframe(value=EMPTY, interactive=False, show_label=False)
+                        sql_box = gr.Markdown()
+                    with gr.Tab("Chart"):
+                        chart = gr.Plot(show_label=False)
+                    with gr.Tab("All 4 candidates"):
+                        trace = gr.Markdown()
         state = gr.State(None)
 
         outs = [status, table, chart, interp, pick, trace, state, sql_box]
-        submit.click(ask, inputs=[db, model, mode, question], outputs=outs)
-        question.submit(ask, inputs=[db, model, mode, question], outputs=outs)
-        pick.click(show_interpretation, inputs=[state, interp], outputs=[table, chart, sql_box])
-        interp.change(show_interpretation, inputs=[state, interp], outputs=[table, chart, sql_box])
+        submit.click(ask, [db, model, mode, question], outs)
+        question.submit(ask, [db, model, mode, question], outs)
+        examples.input(lambda q: q, examples, question).then(ask, [db, model, mode, question], outs)
+        pick.click(show_interpretation, [state, interp], [table, chart, sql_box])
+        interp.change(show_interpretation, [state, interp], [table, chart, sql_box])
+        db.change(on_db_change, db, [info_md, schema_md, examples, question] + outs)
+        upload.upload(on_upload, upload, [db, status])
     return demo
 
 
 if __name__ == "__main__":
-    print(f"[QueryGenie] backend = {os.environ.get('QUERYGENIE_BACKEND', 'codes')}")
-    build_ui().launch(theme=gr.themes.Soft())
+    print(f"[QueryGenie] backend = {os.environ.get('QUERYGENIE_BACKEND', 'codes')} · {len(CATALOG)} databases")
+    build_ui().launch(theme=gr.themes.Soft(), css=CSS)

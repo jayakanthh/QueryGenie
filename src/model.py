@@ -173,13 +173,16 @@ class CodesSFTBackend:
 
     unload = CodesBackend.unload
 
-    def decide(self, db_path: str, question: str, max_new_tokens: int = 256):
+    def decide(self, db_path: str, question: str, db_comments: dict | None = None,
+               max_new_tokens: int = 256):
         import torch
         from codes_prompt import build_prefix, decide, encode
 
         self.load()
         key = (db_path, os.path.getmtime(db_path))
-        schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key))
+        schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key),
+                                      db_comments={os.path.splitext(os.path.basename(db_path))[0]: db_comments}
+                                      if db_comments else None)
         self._schema_cache[key] = schema
         ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
         with torch.no_grad():

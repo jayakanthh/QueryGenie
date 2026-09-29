@@ -36,3 +36,6 @@ docs/_render_tmp*.pdf
 
 # Office lock files
 ~$*
+
+# Databases uploaded in the app (user data)
+src/sample_data/uploads/

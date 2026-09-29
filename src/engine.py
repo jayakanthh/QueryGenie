@@ -104,6 +104,7 @@ class ConfidentRun:
         return self.decision.candidates[self.decision.selected]
 
 
-def run_confident(backend, db_path: str, question: str, mode: str = "balanced") -> ConfidentRun:
+def run_confident(backend, db_path: str, question: str, mode: str = "balanced",
+                  db_comments: dict | None = None) -> ConfidentRun:
     """Generate 4 candidates, select as in the evaluation, then answer or abstain."""
-    return ConfidentRun(question, backend.decide(db_path, question), mode)
+    return ConfidentRun(question, backend.decide(db_path, question, db_comments), mode)

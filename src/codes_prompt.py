@@ -35,6 +35,27 @@ ABSTAIN_TAU = 0.2526
 MAX_PROMPT_TOKENS = 4096 - 256          # load_sft_dataset.prepare_inputs
 
 
+def load_db_comments(tables_json_path):
+    """Table/column descriptions from a Spider-style tables.json, built exactly as the
+    authors' prepare_sft_datasets.py does (descriptions that merely repeat the name dropped)."""
+    import json
+
+    def rsc(names, comments):
+        return ["" if n.replace("_", "").replace(" ", "") == c.replace("_", "").replace(" ", "") else c
+                for n, c in zip(names, comments)]
+    out = {}
+    for d in json.load(open(tables_json_path)):
+        cn = [c.lower() for _, c in d["column_names_original"]]
+        ti = [t for t, _ in d["column_names_original"]]
+        cc = rsc(cn, [c.lower() for _, c in d["column_names"]])
+        tn = [t.lower() for t in d["table_names_original"]]
+        tc = rsc(tn, [t.lower() for t in d["table_names"]])
+        out[d["db_id"]] = {t: {"table_comment": tcm,
+                               "column_comments": {c: m for tix, c, m in zip(ti, cn, cc) if tix == k}}
+                           for k, (t, tcm) in enumerate(zip(tn, tc))}
+    return out
+
+
 def post_process(sql, schema_items):
     """Authors' text2sql_zero_shot.post_process: backtick-quote special column names."""
     sql = sql.replace("\n", " ")
@@ -112,7 +133,8 @@ def encode(tok, prefix):
 
 
 def _run_rows(path, sql):
-    con = sqlite3.connect(path)
+    # read-only: generated SQL can never modify the database
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     con.text_factory = lambda b: b.decode(errors="ignore")
     try:
         cur = con.execute(sql)

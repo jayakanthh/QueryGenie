@@ -90,3 +90,26 @@ def test_abstention_signals_and_curve():
     conf = np.array([0.9, 0.8, 0.1, 0.2]); correct = np.array([1.0, 1.0, 0.0, 1.0])
     cov, acc = abstention.curve(conf, correct)
     assert list(cov) == [0.25, 0.5, 0.75, 1.0] and acc[0] == 1.0 and acc[-1] == 0.75
+
+
+def test_catalog_and_upload_validation(tmp_path, monkeypatch):
+    import databases
+    monkeypatch.setattr(databases, "UPLOADS", str(tmp_path / "uploads"))
+    cat = databases.build_catalog()
+    assert any(k.startswith("academic") for k in cat)
+    bad = tmp_path / "bad.sqlite"; bad.write_text("not a database")
+    with pytest.raises(ValueError):
+        databases.add_upload(str(bad))
+    good = tmp_path / "shop.sqlite"
+    con = sqlite3.connect(str(good)); con.execute("CREATE TABLE item (id INTEGER, name TEXT)")
+    con.execute("INSERT INTO item VALUES (1, 'pen')"); con.commit(); con.close()
+    label = databases.add_upload(str(good))
+    assert label in databases.build_catalog()
+    assert databases.list_tables(databases.build_catalog()[label].path) == [("item", ["id", "name"], 1)]
+
+
+def test_candidate_execution_is_read_only(db):
+    from codes_prompt import result_signature
+    ok, *_, err = result_signature(db, "DELETE FROM student")
+    assert not ok and "readonly" in err.replace(" ", "").lower()
+    con = sqlite3.connect(db); assert con.execute("SELECT COUNT(*) FROM student").fetchone()[0] == 3

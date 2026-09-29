@@ -43,6 +43,12 @@ pip install -r requirements.txt
 python src/app.py            # then open http://127.0.0.1:7860
 ```
 
+**Databases.** The app ships with a small academic database. For the 20 Spider development
+databases — concerts, pets, world countries, flights, museums and more, each with real example
+questions — run `python scripts/download_spider_dbs.py` once (downloads from Hugging Face). These
+are the databases the 77.8% / 83.3% figures were measured on. You can also **upload your own SQLite
+file** from the sidebar. All queries run on a read-only connection.
+
 The first question downloads `seeklhy/codes-1b-spider` (about 4.5 GB) and takes a little longer;
 after that each question takes a few seconds on an Apple M-series Mac or a GPU. A bundled academic
 database is created on first start. Stop the app with `Ctrl+C`.
@@ -89,7 +95,7 @@ python src/abstention.py results/dump_T2-006.jsonl
 This reproduces the significance tests, the operating points and the accuracy–coverage figure
 from the committed candidate record.
 
-**3. Tests (no model needed).** `python -m pytest tests/ -q`
+**3. Tests (no model needed).** `python -m pytest tests/ -q` (11 tests)
 
 **4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
 (`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.
@@ -115,11 +121,12 @@ src/
   engine.py           Answer/abstain logic and the simple generate→execute→self-correct loop
   model.py            Model backends: evaluated pipeline, transformers, MLX, GGUF, mock
   abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
+  databases.py        database catalogue: sample, Spider dev databases, uploads (read-only)
   database.py, charts.py, build_sample_db.py   schema helpers, auto chart, sample database
   eval_spider_full.py local (simple-metric) variant of the evaluation
   eval_spider.py      legacy harness that produced run T2-001
   vendor/             authors' CodeS utilities, unmodified (Apache-2.0)
-scripts/              Colab evaluation harness, dataset download, MLX conversion, Week-4 smoke test
+scripts/              Colab evaluation harness, Spider dataset + database download, MLX conversion, Week-4 smoke test
 notebooks/            Week-4 gate notebook; Colab notebook for all Tier-2 runs
 results/              run log, audit, ablation, abstention results, figures, candidate record
 tests/                model-free tests of selection, agreement and abstention

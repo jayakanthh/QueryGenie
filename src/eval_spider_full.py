@@ -19,7 +19,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 from codes_prompt import (build_prefix, check_sql_executability, clean_sql, encode,  # noqa: E402
-                          get_db_schema, post_process)
+                          get_db_schema, load_db_comments, post_process)
 
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 DEV = os.path.join(SPIDER, "dev.json")
@@ -40,24 +40,6 @@ def run_sql(path, sql):
         return True, sorted([tuple(str(c) for c in r) for r in rows])
     except Exception:
         return False, None
-
-
-def load_db_comments():
-    """Column/table comments from tables.json, as prepare_sft_datasets.py builds them."""
-    def rsc(names, comments):
-        return ["" if n.replace("_", "").replace(" ", "") == c.replace("_", "").replace(" ", "") else c
-                for n, c in zip(names, comments)]
-    out = {}
-    for d in json.load(open(os.path.join(SPIDER, "tables.json"))):
-        cn = [c.lower() for _, c in d["column_names_original"]]
-        ti = [t for t, _ in d["column_names_original"]]
-        cc = rsc(cn, [c.lower() for _, c in d["column_names"]])
-        tn = [t.lower() for t in d["table_names_original"]]
-        tc = rsc(tn, [t.lower() for t in d["table_names"]])
-        out[d["db_id"]] = {t: {"table_comment": tcm,
-                               "column_comments": {c: m for tix, c, m in zip(ti, cn, cc) if tix == k}}
-                           for k, (t, tcm) in enumerate(zip(tn, tc))}
-    return out
 
 
 def main():
@@ -82,7 +64,7 @@ def main():
     tok = AutoTokenizer.from_pretrained(args.model)
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype).to(device).eval()
 
-    db_comments = load_db_comments()
+    db_comments = load_db_comments(os.path.join(SPIDER, "tables.json"))
     schema_cache = {}
     def schema_for(db_id):
         if db_id not in schema_cache:
