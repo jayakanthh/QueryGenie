@@ -65,7 +65,7 @@ HIDE = gr.update(visible=False)
 
 def _table_and_chart(columns, rows):
     df = pd.DataFrame(rows[:200], columns=columns) if columns else pd.DataFrame()
-    return df, pick_chart(df)
+    return df.round(2), pick_chart(df)   # round for display only; the chart uses exact values
 
 
 def _preview(cand, n=3):

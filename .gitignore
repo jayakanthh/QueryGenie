@@ -33,3 +33,6 @@ tmp/
 # Local renders / test caches
 docs/_render_tmp*.pdf
 .pytest_cache/
+
+# Office lock files
+~$*

@@ -57,6 +57,8 @@ In the app:
 - Every answer shows a confidence badge (how many of the 4 candidate queries agree) and the SQL
   behind the table. When the candidates disagree, the alternative interpretations are listed.
 
+![Abstention in the app: the candidates disagree, so it asks "Did you mean…?"](docs/screenshots/app_abstain.png)
+
 UI development without downloading a model: `QUERYGENIE_BACKEND=mock python src/app.py`.
 
 ### Optional: faster local models on Apple Silicon

@@ -58,7 +58,7 @@ repository, and its status. Update the status column as each item is completed a
 | 13 | Final figures + statistics | — | ⬜ |
 | 14 | Draft final report | `docs/Final_Report_Draft.docx` | ✅ draft (28 Sep, 14 pp): SOP structure Intro → Methodology → Results → Enhancement → Discussion → Conclusion; figures + appendices |
 | 15 | Public GitHub repo + README (10%) | `README.md`, `LICENSE`, `NOTICE`, `tests/` | 🟡 README rewritten (reproduce / run enhancement / requirements / licence), Apache-2.0, 9 tests; **repo still private — visibility change pending** |
-| 16 | Final report + presentation (5%) | — | ⬜ |
+| 16 | Final report + presentation (5%) | `docs/reviews/Review3_QueryGenie.pptx`, `docs/Final_Report_Draft.docx` | 🟡 Review-3 deck (19 slides, dept template, speaker notes, real app screenshots); LaTeX documentation pending department template |
 
 ---
 
