@@ -17,7 +17,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (n, cls = "i") => `<svg class="${cls}"><use href="#i-${n}"/></svg>`;
-const S = { boot: null, dbs: [], db: null, rows: [], item: null, layout: "answer", mode: "balanced", tab: null, working: false, os: "mac" };
+const S = { boot: null, dbs: [], db: null, chats: [], chat: null, T: {}, layout: "answer", mode: "balanced", working: false, failed: null, os: "mac" };
 
 function when(iso) {
   const d = new Date(iso), s = (Date.now() - d) / 1000;
@@ -128,6 +128,7 @@ async function pollSetup(btn) {
 async function refreshCounts() { S.counts = await api.history_counts(); $$("#sources [data-db]").forEach((b) => { const c = $(".count", b); if (c) c.textContent = S.counts[b.dataset.db] || ""; }); }
 async function openApp() {
   $("#app").hidden = false;
+  $("#new-chat-kbd").textContent = mod() + "N";
   S.dbs = await api.databases(); S.counts = await api.history_counts();
   renderSources();
   const last = localStorage.getItem("qg.db");
@@ -143,7 +144,7 @@ function renderSources() {
       <button class="src" role="option" data-db="${esc(d.id)}" aria-selected="${S.db && S.db.id === d.id}">
         ${icon(d.live ? "server" : d.group === "Files" ? "file" : "database", "i src-icon")}
         <span class="name">${esc(d.label)}</span>${d.live ? '<span class="live-dot" title="Connected"></span>' : ""}
-        <span class="count">${(S.counts || {})[d.id] || ""}</span>
+        <span class="count" title="Chats">${(S.counts || {})[d.id] || ""}</span>
         ${d.live || d.group === "Files" ? `<span class="src-x" role="button" tabindex="0" data-remove="${esc(d.id)}" title="${d.live ? "Disconnect" : "Remove from QueryGenie"}" aria-label="${d.live ? "Disconnect" : "Remove"} ${esc(d.label)}">${icon(d.live ? "x" : "trash-2", "i sm")}</span>` : ""}
       </button>`).join("") : `<button class="src" data-add-server>${icon("plug-zap", "i src-icon")}<span class="name" style="color:var(--ink-3)">Connect a server…</span></button>`;
     return `<div class="src-group"><h3>${g}</h3>${body}</div>`;
@@ -160,38 +161,71 @@ async function selectDb(id) {
   $$("#sources [data-db]").forEach((b) => b.setAttribute("aria-selected", b.dataset.db === id));
   $("#db-title").textContent = S.db.label;
   $("#db-meta").textContent = S.db.live ? "Live · read-only" : S.db.group === "Files" ? "SQLite file" : "Sample";
-  $("#question").placeholder = S.db.examples[0] ? `e.g. ${S.db.examples[0]}` : `Ask about ${S.db.label}…`;
-  S.item = null; renderPane();
-  await loadRows();
+  $("#search").value = "";
+  await loadChats();
+  const last = localStorage.getItem("qg.chat." + id);
+  if (last && S.chats.some((c) => c.id === last)) openChat(last); else newChat();
 }
-async function loadRows(selectId) {
-  S.rows = await api.history(S.db.id, $("#search").value || null);
-  renderRows();
-  if (selectId) openItem(selectId);
+async function loadChats() {
+  S.chats = await api.chats(S.db.id, $("#search").value || null);
+  renderChats();
 }
-function renderRows() {
-  if (!S.rows.length && !S.working) {
-    const ex = S.db.examples;
-    $("#rows").innerHTML = `<div class="empty"><h4>No questions yet</h4>
-      <p>${$("#search").value ? "Nothing matches your search." : `Ask anything about <b>${esc(S.db.label)}</b> in plain English. Every question you ask stays here.`}</p>
-      ${ex.length && !$("#search").value ? `<div class="suggest">${ex.slice(0, 4).map((q) => `<button data-ex="${esc(q)}">${icon("message-square-text", "i sm")}<span>${esc(q)}</span></button>`).join("")}</div>` : ""}</div>`;
-    $$("#rows [data-ex]").forEach((b) => (b.onclick = () => { $("#question").value = b.dataset.ex; autosize(); submitQuestion(); }));
+function renderChats() {
+  if (!S.chats.length) {
+    $("#rows").innerHTML = `<div class="empty"><h4>${$("#search").value ? "No matching chats" : "No chats yet"}</h4>
+      <p>${$("#search").value ? "Nothing matches your search." : `Start a chat and ask anything about <b>${esc(S.db.label)}</b>. Your chats stay here.`}</p></div>`;
     return;
   }
-  const pending = S.working ? `<div class="row pending" aria-busy="true"><div class="q">${esc(S.working)}</div><div class="meta">${icon("loader-circle", "i sm spin")}Working…</div></div>` : "";
-  $("#rows").innerHTML = pending + S.rows.map((r) => `
-    <button class="row" role="option" data-id="${r.id}" aria-selected="${S.item && S.item.id === r.id}">
-      <div class="q">${esc(r.question)}</div>
-      <div class="meta">${cells(r.agree, r.agree > 0)}<span>${r.answered ? SHORT[r.agree] : "Asked you to choose"}</span><span class="when">${when(r.created)}</span></div>
+  $("#rows").innerHTML = S.chats.map((c) => `
+    <button class="row" role="option" data-id="${c.id}" aria-selected="${S.chat && S.chat.id === c.id}">
+      <div class="q">${esc(c.title)}</div>
+      <div class="meta">${cells(c.agree, c.agree > 0)}<span>${c.questions} question${c.questions === 1 ? "" : "s"}</span>${S.working && S.working.chat === c.id ? `<span>${icon("loader-circle", "i sm spin")}</span>` : ""}<span class="when">${when(c.updated)}</span></div>
     </button>`).join("");
-  $$("#rows [data-id]").forEach((b) => (b.onclick = () => openItem(b.dataset.id)));
+  $$("#rows [data-id]").forEach((b) => (b.onclick = () => openChat(b.dataset.id)));
 }
-async function openItem(id) {
-  const item = await api.history_item(id);
-  if (!item) return;
-  S.item = item; S.tab = null; S.reading = null; S.edited = null;
-  $$("#rows [data-id]").forEach((b) => b.setAttribute("aria-selected", b.dataset.id === id));
-  renderPane();
+function markSelected() { $$("#rows [data-id]").forEach((b) => b.setAttribute("aria-selected", !!S.chat && b.dataset.id === S.chat.id)); }
+
+// ------------------------------------------------------------------ chats
+function newChat() {
+  S.chat = null; S.T = {}; localStorage.removeItem("qg.chat." + S.db.id);
+  markSelected(); renderThread(); $("#question").focus();
+}
+async function openChat(id, scroll = "end") {
+  const chat = await api.chat(id);
+  if (!chat) return newChat();
+  if (!S.chat || S.chat.id !== id) S.T = {};
+  S.chat = chat; localStorage.setItem("qg.chat." + S.db.id, id);
+  markSelected(); renderThread(scroll);
+}
+const turnState = (id) => (S.T[id] ||= { tab: null, reading: null, readingData: null, edited: null });
+
+function renderThread(scroll = "end") {
+  const c = S.chat, working = S.working && S.working.chat === (c ? c.id : null) && S.working.db === S.db.id;
+  $("#chat-title").innerHTML = c ? `<span class="t selectable">${esc(c.title)}</span><span class="n">${c.turns.length} question${c.turns.length === 1 ? "" : "s"}</span>`
+                                 : `<span class="t">New chat</span><span class="n">${esc(S.db.label)}</span>`;
+  $("#rename-chat").hidden = $("#delete-chat").hidden = !c;
+  $("#layout-seg").hidden = !c;
+  $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
+  $("#question").placeholder = c ? "Ask another question…" : S.db.examples[0] ? `e.g. ${S.db.examples[0]}` : `Ask about ${S.db.label}…`;
+  $("#dock-hint").innerHTML = c ? `${icon("info", "i sm")}Each question is answered on its own — the model doesn't see earlier questions, so name the table or filter again.`
+                                : `Return to ask · Shift+Return for a new line`;
+  let html;
+  if (!c && !working) {
+    const ex = S.db.examples;
+    html = `<div class="start"><div class="start-mark">${icon("messages-square")}</div><h1>New chat</h1>
+      <p>Ask anything about <b>${esc(S.db.label)}</b> in plain English. You can keep asking in the same chat.</p>
+      ${ex.length ? `<div class="suggest">${ex.slice(0, 4).map((q) => `<button data-ex="${esc(q)}">${icon("message-square-text", "i sm")}<span>${esc(q)}</span></button>`).join("")}</div>` : ""}</div>`;
+  } else {
+    html = (c ? c.turns : []).map((it) => `<article class="turn" data-hid="${it.id}">${turnHtml(it)}</article>`).join("");
+    if (working) html += `<article class="turn" id="pending">${workingHtml(S.working.q)}</article>`;
+    if (S.failed && S.failed.chat === (c ? c.id : null)) html += `<article class="turn">${failedHtml(S.failed)}</article>`;
+  }
+  $("#thread").innerHTML = html;
+  $$("#thread [data-ex]").forEach((b) => (b.onclick = () => submitQuestion(b.dataset.ex)));
+  $$("#thread .turn[data-hid]").forEach((el) => wireTurn(el));
+  if (working) startTicker();
+  const th = $("#thread");
+  if (scroll === "end") th.scrollTop = th.scrollHeight;
 }
 
 // ------------------------------------------------------------------ asking
@@ -199,125 +233,124 @@ function autosize() { const t = $("#question"); t.style.height = "auto"; t.style
 async function submitQuestion(text) {
   const q = (text ?? $("#question").value).trim();
   if (!q || S.working) return;
-  S.working = q; $("#question").value = ""; autosize(); $("#ask-btn").disabled = true;
-  renderRows(); renderWorking(q);
+  const chatId = S.chat ? S.chat.id : null, db = S.db.id;
+  S.working = { q, chat: chatId, db, t0: Date.now() }; S.failed = null;
+  $("#question").value = ""; autosize(); $("#ask-btn").disabled = true;
+  renderThread(); renderChats();
   try {
-    const res = await api.ask(S.db.id, q, S.mode);
-    S.working = false; await loadRows(res.id); refreshCounts();
+    const res = await api.ask(db, q, S.mode, chatId);
+    S.working = false;
+    if (S.db.id === db && (S.chat ? S.chat.id : null) === chatId) { await loadChats(); await openChat(res.chat_id); }
+    else if (S.db.id === db) await loadChats();
+    refreshCounts();
   } catch (e) {
-    S.working = false; renderRows();
-    $("#pane-bar").hidden = true;
-    $("#pane-body").innerHTML = `<div class="q-head"><h1>${esc(q)}</h1></div><div class="error-box">${icon("triangle-alert")}<div><b>Something went wrong</b><div>${esc(e.message || e)}</div></div></div>`;
+    S.working = false; S.failed = { q, chat: chatId, msg: e.message || String(e) };
+    if (S.db.id === db) { renderThread(); renderChats(); }
   } finally { $("#ask-btn").disabled = false; }
 }
-function renderWorking(q) {
-  $("#pane-bar").hidden = true;
-  const t0 = Date.now();
-  $("#pane-body").innerHTML = `<div class="q-head"><h1>${esc(q)}</h1><div class="sub">${esc(S.db.label)}</div></div>
+function workingHtml(q) {
+  return `<div class="q-head"><h1>${esc(q)}</h1></div>
     <div class="working"><div class="w-line">${icon("loader-circle", "i spin")}<span id="w-msg">Writing four candidate queries…</span><span class="mono" id="w-t" style="margin-left:auto;color:var(--ink-3)"></span></div>
     <div class="sk" style="width:62%"></div><div class="sk" style="width:88%"></div><div class="sk" style="width:74%"></div></div>`;
-  const tick = setInterval(() => {
-    if (!S.working) return clearInterval(tick);
-    const s = Math.round((Date.now() - t0) / 1000); const el = $("#w-t"); if (!el) return clearInterval(tick);
-    el.textContent = s + " s";
-    if (s === 8) $("#w-msg").textContent = "Loading the model — only the first question takes this long…";
-    if (s === 25) $("#w-msg").textContent = "Still working — checking whether the four candidates agree…";
+}
+function failedHtml(f) {
+  return `<div class="q-head"><h1>${esc(f.q)}</h1></div><div class="error-box">${icon("triangle-alert")}<div><b>Something went wrong</b><div>${esc(f.msg)}</div></div></div>`;
+}
+function startTicker() {
+  clearInterval(S.tick);
+  S.tick = setInterval(() => {
+    const el = $("#w-t"); if (!S.working || !el) return clearInterval(S.tick);
+    const s = Math.round((Date.now() - S.working.t0) / 1000); el.textContent = s + " s";
+    if (s >= 8 && s < 25) $("#w-msg").textContent = "Loading the model — only the first question takes this long…";
+    if (s >= 25) $("#w-msg").textContent = "Still working — checking whether the four candidates agree…";
   }, 1000);
 }
 
-// ------------------------------------------------------------------ reading pane
-function renderPane() {
-  const it = S.item;
-  if (!it) {
-    $("#pane-bar").hidden = true;
-    $("#pane-body").innerHTML = `<div class="pane-empty">${icon("layout-list")}<div><b style="color:var(--ink-2)">No question selected</b><br>Ask something, or pick a question from the list.</div><div class="kbd" style="justify-self:center">${mod()}N new question</div></div>`;
-    return;
-  }
-  $("#pane-bar").hidden = false;
-  $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
-  const row = S.rows.find((r) => r.id === it.id);
-  const head = `<div class="q-head"><h1 class="selectable">${esc(it.question)}</h1>
-    <div class="sub"><span>${esc(S.db.label)}</span>${row ? `<span>${when(row.created)}</span>` : ""}<span>${modeName(it.mode)}</span></div></div>`;
-  const top = it.answered ? verdictHtml(it) : unsureHtml(it);
+// ------------------------------------------------------------------ one turn of a chat
+function turnHtml(it) {
+  const t = turnState(it.id);
+  const head = `<div class="q-head"><div class="q-line"><h1 class="selectable">${esc(it.question)}</h1>
+      <span class="turn-tools">
+        <button class="btn quiet icon" data-act="copy" title="Copy SQL">${icon("copy", "i sm")}</button>
+        <button class="btn quiet icon" data-act="reask" title="Ask again in this chat">${icon("refresh-cw", "i sm")}</button>
+        <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button>
+      </span></div>
+    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}<span>${modeName(it.mode)}</span></div></div>`;
+  const top = it.answered ? verdictHtml(it) : unsureHtml(it, t);
   let body;
-  if (!it.answered && !S.reading) body = "";
-  else if (S.layout === "confidence") body = `<div class="stack">${candidatesHtml(it)}${tabsHtml(["table", "chart", "sql"])}</div>`;
-  else if (S.layout === "split") body = `<div class="split"><div>${tabsHtml(["table", "chart"])}</div><div class="stack">${sqlHtml()}${candidatesHtml(it)}</div></div>`;
-  else body = tabsHtml(["table", "chart", "sql", "candidates"]);
+  if (!it.answered && t.reading == null) body = "";
+  else if (S.layout === "confidence") body = `<div class="stack">${candidatesHtml(it)}${tabsHtml(it, t, ["table", "chart", "sql"])}</div>`;
+  else if (S.layout === "split") body = `<div class="split"><div>${tabsHtml(it, t, ["table", "chart"])}</div><div class="stack">${sqlHtml(it, t)}${candidatesHtml(it)}</div></div>`;
+  else body = tabsHtml(it, t, ["table", "chart", "sql", "candidates"]);
   const live = it.live ? `<p class="note">${icon("info")}Connected to ${esc(it.backend)}: the query was translated and run in a read-only transaction. The confidence percentages were measured on SQLite and are not yet calibrated for ${esc(it.backend)}.</p>` : "";
-  $("#pane-body").innerHTML = head + top + body + live;
-  wirePane();
+  return head + top + body + live;
 }
 function modeName(m) {
   return { answer_all: "Answers everything", balanced: "Balanced", strict: "Strict (3 of 4 agree)", very_strict: "Very strict (all 4 agree)" }[m] || m;
 }
 function verdictHtml(it) {
   const [lvl, ic, word] = LEVEL[it.ran ? it.agree : 0];
-  const others = it.interpretations.filter((r) => r.index !== it.selected && !(r.support === it.agree && r.index === it.selected));
   const alt = it.interpretations.length > 1 ? `<div class="note" style="margin-top:-6px">${icon("info")}<span>Other readings give different results: ${it.interpretations.filter((r) => r.index !== it.selected).map((r) => `<button class="btn quiet" style="height:20px;padding:0 5px" data-reading="${r.index}">Reading ${r.letter} · ${r.support} of 4</button>`).join(" ")}</span></div>` : "";
-  void others;
   return `<div class="verdict ${lvl}">${cells(it.agree, it.ran, true)}<div class="v-text"><strong>${word}</strong>
     <span>${it.ran ? `${it.agree} of 4 candidate queries return this answer.` : "None of the candidate queries could run."}</span></div>
     <span style="flex:1"></span>${icon(ic, "i v-icon")}</div>${alt}`;
 }
-function unsureHtml(it) {
+function unsureHtml(it, t) {
   if (!it.interpretations.length) {
     return `<div class="unsure"><div class="unsure-head">${icon("circle-x")}<div><h2>I couldn't answer this reliably</h2>
       <p>None of the four candidate queries ran on this database. Try naming the table or column you mean, or rephrase the question.</p></div></div></div>`;
   }
-  const picked = S.reading;
   return `<div class="unsure"><div class="unsure-head">${icon("circle-help")}<div><h2>I'm not sure which you mean</h2>
     <p>The four candidate queries disagree — the most common answer has only ${it.agree} of 4 behind it. Choose the reading you meant; I won't guess.</p></div></div>
     <div class="readings">${it.interpretations.map((r) => `
-      <button class="reading" data-reading="${r.index}" aria-pressed="${picked === r.index}">
+      <button class="reading" data-reading="${r.index}" aria-pressed="${t.reading === r.index}">
         <span class="r-top"><span class="letter">${r.letter}</span>Reading ${r.letter}<span style="margin-left:auto">${cells(r.support)}</span></span>
         <span class="r-sub">${r.support} of 4 queries · ${r.rows_total} row${r.rows_total === 1 ? "" : "s"}</span>
         <span class="r-prev">${r.preview.map((row) => esc(row.map(fmt).join(", "))).join("<br>") || "no rows"}${r.rows_total > 3 ? "<br>…" : ""}</span>
       </button>`).join("")}</div></div>`;
 }
-function currentTable() {
-  if (S.edited) return S.edited;
-  if (!S.item.answered || S.reading != null) return S.readingData || { columns: [], rows: [] };
-  return S.item;
+function currentTable(it, t) {
+  if (t.edited) return t.edited;
+  if (!it.answered || t.reading != null) return t.readingData || { columns: [], rows: [] };
+  return it;
 }
-function tabsHtml(list) {
+function tabsHtml(it, t, list) {
   const names = { table: ["Table", "table"], chart: ["Chart", "chart-column"], sql: ["SQL", "code"], candidates: ["All 4 queries", "rows-3"] };
-  if (!S.tab || !list.includes(S.tab)) S.tab = list[0];
-  return `<div class="tabs" role="tablist">${list.map((t) => `<button role="tab" data-tab="${t}" aria-selected="${S.tab === t}">${icon(names[t][1], "i sm")}${names[t][0]}</button>`).join("")}</div>
-    <div id="tab-body">${tabBody(S.tab)}</div>`;
+  if (!t.tab || !list.includes(t.tab)) t.tab = list[0];
+  return `<div class="tabs" role="tablist">${list.map((x) => `<button role="tab" data-tab="${x}" aria-selected="${t.tab === x}">${icon(names[x][1], "i sm")}${names[x][0]}</button>`).join("")}</div>
+    <div class="tab-body">${tabBody(it, t, t.tab)}</div>`;
 }
-function tabBody(t) {
-  if (t === "table") return tableHtml(currentTable());
-  if (t === "chart") return `<div class="chart" id="chart">${chartSvg(currentTable().chart)}</div>`;
-  if (t === "sql") return sqlHtml();
-  return candidatesHtml(S.item);
+function tabBody(it, t, x) {
+  if (x === "table") return tableHtml(it, t, currentTable(it, t));
+  if (x === "chart") return `<div class="chart">${chartSvg(currentTable(it, t).chart)}</div>`;
+  if (x === "sql") return sqlHtml(it, t);
+  return candidatesHtml(it);
 }
-function tableHtml(d) {
-  const label = S.edited ? '<div class="table-note" style="margin:0 0 6px">Result of your edited query</div>' : S.reading != null && S.item.answered ? `<div class="table-note" style="margin:0 0 6px">Showing Reading ${S.item.interpretations.find((r) => r.index === S.reading)?.letter ?? ""}</div>` : "";
+function tableHtml(it, t, d) {
+  const label = t.edited ? '<div class="table-note" style="margin:0 0 6px">Result of your edited query</div>' : t.reading != null && it.answered ? `<div class="table-note" style="margin:0 0 6px">Showing Reading ${it.interpretations.find((r) => r.index === t.reading)?.letter ?? ""}</div>` : "";
   if (!d.columns || !d.columns.length) return label + `<div class="chart-empty">${d.note ? esc(d.note) : "The query returned no rows."}</div>`;
   const numCol = d.columns.map((_, i) => d.rows.length && d.rows.every((r) => r[i] === null || isNum(r[i])));
   return label + `<div class="table-wrap"><table><thead><tr>${d.columns.map((c, i) => `<th class="${numCol[i] ? "n" : ""}">${esc(c)}</th>`).join("")}</tr></thead>
     <tbody>${d.rows.map((r) => `<tr>${r.map((v, i) => `<td class="${numCol[i] ? "n" : ""}" title="${esc(fmt(v))}">${esc(fmt(v))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     ${d.rows_total > d.rows.length ? `<div class="table-note">Showing the first ${d.rows.length} of ${d.rows_total.toLocaleString()} rows.</div>` : `<div class="table-note">${d.rows.length} row${d.rows.length === 1 ? "" : "s"}</div>`}`;
 }
-function selectedSql() {
-  const it = S.item; const idx = S.reading != null ? S.reading : it.selected;
+function selectedSql(it, t) {
+  const idx = t.reading != null ? t.reading : it.selected;
   return it.candidates[idx] || it.candidates[0];
 }
-function sqlHtml() {
-  const c = selectedSql();
-  const sent = c.sent_sql ? `<div class="sql-block" style="margin-top:10px"><div class="sql-bar">${icon("server", "i sm")}Sent to ${esc(S.item.backend)} (translated)</div><pre class="sql selectable">${esc(c.sent_sql)}</pre></div>` : "";
+function sqlHtml(it, t) {
+  const c = selectedSql(it, t);
+  const sent = c.sent_sql ? `<div class="sql-block" style="margin-top:10px"><div class="sql-bar">${icon("server", "i sm")}Sent to ${esc(it.backend)} (translated)</div><pre class="sql selectable">${esc(c.sent_sql)}</pre></div>` : "";
   return `<div class="sql-block"><div class="sql-bar" title="Edit the query and run your own version">${icon("code", "i sm")}SQL<span class="spacer"></span>
-      <button class="btn quiet" id="sql-copy">${icon("copy", "i sm")}Copy</button><button class="btn" id="sql-run" disabled title="Run your edited query (read-only)">${icon("play", "i sm")}Run edit</button></div>
-    <textarea class="sql" id="sql-edit" spellcheck="false">${esc(c.sql)}</textarea></div>${sent}<div class="form-msg bad" id="sql-msg"></div>`;
+      <button class="btn quiet" data-sql="copy">${icon("copy", "i sm")}Copy</button><button class="btn" data-sql="run" disabled title="Run your edited query (read-only)">${icon("play", "i sm")}Run edit</button></div>
+    <textarea class="sql" data-sql="edit" spellcheck="false">${esc(c.sql)}</textarea></div>${sent}<div class="form-msg bad" data-sql="msg"></div>`;
 }
 function candidatesHtml(it) {
-  const top = it.candidates[it.selected];
   return `<div class="cands">${it.candidates.map((c, i) => {
     const st = !c.runs ? `<span class="state bad">${icon("circle-x", "i sm")}Did not run</span>` : c.agrees ? `<span class="state ok">${icon("circle-check", "i sm")}Agrees</span>` : `<span class="state diff">${icon("circle-alert", "i sm")}Different result</span>`;
     return `<div class="cand"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${st}</div>
       <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}</div>`;
-  }).join("")}</div>${top ? "" : ""}`;
+  }).join("")}</div>`;
 }
 
 // ------------------------------------------------------------------ chart (SVG, one series)
@@ -359,53 +392,77 @@ function svgFrame(W, H, L, T, w, h, lo, hi, ink3, line, inner, spec) {
     <text x="14" y="${T + h / 2}" text-anchor="middle" font-size="12" font-family="Montserrat, sans-serif" fill="${ink3}" transform="rotate(-90 14 ${T + h / 2})">${esc(spec.y || "")}</text></svg><div class="tip" hidden></div>`;
 }
 
-// ------------------------------------------------------------------ pane wiring
-function wirePane() {
-  $$("[data-tab]").forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; $$("[data-tab]").forEach((x) => x.setAttribute("aria-selected", x === b)); $("#tab-body").innerHTML = tabBody(S.tab); wireTab(); }));
-  $$("[data-reading]").forEach((b) => (b.onclick = () => pickReading(+b.dataset.reading)));
-  wireTab();
+// ------------------------------------------------------------------ turn wiring
+const turnItem = (el) => S.chat.turns.find((x) => x.id === el.dataset.hid);
+function rerenderTurn(el) { const it = turnItem(el); el.innerHTML = turnHtml(it); wireTurn(el); }
+function wireTurn(el) {
+  const it = turnItem(el), t = turnState(it.id);
+  $$("[data-tab]", el).forEach((b) => (b.onclick = () => { t.tab = b.dataset.tab; $$("[data-tab]", el).forEach((x) => x.setAttribute("aria-selected", x === b)); $(".tab-body", el).innerHTML = tabBody(it, t, t.tab); wireTab(el, it, t); }));
+  $$("[data-reading]", el).forEach((b) => (b.onclick = async () => {
+    t.reading = +b.dataset.reading; t.edited = null;
+    t.readingData = await api.interpretation(it.id, t.reading);
+    rerenderTurn(el);
+  }));
+  $("[data-act=copy]", el).onclick = (e) => copyText(selectedSql(it, t).sql, e.currentTarget, true);
+  $("[data-act=reask]", el).onclick = () => submitQuestion(it.question);
+  $("[data-act=delete]", el).onclick = async () => {
+    await api.history_delete(it.id);
+    const left = S.chat.turns.length - 1;
+    await loadChats(); refreshCounts();
+    if (left) openChat(S.chat.id, "keep"); else newChat();
+  };
+  wireTab(el, it, t);
 }
-function wireTab() {
-  const ed = $("#sql-edit");
+function wireTab(el, it, t) {
+  const ed = $("[data-sql=edit]", el);
   if (ed) {
-    const original = ed.value;
-    ed.oninput = () => { $("#sql-run").disabled = ed.value.trim() === original.trim(); };
-    $("#sql-run").onclick = async () => {
-      $("#sql-msg").textContent = "";
+    const original = ed.value, run = $("[data-sql=run]", el);
+    ed.oninput = () => { run.disabled = ed.value.trim() === original.trim(); };
+    run.onclick = async () => {
+      $("[data-sql=msg]", el).textContent = "";
       const r = await api.run_sql(S.db.id, ed.value);
-      if (r.error) { $("#sql-msg").textContent = r.error; return; }
-      S.edited = r; S.tab = "table"; renderPane();
+      if (r.error) { $("[data-sql=msg]", el).textContent = r.error; return; }
+      t.edited = r; t.tab = "table"; rerenderTurn(el);
     };
-    $("#sql-copy").onclick = () => copyText(ed.value, $("#sql-copy"));
+    $("[data-sql=copy]", el).onclick = (e) => copyText(ed.value, e.currentTarget);
   }
-  const ch = $("#chart");
-  if (ch) {
-    const tip = $(".tip", ch);
-    ch.onmousemove = (e) => { const t = e.target.closest("[data-tip]"); if (!t) { tip.hidden = true; return; }
-      const r = ch.getBoundingClientRect(); tip.hidden = false; tip.textContent = t.dataset.tip; tip.style.left = e.clientX - r.left + 12 + "px"; tip.style.top = e.clientY - r.top - 30 + "px"; };
+  $$(".chart", el).forEach((ch) => {
+    const tip = $(".tip", ch); if (!tip) return;
+    ch.onmousemove = (e) => { const x = e.target.closest("[data-tip]"); if (!x) { tip.hidden = true; return; }
+      const r = ch.getBoundingClientRect(); tip.hidden = false; tip.textContent = x.dataset.tip; tip.style.left = e.clientX - r.left + 12 + "px"; tip.style.top = e.clientY - r.top - 30 + "px"; };
     ch.onmouseleave = () => (tip.hidden = true);
-  }
+  });
 }
-async function pickReading(index) {
-  S.reading = index; S.edited = null;
-  S.readingData = await api.interpretation(S.item.id, index);
-  if (!S.tab) S.tab = "table";
-  renderPane();
+function copyText(text, btn, iconOnly = false) {
+  navigator.clipboard.writeText(text).then(() => { const o = btn.innerHTML; btn.innerHTML = icon("check", "i sm") + (iconOnly ? "" : "Copied"); setTimeout(() => (btn.innerHTML = o), 1400); });
 }
-function copyText(text, btn) {
-  navigator.clipboard.writeText(text).then(() => { const o = btn.innerHTML; btn.innerHTML = icon("check", "i sm") + "Copied"; setTimeout(() => (btn.innerHTML = o), 1400); });
+function renameChat() {
+  const box = $("#chat-title"), cur = S.chat.title;
+  box.innerHTML = `<input class="input rename" value="${esc(cur)}" aria-label="Chat name">`;
+  const inp = $("input", box); inp.focus(); inp.select();
+  const done = async (save) => {
+    if (save && inp.value.trim() && inp.value.trim() !== cur) { await api.chat_rename(S.chat.id, inp.value); S.chat.title = inp.value.trim(); loadChats(); }
+    renderThread("keep");
+  };
+  inp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } if (e.key === "Escape") done(false); };
+  inp.onblur = () => done(true);
+}
+async function deleteChat() {
+  const n = S.chat.turns.length;
+  if (!confirm(`Delete this chat and its ${n} question${n === 1 ? "" : "s"}? This can't be undone.`)) return;
+  await api.chat_delete(S.chat.id); await loadChats(); refreshCounts(); newChat();
 }
 
 // ------------------------------------------------------------------ app wiring
 function wireApp() {
   $("#compose").onsubmit = (e) => { e.preventDefault(); submitQuestion(); };
-  $("#question").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitQuestion(); } });
+  $("#question").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitQuestion(); } });
   $("#question").addEventListener("input", autosize);
-  let t; $("#search").oninput = () => { clearTimeout(t); t = setTimeout(() => loadRows(), 180); };
-  $$("#layout-seg [data-layout]").forEach((b) => (b.onclick = () => { S.layout = b.dataset.layout; S.tab = null; api.settings_set({ layout: S.layout }); renderPane(); }));
-  $("#copy-sql").onclick = () => copyText(selectedSql().sql, $("#copy-sql"));
-  $("#reask").onclick = () => submitQuestion(S.item.question);
-  $("#delete-q").onclick = async () => { await api.history_delete(S.item.id); S.item = null; renderPane(); loadRows(); refreshCounts(); };
+  let t; $("#search").oninput = () => { clearTimeout(t); t = setTimeout(() => loadChats(), 180); };
+  $$("#layout-seg [data-layout]").forEach((b) => (b.onclick = () => { S.layout = b.dataset.layout; Object.values(S.T).forEach((x) => (x.tab = null)); api.settings_set({ layout: S.layout }); renderThread("keep"); }));
+  $("#new-chat").onclick = newChat;
+  $("#rename-chat").onclick = renameChat;
+  $("#delete-chat").onclick = deleteChat;
   $("#schema-btn").onclick = openSchema;
   $("#add-db").onclick = (e) => toggleMenu($("#add-menu"), e.currentTarget);
   $("#m-file").onclick = addFile;
@@ -415,7 +472,7 @@ function wireApp() {
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db")) $$(".menu").forEach((m) => (m.hidden = true)); });
   document.addEventListener("keydown", (e) => {
     const m = S.os === "mac" ? e.metaKey : e.ctrlKey;
-    if (m && e.key.toLowerCase() === "n") { e.preventDefault(); $("#question").focus(); }
+    if (m && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); }
     if (m && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
     if (m && e.key === ",") { e.preventDefault(); openSettings(); }
     if ((e.key === "ArrowDown" || e.key === "ArrowUp") && document.activeElement.closest("#rows")) {
@@ -484,7 +541,10 @@ async function openSettings() {
   $$("#model-opts [data-dl]").forEach((b) => (b.onclick = async (e) => { e.preventDefault(); await api.setup_start(b.dataset.dl, false); pollModel(); }));
   const st = await api.storage();
   $("#storage-kv").innerHTML = `<dt>App data</dt><dd>${esc(st.app_dir)}</dd><dt>Models</dt><dd>${esc(st.models_dir)}</dd><dt>Databases</dt><dd>${esc(st.data_dir)}</dd>`;
-  $("#clear-history").onclick = async () => { await api.history_clear(); S.item = null; renderPane(); loadRows(); $("#clear-history").textContent = "History cleared"; };
+  $("#clear-history").onclick = async () => {
+    if (!confirm("Delete every chat on every database? This can't be undone.")) return;
+    await api.history_clear(); await loadChats(); refreshCounts(); newChat(); $("#clear-history").textContent = "All chats deleted";
+  };
   $$("[data-set]").forEach((b) => (b.onclick = () => { $$("[data-set]").forEach((x) => x.setAttribute("aria-pressed", x === b)); $$("[data-setpanel]").forEach((p) => (p.hidden = p.dataset.setpanel !== b.dataset.set)); }));
   d.showModal();
 }

@@ -67,8 +67,8 @@ import os
 
 from codes_prompt import ABSTAIN_TAU, Decision
 
-_OP_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "results", "abstention_operating_points.json")
+_OP_FILE = os.environ.get("QG_OPERATING_POINTS") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results", "abstention_operating_points.json")
 
 # Strictness modes -> (rule on the decision, key of the measured operating point).
 # "balanced" is the pre-registered rule tested in Week 11; the others are the

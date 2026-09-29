@@ -44,3 +44,8 @@ src/sample_data/uploads/
 .impeccable/review/
 .impeccable/mocks/
 .impeccable/config.local.json
+.impeccable/questions/
+
+# PyInstaller output
+/build/
+/dist/

@@ -74,34 +74,38 @@
       </div>
     </aside>
 
-    <section class="list" aria-label="Questions">
+    <section class="list" aria-label="Chats">
       <div class="list-head">
         <div class="list-title"><h2 id="db-title">—</h2><span id="db-meta"></span></div>
-        <form class="compose" id="compose">
-          <textarea id="question" rows="1" placeholder="Ask a question…" aria-label="Your question"></textarea>
-          <button class="btn primary icon" type="submit" id="ask-btn" title="Ask"><svg class="i sm"><use href="#i-corner-down-left"/></svg></button>
-        </form>
+        <button class="btn primary new-chat" id="new-chat" title="Start a new chat"><svg class="i sm"><use href="#i-message-square-plus"/></svg>New chat<span class="kbd" id="new-chat-kbd"></span></button>
         <div class="list-tools">
-          <label class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" placeholder="Search questions" aria-label="Search questions"></label>
+          <label class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" placeholder="Search chats" aria-label="Search chats"></label>
           <button class="btn quiet icon" id="schema-btn" title="Schema"><svg class="i"><use href="#i-table"/></svg></button>
         </div>
       </div>
-      <div class="rows" id="rows" role="listbox" aria-label="Questions"></div>
+      <div class="rows" id="rows" role="listbox" aria-label="Chats"></div>
     </section>
 
-    <section class="pane" aria-label="Answer">
-      <div class="pane-bar" id="pane-bar" hidden>
+    <section class="pane" aria-label="Chat">
+      <div class="pane-bar" id="pane-bar">
+        <div class="bar-title" id="chat-title"></div>
+        <span class="spacer"></span>
         <div class="seg" role="group" aria-label="Layout" id="layout-seg">
           <button data-layout="answer" title="Answer first"><svg class="i sm"><use href="#i-sheet"/></svg><span class="lbl">Answer</span></button>
           <button data-layout="confidence" title="Confidence first"><svg class="i sm"><use href="#i-circle-check"/></svg><span class="lbl">Confidence</span></button>
           <button data-layout="split" title="Answer and SQL side by side"><svg class="i sm"><use href="#i-columns-2"/></svg><span class="lbl">Side by side</span></button>
         </div>
-        <span class="spacer"></span>
-        <button class="btn quiet" id="copy-sql" title="Copy SQL"><svg class="i sm"><use href="#i-copy"/></svg><span class="lbl">Copy SQL</span></button>
-        <button class="btn quiet" id="reask" title="Ask again"><svg class="i sm"><use href="#i-refresh-cw"/></svg><span class="lbl">Ask again</span></button>
-        <button class="btn quiet icon" id="delete-q" title="Delete from history"><svg class="i sm"><use href="#i-trash-2"/></svg></button>
+        <button class="btn quiet icon" id="rename-chat" title="Rename chat"><svg class="i sm"><use href="#i-pencil"/></svg></button>
+        <button class="btn quiet icon" id="delete-chat" title="Delete chat"><svg class="i sm"><use href="#i-trash-2"/></svg></button>
       </div>
-      <div class="pane-body" id="pane-body"></div>
+      <div class="pane-body thread" id="thread"></div>
+      <div class="dock">
+        <form class="compose" id="compose">
+          <textarea id="question" rows="1" placeholder="Ask a question…" aria-label="Your question"></textarea>
+          <button class="btn primary icon" type="submit" id="ask-btn" title="Ask"><svg class="i sm"><use href="#i-arrow-up"/></svg></button>
+        </form>
+        <div class="dock-hint" id="dock-hint"></div>
+      </div>
     </section>
   </main>
 
@@ -148,7 +152,7 @@
           <p class="note" style="margin:0"><svg class="i"><use href="#i-info"/></svg>Percentages were measured on the Spider benchmark's 1,034 questions with CodeS-1B on SQLite. They are not yet measured on PostgreSQL or MySQL.</p>
         </div>
         <div data-setpanel="model" class="stack" hidden><div id="model-opts" class="stack" style="gap:6px"></div><div id="model-dl" class="form-msg"></div></div>
-        <div data-setpanel="storage" class="stack" hidden><dl class="kv" id="storage-kv"></dl><button class="btn" id="clear-history"><svg class="i sm"><use href="#i-trash-2"/></svg>Clear question history</button></div>
+        <div data-setpanel="storage" class="stack" hidden><dl class="kv" id="storage-kv"></dl><button class="btn" id="clear-history"><svg class="i sm"><use href="#i-trash-2"/></svg>Delete all chats</button></div>
       </div>
       <div class="sheet-foot"><button class="btn primary" data-close>Done</button></div>
     </div>

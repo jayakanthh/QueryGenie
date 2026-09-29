@@ -188,7 +188,8 @@ class Api:
             self._backend_key = key
         return self._backend
 
-    def ask(self, db_id, question, mode=None):
+    def ask(self, db_id, question, mode=None, chat_id=None):
+        """Answer one question. Without `chat_id` a new chat is started, titled by the question."""
         from engine import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
@@ -200,9 +201,10 @@ class Api:
                 d = backend.decide(info.path, question, info.comments)
         run = ConfidentRun(question, d, mode)
         result = self._serialize(run, info)
-        hid = self._save_history(db_id, question, result)
+        chat_id = chat_id or self._new_chat(db_id, question)
+        hid = self._save_history(db_id, question, result, chat_id)
         self._decisions[hid] = (d, info)
-        result["id"] = hid
+        result["id"], result["chat_id"] = hid, chat_id
         return result
 
     def _serialize(self, run, info):
@@ -254,58 +256,123 @@ class Api:
         return {"columns": list(cols), "rows": _rows(rows), "rows_total": len(rows),
                 "chart": chart_spec(list(cols), rows)}
 
-    # ---------------------------------------------------------------- history
+    # ---------------------------------------------------------------- chats & history
+    # A chat is a thread of questions on one database; each question (a history row) belongs to one.
+    # CodeS answers every question on its own: earlier turns are not given to the model as context.
+    def _db(self):
+        return sqlite3.connect(HISTORY_DB)
+
     def _init_history(self):
-        con = sqlite3.connect(HISTORY_DB)
+        con = self._db()
         con.execute("CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, db_id TEXT, question TEXT, "
                     "agree INTEGER, answered INTEGER, created TEXT, result TEXT)")
+        con.execute("CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, db_id TEXT, title TEXT, "
+                    "created TEXT, updated TEXT)")
+        if "chat_id" not in [c[1] for c in con.execute("PRAGMA table_info(history)")]:
+            # Questions asked before chats existed become one chat each.
+            con.execute("ALTER TABLE history ADD COLUMN chat_id TEXT")
+            con.execute("INSERT OR IGNORE INTO chats SELECT id, db_id, question, created, created FROM history")
+            con.execute("UPDATE history SET chat_id = id")
         con.commit(); con.close()
 
-    def _save_history(self, db_id, question, result):
+    @staticmethod
+    def _now():
+        return dt.datetime.now().isoformat(timespec="seconds")
+
+    def _new_chat(self, db_id, title):
+        cid = uuid.uuid4().hex[:12]
+        con = self._db()
+        con.execute("INSERT INTO chats VALUES (?,?,?,?,?)", (cid, db_id, title[:200], self._now(), self._now()))
+        con.commit(); con.close()
+        return cid
+
+    def _save_history(self, db_id, question, result, chat_id):
         hid = uuid.uuid4().hex[:12]
-        con = sqlite3.connect(HISTORY_DB)
-        con.execute("INSERT INTO history VALUES (?,?,?,?,?,?,?)",
-                    (hid, db_id, question, result["agree"], int(result["answered"]),
-                     dt.datetime.now().isoformat(timespec="seconds"), json.dumps(result)))
+        con = self._db()
+        con.execute("INSERT INTO history (id, db_id, question, agree, answered, created, result, chat_id) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (hid, db_id, question, result["agree"], int(result["answered"]), self._now(),
+                     json.dumps(result), chat_id))
+        con.execute("UPDATE chats SET updated = ? WHERE id = ?", (self._now(), chat_id))
         con.commit(); con.close()
         return hid
 
-    def history(self, db_id=None, query=None, limit=300):
-        con = sqlite3.connect(HISTORY_DB)
-        sql, args = "SELECT id, db_id, question, agree, answered, created FROM history", []
-        where = []
-        if db_id:
-            where.append("db_id = ?"); args.append(db_id)
+    def chats(self, db_id, query=None, limit=300):
+        """Chats on one database, most recently used first, with their latest answer's confidence."""
+        sql = ("SELECT c.id, c.title, c.created, c.updated, COUNT(h.id), "
+               "(SELECT agree FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1), "
+               "(SELECT answered FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1) "
+               "FROM chats c LEFT JOIN history h ON h.chat_id = c.id WHERE c.db_id = ?")
+        args = [db_id]
         if query:
-            where.append("question LIKE ?"); args.append(f"%{query}%")
-        if where:
-            sql += " WHERE " + " AND ".join(where)
-        rows = con.execute(sql + " ORDER BY created DESC LIMIT ?", args + [int(limit)]).fetchall()
+            sql += " AND (c.title LIKE ? OR EXISTS (SELECT 1 FROM history WHERE chat_id = c.id AND question LIKE ?))"
+            args += [f"%{query}%"] * 2
+        con = self._db()
+        rows = con.execute(sql + " GROUP BY c.id ORDER BY c.updated DESC LIMIT ?", args + [int(limit)]).fetchall()
         con.close()
-        return [{"id": r[0], "db_id": r[1], "question": r[2], "agree": r[3], "answered": bool(r[4]),
-                 "created": r[5]} for r in rows]
+        return [{"id": r[0], "title": r[1], "created": r[2], "updated": r[3], "questions": r[4],
+                 "agree": r[5] or 0, "answered": bool(r[6])} for r in rows]
+
+    def chat(self, chat_id):
+        """Every question in a chat, oldest first, as full results."""
+        con = self._db()
+        head = con.execute("SELECT id, db_id, title, created, updated FROM chats WHERE id = ?", (chat_id,)).fetchone()
+        rows = con.execute("SELECT id, result, created FROM history WHERE chat_id = ? ORDER BY created, rowid",
+                           (chat_id,)).fetchall()
+        con.close()
+        if not head:
+            return None
+        turns = []
+        for hid, result, created in rows:
+            item = json.loads(result); item["id"], item["created"] = hid, created
+            turns.append(item)
+        return {"id": head[0], "db_id": head[1], "title": head[2], "created": head[3], "updated": head[4],
+                "turns": turns}
+
+    def chat_rename(self, chat_id, title):
+        title = (title or "").strip()[:200]
+        if title:
+            con = self._db(); con.execute("UPDATE chats SET title = ? WHERE id = ?", (title, chat_id))
+            con.commit(); con.close()
+        return True
+
+    def chat_delete(self, chat_id):
+        con = self._db()
+        for (hid,) in con.execute("SELECT id FROM history WHERE chat_id = ?", (chat_id,)).fetchall():
+            self._decisions.pop(hid, None)
+        con.execute("DELETE FROM history WHERE chat_id = ?", (chat_id,))
+        con.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+        con.commit(); con.close()
+        return True
 
     def history_counts(self):
-        con = sqlite3.connect(HISTORY_DB)
-        rows = con.execute("SELECT db_id, COUNT(*) FROM history GROUP BY db_id").fetchall()
+        """Number of chats per database (shown in the sidebar)."""
+        con = self._db()
+        rows = con.execute("SELECT db_id, COUNT(*) FROM chats GROUP BY db_id").fetchall()
         con.close()
         return {db: n for db, n in rows}
 
     def history_item(self, hid):
-        con = sqlite3.connect(HISTORY_DB)
-        r = con.execute("SELECT result FROM history WHERE id = ?", (hid,)).fetchone()
+        con = self._db()
+        r = con.execute("SELECT result, created FROM history WHERE id = ?", (hid,)).fetchone()
         con.close()
         if not r:
             return None
-        item = json.loads(r[0]); item["id"] = hid
+        item = json.loads(r[0]); item["id"], item["created"] = hid, r[1]
         return item
 
     def history_delete(self, hid):
-        con = sqlite3.connect(HISTORY_DB); con.execute("DELETE FROM history WHERE id = ?", (hid,))
+        """Remove one question from its chat (the chat goes too if it becomes empty)."""
+        con = self._db()
+        row = con.execute("SELECT chat_id FROM history WHERE id = ?", (hid,)).fetchone()
+        con.execute("DELETE FROM history WHERE id = ?", (hid,))
+        if row and not con.execute("SELECT 1 FROM history WHERE chat_id = ?", (row[0],)).fetchone():
+            con.execute("DELETE FROM chats WHERE id = ?", (row[0],))
         con.commit(); con.close(); self._decisions.pop(hid, None)
         return True
 
     def history_clear(self):
-        con = sqlite3.connect(HISTORY_DB); con.execute("DELETE FROM history"); con.commit(); con.close()
+        con = self._db(); con.execute("DELETE FROM history"); con.execute("DELETE FROM chats")
+        con.commit(); con.close()
         self._decisions.clear()
         return True

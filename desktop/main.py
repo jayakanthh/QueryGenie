@@ -26,6 +26,9 @@ os.environ.setdefault("QG_UPLOADS_DIR", os.path.join(st.data_dir(), "uploads"))
 os.environ.setdefault("QG_SPIDER_DIR", st.spider_dir())
 os.environ.setdefault("HF_HOME", os.path.join(st.app_dir(), "hf-cache"))
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("QG_OPERATING_POINTS", os.path.join(HERE, "results", "abstention_operating_points.json")
+                      if getattr(sys, "frozen", False) else
+                      os.path.join(os.path.dirname(HERE), "results", "abstention_operating_points.json"))
 
 
 def main():

@@ -102,8 +102,8 @@ components:
 
 QueryGenie's working is always visible: the SQL behind every table, the four candidate queries
 behind every answer, and how many of them agree. The window is the familiar three-pane mail layout
-of each operating system — databases in the sidebar, past questions as messages, the answer in the
-reading pane — so nothing about the frame needs learning; all the attention goes to the ledger of
+of each operating system — databases in the sidebar, chats as messages, the chat's questions and
+answers in the reading pane — so nothing about the frame needs learning; all the attention goes to the ledger of
 evidence inside it.
 
 It follows each OS rather than one look on both: macOS gets its 13px base, filled accent selection,
@@ -113,7 +113,7 @@ follows the system setting. Components are **native but crisp**: OS conventions,
 stronger type and sharper confidence states than a stock control.
 
 **Key Characteristics:**
-- Three panes: sources · questions · answer. The layout inside the answer is the user's choice
+- Three panes: sources · chats · the open chat. The layout inside the answer is the user's choice
   (answer first, confidence first, or side by side) and is remembered.
 - Confidence is a four-cell mark — one cell per candidate query — always paired with an icon and words.
 - "I'm not sure which you mean" is a designed outcome with its own block, never an error.
@@ -185,9 +185,14 @@ Dialog sheets on macOS square their top corners where they attach to the window.
 - **Source item (sidebar):** icon + name + question count; selected = accent fill (macOS) or subtle
   fill with a 3px accent pill (Windows). Files and live connections show a remove/disconnect control
   on hover or selection; live connections carry a green connected dot.
-- **Question row:** two-line question, then the four-cell mark, a one-word confidence, and a relative
-  time in mono. Keyboard: arrow keys move through rows.
-- **Compose field:** at the top of the question list; Return asks, Shift+Return adds a line.
+- **New chat button:** full-width primary button at the top of the chat list, with its ⌘N / Ctrl+N hint.
+- **Chat row:** two-line title (the first question, renamable), then the latest answer's four-cell mark,
+  the number of questions, and a relative time in mono. Keyboard: arrow keys move through rows.
+- **Thread:** the open chat's questions oldest first, one ledger entry each (question, verdict, tabs),
+  separated by hairlines; per-question Copy SQL / Ask again / Remove appear on hover.
+- **Compose field:** docked at the bottom of the reading pane; Return asks, Shift+Return adds a line.
+  Under it, a standing note that each question is answered on its own (the model does not see earlier
+  turns) — the chat groups questions; it does not give the model memory.
 - **Verdict:** tinted panel with the large four-cell mark, the level in words and the agreement
   sentence, plus the level's icon. Other readings appear as small inline buttons beneath it.
 - **"Not sure" block:** critical-tinted header ("I'm not sure which you mean") above a row of reading
@@ -205,6 +210,7 @@ Dialog sheets on macOS square their top corners where they attach to the window.
 - **Do** keep the SQL one click away, and editable.
 - **Do** follow the host OS for button order, shortcuts (⌘ vs Ctrl), selection and dialogs.
 - **Don't** use the confidence colours for anything other than confidence.
-- **Don't** turn the answer into a chat transcript or put the question box at the bottom.
+- **Don't** style the thread as chat bubbles or an assistant persona; each turn stays a ledger entry
+  with its evidence, and never imply the model remembers earlier questions.
 - **Don't** hide or soften the "not sure" state; it is the product's signature moment.
 - **Don't** use emoji or text glyphs as icons; use the bundled Lucide set.
