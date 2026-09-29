@@ -1,0 +1,483 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T01:17:43",
+  "title": "Design System: QueryGenie",
+  "extensions": {
+    "colorMeta": {
+      "accent-blue": {
+        "role": "primary",
+        "displayName": "Accent Blue",
+        "canonical": "#1a6fdb",
+        "tonalRamp": [
+          "#050056",
+          "#000879",
+          "#00349d",
+          "#0057c1",
+          "#277ae7",
+          "#4c9dff",
+          "#72c4ff",
+          "#c0f1ff"
+        ]
+      },
+      "accent-blue-win": {
+        "role": "primary",
+        "displayName": "Fluent Blue",
+        "canonical": "#005fb8",
+        "tonalRamp": [
+          "#00004c",
+          "#00176d",
+          "#003a90",
+          "#005cb4",
+          "#2e7dd9",
+          "#52a0ff",
+          "#78c7ff",
+          "#c3f2ff"
+        ]
+      },
+      "accent-blue-dark-text": {
+        "role": "primary",
+        "displayName": "Sky Text Blue",
+        "canonical": "#5aa0ff",
+        "tonalRamp": [
+          "#00004b",
+          "#00166d",
+          "#003990",
+          "#105bb3",
+          "#377cd8",
+          "#599ffe",
+          "#7ec6ff",
+          "#c6f2ff"
+        ]
+      },
+      "accent-blue-dark-fill": {
+        "role": "primary",
+        "displayName": "Deep Fill Blue",
+        "canonical": "#2a6dd6",
+        "tonalRamp": [
+          "#050053",
+          "#000a76",
+          "#003499",
+          "#1157be",
+          "#3679e3",
+          "#589cff",
+          "#7dc3ff",
+          "#c5f0ff"
+        ]
+      },
+      "window-ground": {
+        "role": "neutral",
+        "displayName": "Window Ground",
+        "canonical": "#f2f2f5",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#5d5d60",
+          "#7d7d7f",
+          "#9e9ea1",
+          "#c4c4c7",
+          "#eeeef0"
+        ]
+      },
+      "sidebar-layer": {
+        "role": "neutral",
+        "displayName": "Sidebar Layer",
+        "canonical": "#e9e9ee",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#242427",
+          "#3f3f43",
+          "#5d5d61",
+          "#7d7d81",
+          "#9e9ea2",
+          "#c3c3c8",
+          "#eeeef1"
+        ]
+      },
+      "list-layer": {
+        "role": "neutral",
+        "displayName": "List Layer",
+        "canonical": "#fbfbfc",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242425",
+          "#404040",
+          "#5d5d5e",
+          "#7d7d7e",
+          "#9e9e9f",
+          "#c4c4c5",
+          "#eeeeef"
+        ]
+      },
+      "pane-white": {
+        "role": "neutral",
+        "displayName": "Pane White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#eeeeee"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#dcdce2",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#242328",
+          "#3f3f44",
+          "#5d5d62",
+          "#7d7d82",
+          "#9e9ea3",
+          "#c3c3c9",
+          "#eeeef2"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#c7c7cf",
+        "tonalRamp": [
+          "#0b0b10",
+          "#232329",
+          "#3f3f45",
+          "#5d5d64",
+          "#7c7c84",
+          "#9d9da5",
+          "#c3c3cb",
+          "#eeeef3"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1d1d1f",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#5d5d60",
+          "#7d7d7f",
+          "#9e9ea1",
+          "#c4c4c6",
+          "#eeeef0"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#55555c",
+        "tonalRamp": [
+          "#0b0a10",
+          "#232329",
+          "#3f3f46",
+          "#5d5d64",
+          "#7c7c84",
+          "#9d9da5",
+          "#c3c3cb",
+          "#eeeef3"
+        ]
+      },
+      "ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Tertiary Ink",
+        "canonical": "#6e6e75",
+        "tonalRamp": [
+          "#0b0b10",
+          "#232329",
+          "#3f3f45",
+          "#5d5d64",
+          "#7c7c84",
+          "#9d9ea5",
+          "#c3c3cb",
+          "#eeeef3"
+        ]
+      },
+      "dark-pane": {
+        "role": "neutral",
+        "displayName": "Dark Pane",
+        "canonical": "#19191b",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#5d5d60",
+          "#7d7d7f",
+          "#9e9ea1",
+          "#c4c4c6",
+          "#eeeef0"
+        ]
+      },
+      "dark-sidebar": {
+        "role": "neutral",
+        "displayName": "Dark Sidebar",
+        "canonical": "#232326",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242427",
+          "#3f3f43",
+          "#5d5d61",
+          "#7d7d80",
+          "#9e9ea2",
+          "#c3c4c8",
+          "#eeeef1"
+        ]
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "canonical": "#f2f2f5",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#5d5d60",
+          "#7d7d7f",
+          "#9e9ea1",
+          "#c4c4c7",
+          "#eeeef0"
+        ]
+      },
+      "confidence-good": {
+        "role": "status",
+        "displayName": "Confidence Good",
+        "canonical": "#0ca30c",
+        "tonalRamp": [
+          "#001700",
+          "#003600",
+          "#005600",
+          "#007700",
+          "#009900",
+          "#39bd34",
+          "#66e45f",
+          "#bdffb7"
+        ]
+      },
+      "confidence-warning": {
+        "role": "status",
+        "displayName": "Confidence Warning",
+        "canonical": "#fab219",
+        "tonalRamp": [
+          "#2a0000",
+          "#4b0600",
+          "#6c2b00",
+          "#8e4c00",
+          "#b16d00",
+          "#d58f00",
+          "#fdb520",
+          "#ffe7a2"
+        ]
+      },
+      "confidence-serious": {
+        "role": "status",
+        "displayName": "Confidence Serious",
+        "canonical": "#ec835a",
+        "tonalRamp": [
+          "#310000",
+          "#540000",
+          "#771600",
+          "#9c3a09",
+          "#c05c33",
+          "#e67e55",
+          "#ffa47a",
+          "#ffddc3"
+        ]
+      },
+      "confidence-critical": {
+        "role": "status",
+        "displayName": "Confidence Critical",
+        "canonical": "#d03b3b",
+        "tonalRamp": [
+          "#3c0000",
+          "#620000",
+          "#880000",
+          "#ae111e",
+          "#d5403f",
+          "#fd6660",
+          "#ff8d84",
+          "#ffd1c8"
+        ]
+      },
+      "chart-series": {
+        "role": "data",
+        "displayName": "Chart Series Blue",
+        "canonical": "#2a78d6",
+        "tonalRamp": [
+          "#00004d",
+          "#00156f",
+          "#003992",
+          "#005bb6",
+          "#2f7ddb",
+          "#539fff",
+          "#79c6ff",
+          "#c3f2ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "The question at the top of the reading pane."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Pane, dialog and verdict headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Rows, prose and form text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Sidebar groups, table headers, tabs."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "SQL, table cells, timestamps, counts (IBM Plex Mono)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "popover",
+        "value": "0 10px 30px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.12)",
+        "purpose": "Menus, dialogs/sheets and the setup assistant only; native popover treatment."
+      },
+      {
+        "name": "control",
+        "value": "0 1px 1px rgba(0,0,0,0.04)",
+        "purpose": "Resting secondary buttons."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Sheets, dialogs and the progress meter."
+      },
+      {
+        "name": "state",
+        "value": "120ms",
+        "purpose": "Hover and pressed states."
+      },
+      {
+        "name": "sheet",
+        "value": "240ms",
+        "purpose": "macOS sheet drop / Windows dialog scale-in (200ms)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-window",
+        "value": "1180px"
+      },
+      {
+        "name": "minimum-window",
+        "value": "980px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action in a view.",
+      "html": "<button class=\"ds-btn-primary\">Connect</button>",
+      "css": ".ds-btn-primary{height:26px;padding:0 11px;border:1px solid transparent;border-radius:5px;background:#1a6fdb;color:#fff;font:500 12px Montserrat,system-ui,sans-serif}.ds-btn-primary:hover{filter:brightness(1.06)}.ds-btn-primary:focus-visible{outline:2px solid rgba(26,111,219,.45);outline-offset:1px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Cancel, Back and other non-primary actions.",
+      "html": "<button class=\"ds-btn\">Cancel</button>",
+      "css": ".ds-btn{height:26px;padding:0 11px;border:1px solid #c7c7cf;border-radius:5px;background:#fff;color:#1d1d1f;font:500 12px Montserrat,system-ui,sans-serif;box-shadow:0 1px 1px rgba(0,0,0,.04)}.ds-btn:hover{background:#f4f4f7}.ds-btn:focus-visible{outline:2px solid rgba(26,111,219,.45);outline-offset:1px}"
+    },
+    {
+      "name": "Compose Field",
+      "kind": "input",
+      "refersTo": "compose-field",
+      "description": "Question input at the top of the list; Return asks.",
+      "html": "<div class=\"ds-compose\"><textarea rows=\"1\" placeholder=\"Ask a question\u2026\"></textarea></div>",
+      "css": ".ds-compose{display:flex;border:1px solid #c7c7cf;border-radius:7px;background:#fff;padding:6px 10px}.ds-compose:focus-within{border-color:#1a6fdb;box-shadow:0 0 0 3px rgba(26,111,219,.12)}.ds-compose textarea{flex:1;border:0;outline:0;resize:none;font:400 13px Montserrat,system-ui,sans-serif}"
+    },
+    {
+      "name": "Four-cell Confidence Mark",
+      "kind": "custom",
+      "refersTo": "verdict",
+      "description": "One cell per candidate query; filled cells agree with the answer. Always paired with words.",
+      "html": "<span class=\"ds-cells ds-l4\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i></span>",
+      "css": ".ds-cells{display:inline-flex;gap:2px}.ds-cells i{width:10px;height:18px;border-radius:2.5px;border:1px solid currentColor;opacity:.35}.ds-cells i.on{opacity:1;background:currentColor}.ds-l4{color:#0ca30c}"
+    },
+    {
+      "name": "Verdict",
+      "kind": "card",
+      "refersTo": "verdict",
+      "description": "The confidence line at the top of every answer.",
+      "html": "<div class=\"ds-verdict\"><span class=\"ds-cells ds-l4\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i></span><div><strong>High confidence</strong><span>4 of 4 candidate queries return this answer.</span></div></div>",
+      "css": ".ds-cells{display:inline-flex;gap:2px}.ds-cells i{width:10px;height:18px;border-radius:2.5px;border:1px solid currentColor;opacity:.35}.ds-cells i.on{opacity:1;background:currentColor}.ds-l4{color:#0ca30c}.ds-verdict{display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:10px;background:#f4f4f7;font:400 12px Montserrat,system-ui,sans-serif;color:#55555c}.ds-verdict strong{display:block;font-size:15px;font-weight:600;color:#1d1d1f}"
+    },
+    {
+      "name": "Question Row",
+      "kind": "nav",
+      "refersTo": "question-row-selected",
+      "description": "A past question in the list, with its confidence and time.",
+      "html": "<button class=\"ds-row\"><span class=\"ds-q\">Which 5 countries have the largest population?</span><span class=\"ds-meta\">High \u00b7 2m ago</span></button>",
+      "css": ".ds-row{display:grid;gap:4px;width:280px;text-align:left;border:0;border-bottom:1px solid #dcdce2;background:#fbfbfc;padding:10px 14px 10px 16px;font:600 13px Montserrat,system-ui,sans-serif;color:#1d1d1f}.ds-row:hover{background:rgba(0,0,0,.045)}.ds-row:focus-visible{outline:2px solid rgba(26,111,219,.45)}.ds-meta{font:400 12px 'IBM Plex Mono',monospace;color:#6e6e75}"
+    },
+    {
+      "name": "Not-sure Block",
+      "kind": "card",
+      "refersTo": "verdict",
+      "description": "The abstention: header and reading choices instead of a table.",
+      "html": "<div class=\"ds-unsure\"><div class=\"ds-uh\"><b>I'm not sure which you mean</b><span>The four candidate queries disagree. Choose the reading you meant.</span></div><div class=\"ds-rd\"><button>A \u00b7 2 of 4 \u00b7 Sana</button><button>B \u00b7 1 of 4 \u00b7 Asha</button></div></div>",
+      "css": ".ds-unsure{border:1px solid #dcdce2;border-radius:10px;overflow:hidden;font:400 12px Montserrat,system-ui,sans-serif}.ds-uh{padding:14px 16px;background:rgba(208,59,59,.08);display:grid;gap:2px}.ds-uh b{font-size:15px}.ds-rd{display:grid;grid-template-columns:1fr 1fr}.ds-rd button{border:0;border-top:1px solid #dcdce2;background:#fff;padding:12px;text-align:left;font:600 12px Montserrat,system-ui,sans-serif}.ds-rd button:hover{background:#f4f4f7}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Glass Ledger",
+    "overview": "QueryGenie's working is always visible: the SQL behind every table, the four candidate queries behind every answer, and how many agree. The window is each OS's three-pane mail layout, so the frame needs no learning and attention goes to the evidence inside it. Components are native but crisp.",
+    "keyCharacteristics": [
+      "Three panes: sources, questions, answer",
+      "User-chosen answer layout, remembered",
+      "Four-cell confidence mark with words",
+      "Designed 'not sure' state",
+      "Montserrat UI, IBM Plex Mono data",
+      "Follows macOS / Windows conventions"
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Status Rule",
+        "body": "Confidence colours mean confidence only, always with cells or an icon plus words.",
+        "section": "colors"
+      },
+      {
+        "name": "The Code Is Mono Rule",
+        "body": "IBM Plex Mono only for SQL, data and measurements.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floating-Only Shadow Rule",
+        "body": "Only menus, dialogs and the setup assistant cast shadows; the window is tonal.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do show confidence on every answer in every layout",
+      "Do keep SQL one click away and editable",
+      "Do follow the host OS for button order, shortcuts, selection and dialogs"
+    ],
+    "donts": [
+      "Don't use confidence colours for anything else",
+      "Don't build a chat transcript or a bottom prompt box",
+      "Don't hide or soften the 'not sure' state",
+      "Don't use emoji or glyphs as icons"
+    ]
+  }
+}

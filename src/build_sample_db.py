@@ -15,7 +15,7 @@ import os
 import sqlite3
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE_DIR = os.path.join(HERE, "sample_data")
+SAMPLE_DIR = os.environ.get("QG_SAMPLE_DIR") or os.path.join(HERE, "sample_data")   # desktop app: app-data folder
 
 ACADEMIC_DB = os.path.join(SAMPLE_DIR, "academic.sqlite")
 

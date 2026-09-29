@@ -21,8 +21,8 @@ from build_sample_db import ensure_sample_dbs
 from codes_prompt import load_db_comments
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
-UPLOADS = os.path.join(REPO, "src", "sample_data", "uploads")
+SPIDER = os.environ.get("QG_SPIDER_DIR") or os.path.join(REPO, "data", "spider_full", "spider_data")
+UPLOADS = os.environ.get("QG_UPLOADS_DIR") or os.path.join(REPO, "src", "sample_data", "uploads")
 
 ACADEMIC_EXAMPLES = [
     "Which students failed more than two subjects? A subject is failed if marks are below 40.",

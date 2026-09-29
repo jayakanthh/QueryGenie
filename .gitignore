@@ -39,3 +39,8 @@ docs/_render_tmp*.pdf
 
 # Databases uploaded in the app (user data)
 src/sample_data/uploads/
+
+# Impeccable local review captures and mocks
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/config.local.json

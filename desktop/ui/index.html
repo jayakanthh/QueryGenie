@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QueryGenie</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="sprite" aria-hidden="true"></div>
+
+  <!-- ============================================================ first-run setup assistant -->
+  <section class="setup" id="setup" hidden>
+    <div class="assistant" role="dialog" aria-labelledby="setup-title">
+      <nav class="steps" aria-label="Setup steps">
+        <div class="brand"><span class="brand-mark"><svg class="i"><use href="#i-database"/></svg></span>QueryGenie</div>
+        <div class="step" data-step="welcome"><span class="dot">1</span>Welcome</div>
+        <div class="step" data-step="machine"><span class="dot">2</span>Your computer</div>
+        <div class="step" data-step="download"><span class="dot">3</span>Download</div>
+        <div class="step" data-step="ready"><span class="dot">4</span>Ready</div>
+      </nav>
+
+      <div class="step-body" data-panel="welcome">
+        <h1 id="setup-title">Ask your databases in plain English</h1>
+        <p class="lead">QueryGenie writes the SQL for you, runs it without changing anything, and tells you when it isn't sure.</p>
+        <div class="facts">
+          <div class="fact"><svg class="i"><use href="#i-lock"/></svg><div><b>Everything stays on this computer</b><span>The AI model runs locally. Your schema and data are never sent anywhere.</span></div></div>
+          <div class="fact"><svg class="i"><use href="#i-circle-help"/></svg><div><b>It says when it's unsure</b><span>It writes four candidate queries. When they disagree, it asks which reading you meant instead of guessing.</span></div></div>
+          <div class="fact"><svg class="i"><use href="#i-database"/></svg><div><b>Works with your databases</b><span>SQLite files, PostgreSQL and MySQL — always read-only.</span></div></div>
+        </div>
+        <div class="step-foot"><span class="hint">Setup downloads the model once (about 4.5 GB).</span><button class="btn primary" data-go="machine">Continue</button></div>
+      </div>
+
+      <div class="step-body" data-panel="machine" hidden>
+        <h1>Your computer</h1>
+        <p class="lead" id="hw-lead">Checking what this computer can run…</p>
+        <dl class="hw" id="hw"></dl>
+        <div class="step-foot"><span class="hint" id="hw-hint"></span><span data-order></span></div>
+      </div>
+
+      <div class="step-body" data-panel="download" hidden>
+        <h1>Download</h1>
+        <p class="lead">Choose what to download. You can add the other model later in Settings.</p>
+        <div class="facts" id="dl-options"></div>
+        <div id="dl-progress" hidden>
+          <div class="progress-text"><span id="dl-msg">Starting…</span><span id="dl-num"></span></div>
+          <div class="meter" style="margin-top:8px"><div id="dl-bar"></div></div>
+        </div>
+        <div class="form-msg bad" id="dl-error"></div>
+        <div class="step-foot"><span class="hint" id="dl-hint">Stored in your user folder, not in the app.</span><span data-order></span></div>
+      </div>
+
+      <div class="step-body" data-panel="ready" hidden>
+        <h1>Ready</h1>
+        <p class="lead">Pick a database on the left, type a question, and press Return.</p>
+        <div class="facts">
+          <div class="fact"><svg class="i"><use href="#i-circle-check"/></svg><div><b>Confidence on every answer</b><span>Four cells show how many of the four candidate queries agree.</span></div></div>
+          <div class="fact"><svg class="i"><use href="#i-code"/></svg><div><b>The SQL is always one click away</b><span>Copy it, edit it, or run your own version.</span></div></div>
+        </div>
+        <div class="step-foot"><button class="btn primary" id="setup-finish">Start asking</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ three-pane window -->
+  <main class="window" id="app" hidden>
+    <aside class="sidebar" aria-label="Databases">
+      <div class="brand"><span class="brand-mark"><svg class="i"><use href="#i-database"/></svg></span>QueryGenie</div>
+      <div class="src-scroll" id="sources" role="listbox" aria-label="Databases"></div>
+      <div class="sidebar-foot">
+        <button class="btn quiet" id="add-db" title="Add a database"><svg class="i"><use href="#i-plus"/></svg>Add database</button>
+        <span style="flex:1"></span>
+        <button class="btn quiet icon" id="open-settings" title="Settings"><svg class="i"><use href="#i-settings"/></svg></button>
+      </div>
+    </aside>
+
+    <section class="list" aria-label="Questions">
+      <div class="list-head">
+        <div class="list-title"><h2 id="db-title">—</h2><span id="db-meta"></span></div>
+        <form class="compose" id="compose">
+          <textarea id="question" rows="1" placeholder="Ask a question…" aria-label="Your question"></textarea>
+          <button class="btn primary icon" type="submit" id="ask-btn" title="Ask"><svg class="i sm"><use href="#i-corner-down-left"/></svg></button>
+        </form>
+        <div class="list-tools">
+          <label class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" placeholder="Search questions" aria-label="Search questions"></label>
+          <button class="btn quiet icon" id="schema-btn" title="Schema"><svg class="i"><use href="#i-table"/></svg></button>
+        </div>
+      </div>
+      <div class="rows" id="rows" role="listbox" aria-label="Questions"></div>
+    </section>
+
+    <section class="pane" aria-label="Answer">
+      <div class="pane-bar" id="pane-bar" hidden>
+        <div class="seg" role="group" aria-label="Layout" id="layout-seg">
+          <button data-layout="answer" title="Answer first"><svg class="i sm"><use href="#i-sheet"/></svg><span class="lbl">Answer</span></button>
+          <button data-layout="confidence" title="Confidence first"><svg class="i sm"><use href="#i-circle-check"/></svg><span class="lbl">Confidence</span></button>
+          <button data-layout="split" title="Answer and SQL side by side"><svg class="i sm"><use href="#i-columns-2"/></svg><span class="lbl">Side by side</span></button>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn quiet" id="copy-sql" title="Copy SQL"><svg class="i sm"><use href="#i-copy"/></svg><span class="lbl">Copy SQL</span></button>
+        <button class="btn quiet" id="reask" title="Ask again"><svg class="i sm"><use href="#i-refresh-cw"/></svg><span class="lbl">Ask again</span></button>
+        <button class="btn quiet icon" id="delete-q" title="Delete from history"><svg class="i sm"><use href="#i-trash-2"/></svg></button>
+      </div>
+      <div class="pane-body" id="pane-body"></div>
+    </section>
+  </main>
+
+  <!-- ============================================================ dialogs -->
+  <dialog id="dlg-connect">
+    <form class="sheet" method="dialog" id="connect-form">
+      <div class="sheet-body">
+        <h2>Connect to a database server</h2>
+        <p>Queries run in a read-only transaction. For safety, use a database user that can only read. The password is kept in memory while the app is open and never saved.</p>
+        <div class="field"><label for="c-kind">Type</label>
+          <select class="input" id="c-kind"><option>PostgreSQL</option><option>MySQL / MariaDB</option></select></div>
+        <div class="grid-2">
+          <div class="field"><label for="c-host">Host</label><input class="input" id="c-host" value="localhost" autocomplete="off"></div>
+          <div class="field"><label for="c-port">Port</label><input class="input" id="c-port" value="5432" inputmode="numeric"></div>
+        </div>
+        <div class="field"><label for="c-db">Database</label><input class="input" id="c-db" autocomplete="off" required></div>
+        <div class="grid-2" style="grid-template-columns:1fr 1fr">
+          <div class="field"><label for="c-user">User</label><input class="input" id="c-user" autocomplete="off"></div>
+          <div class="field"><label for="c-pass">Password</label><input class="input" id="c-pass" type="password" autocomplete="off"></div>
+        </div>
+        <div class="form-msg" id="c-msg"></div>
+      </div>
+      <div class="sheet-foot" data-order>
+        <button class="btn" value="cancel" data-role="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" id="c-go" data-role="ok" value="default">Connect</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-schema">
+    <div class="sheet">
+      <div class="sheet-body"><h2 id="schema-title">Schema</h2><div id="schema-list" class="selectable" style="max-height:52vh;overflow:auto;display:grid;gap:12px"></div></div>
+      <div class="sheet-foot"><button class="btn primary" data-close>Done</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-settings">
+    <div class="sheet">
+      <div class="sheet-body">
+        <h2>Settings</h2>
+        <div class="set-tabs seg" role="tablist"><button data-set="general" aria-pressed="true">General</button><button data-set="model">Model</button><button data-set="storage">Storage</button></div>
+        <div data-setpanel="general" class="stack">
+          <div class="field"><label>When should QueryGenie decline to answer?</label><div id="mode-opts" class="stack" style="gap:6px"></div></div>
+          <p class="note" style="margin:0"><svg class="i"><use href="#i-info"/></svg>Percentages were measured on the Spider benchmark's 1,034 questions with CodeS-1B on SQLite. They are not yet measured on PostgreSQL or MySQL.</p>
+        </div>
+        <div data-setpanel="model" class="stack" hidden><div id="model-opts" class="stack" style="gap:6px"></div><div id="model-dl" class="form-msg"></div></div>
+        <div data-setpanel="storage" class="stack" hidden><dl class="kv" id="storage-kv"></dl><button class="btn" id="clear-history"><svg class="i sm"><use href="#i-trash-2"/></svg>Clear question history</button></div>
+      </div>
+      <div class="sheet-foot"><button class="btn primary" data-close>Done</button></div>
+    </div>
+  </dialog>
+
+  <div class="menu" id="add-menu" hidden role="menu">
+    <button role="menuitem" id="m-file"><svg class="i sm"><use href="#i-folder-open"/></svg>Open SQLite file…</button>
+    <button role="menuitem" id="m-server"><svg class="i sm"><use href="#i-plug-zap"/></svg>Connect to PostgreSQL or MySQL…</button>
+  </div>
+
+  <script src="devmode.js"></script>  <!-- exists only under desktop/devserver.py -->
+  <script src="app.js"></script>
+</body>
+</html>

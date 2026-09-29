@@ -26,3 +26,7 @@ matplotlib>=3.8
 
 # Tests
 pytest>=8.0
+
+# Desktop app (pywebview + PyInstaller)
+pywebview>=5
+pyinstaller>=6
