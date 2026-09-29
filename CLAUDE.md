@@ -11,7 +11,8 @@ Information Technology, Koneru Lakshmaiah Education Foundation (KL University).
 **Domain:** AI/ML — Computation and Language (with a Databases crossover)
 **Team 21**
 - 2320090050 — N V V S S Jayakanth Kamisetti (primary user you are talking to; goes by Jaikanth)
-- 2320090009 — Bodupally Narendar (handles documentation)
+- 2320090009 — Boddupally Narendar (handles documentation) — spelling confirmed by Jaikanth 2026-09-29
+- 2320090018 — M Praneeth Reddy (joined the team later; added 2026-09-29)
 **Supervisor:** M Parameswar
 
 **The product:** a user types a plain-English question ("which students failed more than two
@@ -35,7 +36,7 @@ question arises. Key rules:
 - **Weekly reports** must be discussed with and signed by the supervisor before submission.
   Three missed reports = automatic rejection.
 - **Final deliverable must be** a full-stack app OR a packaged tool (PyPI / npm / VS Code
-  extension) — not a notebook. Everything on GitHub, supervisor added as collaborator, both
+  extension) — not a notebook. Everything on GitHub, supervisor added as collaborator, all
   members committing under their own accounts.
 
 Grade weighting (45% is locked in by Week 8, so reproduction is the priority):

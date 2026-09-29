@@ -155,6 +155,7 @@ docs/                 reports (final report, reproducibility report, proposal), 
 
 - N V V S S Jayakanth Kamisetti — 2320090050
 - Boddupally Narendar — 2320090009
+- M Praneeth Reddy — 2320090018
 - Supervisor: M Parameswar
 
 ## Licence
