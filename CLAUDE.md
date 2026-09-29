@@ -12,7 +12,7 @@ Information Technology, Koneru Lakshmaiah Education Foundation (KL University).
 **Team 21**
 - 2320090050 — N V V S S Jayakanth Kamisetti (primary user you are talking to; goes by Jaikanth)
 - 2320090009 — Boddupally Narendar (handles documentation) — spelling confirmed by Jaikanth 2026-09-29
-- 2320090018 — M Praneeth Reddy (joined the team later; added 2026-09-29)
+- 2320090018 — M Praneeth Reddy (team member; listed on all project records)
 **Supervisor:** M Parameswar
 
 **The product:** a user types a plain-English question ("which students failed more than two
