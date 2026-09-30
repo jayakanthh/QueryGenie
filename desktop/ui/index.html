@@ -10,10 +10,10 @@
   <div id="sprite" aria-hidden="true"></div>
 
   <!-- ============================================================ first-run setup assistant -->
-  <section class="setup" id="setup" hidden>
+  <section class="setup pywebview-drag-region" id="setup" hidden>
     <div class="assistant" role="dialog" aria-labelledby="setup-title">
       <nav class="steps" aria-label="Setup steps">
-        <div class="brand"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark" src="brand/wordmark.png" alt="QueryGenie"></picture></div>
+        <div class="brand"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark pywebview-drag-region" src="brand/wordmark.png" alt="QueryGenie" draggable="false"></picture></div>
         <div class="step" data-step="welcome"><span class="dot">1</span>Welcome</div>
         <div class="step" data-step="machine"><span class="dot">2</span>Your computer</div>
         <div class="step" data-step="download"><span class="dot">3</span>Download</div>
@@ -66,7 +66,7 @@
   <!-- ============================================================ three-pane window -->
   <main class="window" id="app" hidden>
     <aside class="sidebar" aria-label="Databases">
-      <div class="brand"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark" src="brand/wordmark.png" alt="QueryGenie"></picture></div>
+      <div class="brand pywebview-drag-region"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark pywebview-drag-region" src="brand/wordmark.png" alt="QueryGenie" draggable="false"></picture></div>
       <div class="src-scroll" id="sources" role="listbox" aria-label="Databases"></div>
       <div class="sidebar-foot">
         <button class="btn quiet" id="add-db" title="Add a database"><svg class="i"><use href="#i-plus"/></svg>Add database</button>
@@ -77,7 +77,7 @@
 
     <section class="list" aria-label="Chats">
       <div class="list-head">
-        <div class="list-title"><h2 id="db-title">—</h2><span id="db-meta"></span></div>
+        <div class="list-title pywebview-drag-region"><h2 id="db-title" class="pywebview-drag-region">—</h2><span id="db-meta" class="pywebview-drag-region"></span></div>
         <button class="btn primary new-chat" id="new-chat" title="Start a new chat"><svg class="i sm"><use href="#i-message-square-plus"/></svg>New chat<span class="kbd" id="new-chat-kbd"></span></button>
         <div class="list-tools">
           <label class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" placeholder="Search chats" aria-label="Search chats"></label>
@@ -88,13 +88,13 @@
     </section>
 
     <section class="pane" aria-label="Chat">
-      <div class="pane-bar" id="pane-bar">
+      <div class="pane-bar pywebview-drag-region" id="pane-bar">
         <div class="seg" role="group" aria-label="View" id="view-seg">
           <button data-view="chat" title="Chat"><svg class="i sm"><use href="#i-messages-square"/></svg><span class="lbl">Chat</span></button>
           <button data-view="map" title="Schema map"><svg class="i sm"><use href="#i-network"/></svg><span class="lbl">Map</span></button>
         </div>
-        <div class="bar-title" id="chat-title"></div>
-        <span class="spacer"></span>
+        <div class="bar-title pywebview-drag-region" id="chat-title"></div>
+        <span class="spacer pywebview-drag-region"></span>
         <span class="bar-group" id="bar-chat">
           <div class="seg" role="group" aria-label="Layout" id="layout-seg">
             <button data-layout="answer" title="Answer first"><svg class="i sm"><use href="#i-sheet"/></svg><span class="lbl">Answer</span></button>

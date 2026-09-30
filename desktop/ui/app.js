@@ -50,6 +50,12 @@ async function boot() {
   const forced = new URLSearchParams(location.search).get("os");
   S.os = forced || S.boot.platform;
   document.documentElement.classList.add(S.os === "win" ? "os-win" : "os-mac");
+  // The packaged macOS window has no title bar (desktop/main.py): make room for the window buttons,
+  // and let a double-click on a top bar zoom the window as the title bar would.
+  if (S.os === "mac" && window.pywebview && !forced) {
+    document.documentElement.classList.add("mac-frameless");
+    document.addEventListener("dblclick", (e) => { if (e.target.classList && e.target.classList.contains("pywebview-drag-region")) api.window_zoom(); });
+  }
   // Windows puts the primary button first; macOS last.
   if (S.os === "win") $$("[data-order]").forEach((el) => { const ok = $("[data-role=ok]", el); if (ok) el.prepend(ok); });
   S.layout = S.boot.settings.layout; S.mode = S.boot.settings.mode;
@@ -207,8 +213,8 @@ function renderThread(scroll = "end") {
   $("#question").placeholder = c ? "Ask another question…" : S.db.examples[0] ? `e.g. ${S.db.examples[0]}` : `Ask about ${S.db.label}…`;
   if (S.view === "map") { markSelected(); return; }
   const working = S.working && S.working.chat === (c ? c.id : null) && S.working.db === S.db.id;
-  $("#chat-title").innerHTML = c ? `<span class="t selectable">${esc(c.title)}</span><span class="n">${c.turns.length} question${c.turns.length === 1 ? "" : "s"}</span>`
-                                 : `<span class="t">New chat</span><span class="n">${esc(S.db.label)}</span>`;
+  $("#chat-title").innerHTML = c ? `<span class="t pywebview-drag-region">${esc(c.title)}</span><span class="n pywebview-drag-region">${c.turns.length} question${c.turns.length === 1 ? "" : "s"}</span>`
+                                 : `<span class="t pywebview-drag-region">New chat</span><span class="n pywebview-drag-region">${esc(S.db.label)}</span>`;
   $("#rename-chat").hidden = $("#delete-chat").hidden = !c;
   $("#layout-seg").hidden = !c;
   $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
@@ -383,7 +389,7 @@ function textW(text, font) { const c = (textW.c ||= document.createElement("canv
 
 async function renderMap() {
   const db = S.db, m = (MAPS[db.id] ||= { data: null, open: new Set(), t: { k: 1, tx: 0, ty: 0 }, fitted: false });
-  $("#chat-title").innerHTML = `<span class="t">Schema map</span><span class="n">${esc(db.label)}</span>`;
+  $("#chat-title").innerHTML = `<span class="t pywebview-drag-region">Schema map</span><span class="n pywebview-drag-region">${esc(db.label)}</span>`;
   $("#dock-hint").innerHTML = `${icon("info", "i sm")}Tap a table or column to ask about it. Questions you pick appear here — edit, then press Return.`;
   if (!m.data) {
     $("#map-g").innerHTML = "";
@@ -394,7 +400,7 @@ async function renderMap() {
     await document.fonts.ready;
   }
   const nT = m.data.length, nC = m.data.reduce((n, t) => n + t.columns.length, 0);
-  $("#chat-title").innerHTML = `<span class="t">Schema map</span><span class="n">${nT} table${nT === 1 ? "" : "s"} · ${nC} columns</span>`;
+  $("#chat-title").innerHTML = `<span class="t pywebview-drag-region">Schema map</span><span class="n pywebview-drag-region">${nT} table${nT === 1 ? "" : "s"} · ${nC} columns</span>`;
   $("#map-all").title = m.open.size === nT ? "Hide all columns" : "Show all columns";
   drawMap(m);
   if (!m.fitted) { fitMap(m, false); m.fitted = true; } else applyT(m);

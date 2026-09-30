@@ -290,16 +290,13 @@ pre.sql { margin: 0; padding: 12px; font-size: var(--fs-sm); line-height: 1.55; 
 .error-box { margin-top: 18px; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--critical-soft); display: flex; gap: 10px; }
 .error-box svg { color: var(--critical); }
 
-/* ------------------------------------------------------------------ dialogs (native sheet on macOS, centered dialog on Windows) */
+/* ------------------------------------------------------------------ dialogs (centred on both systems; the body scrolls when tall) */
 dialog { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: min(560px, 92vw); width: 100%; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.28); }
 .sheet { background: var(--bg-pane); border-radius: var(--radius-lg); box-shadow: var(--shadow-pop); border: 1px solid var(--line); }
-.os-mac dialog { margin-top: 0; }
-.os-mac .sheet { border-top-left-radius: 0; border-top-right-radius: 0; animation: sheet 240ms var(--ease); }
-@keyframes sheet { from { transform: translateY(-14px); opacity: 0; } }
-.os-win .sheet { animation: pop 200ms var(--ease); }
+.sheet { display: flex; flex-direction: column; max-height: calc(100vh - 96px); animation: pop 200ms var(--ease); }
 @keyframes pop { from { transform: scale(0.97); opacity: 0; } }
-.sheet-body { padding: 20px 22px 8px; display: grid; gap: 14px; }
+.sheet-body { padding: 20px 22px 8px; display: grid; gap: 14px; overflow: auto; min-height: 0; align-content: start; }
 .sheet-body h2 { margin: 0; font-size: var(--fs-md); font-weight: 700; }
 .sheet-body p { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); }
 .sheet-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 14px 22px 18px; }
@@ -388,7 +385,6 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.28); }
 
 /* settings: model panel ------------------------------------------ */
 dialog.wide { max-width: min(720px, 94vw); }
-dialog.wide .sheet-body { max-height: min(74vh, 720px); overflow: auto; }
 .model-panel { gap: 0; }
 .engine-now { display: flex; align-items: center; gap: 14px; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--bg-subtle); margin-bottom: 6px; }
 .engine-now b { display: block; font-size: var(--fs-md); }
@@ -492,3 +488,16 @@ dialog.wide .sheet-body { max-height: min(74vh, 720px); overflow: auto; }
   .new-chat .kbd { display: none; }
   .split { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------------ macOS without a title bar
+   The interface runs to the top edge; the window buttons sit in a 52 px band shared by the three
+   panes (see desktop/main.py). The bars in that band move the window. */
+.mac-frameless .sidebar .brand { height: 52px; padding: 0 14px 0 86px; }
+.mac-frameless .list-head { padding-top: 0; }
+.mac-frameless .list-title { min-height: 52px; align-items: center; margin-bottom: -4px; }
+.mac-frameless .pane-bar { min-height: 52px; padding-top: 0; padding-bottom: 0; }
+.mac-frameless .setup { padding-top: 60px; }
+.pywebview-drag-region { -webkit-user-select: none; user-select: none; }
+/* Settings keeps one size across its tabs, so switching tabs doesn't make the dialog jump. */
+#dlg-settings .sheet { height: min(640px, calc(100vh - 96px)); }
+#dlg-settings .sheet-body { flex: 1; }

@@ -105,6 +105,15 @@ class Api:
         from querygenie.confidence import operating_points
         return operating_points()
 
+    def window_zoom(self):
+        """Double-click on a top bar: zoom the window, as a macOS title bar would."""
+        win = getattr(self, "_window", None)
+        if win is None or sys.platform != "darwin":
+            return False
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(lambda: win.native.zoom_(None))
+        return True
+
     def hardware(self):
         return st.hardware()
 

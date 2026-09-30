@@ -107,8 +107,10 @@ answers in the reading pane — so nothing about the frame needs learning; all t
 evidence inside it.
 
 It follows each OS rather than one look on both: macOS gets its 13px base, filled accent selection,
-sheets that drop from the top of the window and Cancel-then-OK button order; Windows gets a 14px
-base, the Fluent selection pill, centred dialogs with a footer band and OK-then-Cancel. Light or dark
+no title bar (the window buttons sit in a 52px band shared by the three panes, as in Mail) and
+Cancel-then-OK button order; Windows gets a 14px
+base, the Fluent selection pill, its standard title bar, a footer band on dialogs and OK-then-Cancel.
+Dialogs are centred in the window on both, never taller than it; long content scrolls inside. Light or dark
 follows the system setting. Components are **native but crisp**: OS conventions, with slightly
 stronger type and sharper confidence states than a stock control.
 
@@ -192,9 +194,14 @@ as a soft two-layer shadow with a 1px hairline, the native popover treatment of 
 ## Shapes
 
 Small, even radii: 5px controls, 7px fields and tables, 10px panels (Windows: 4px and 8px).
-Dialog sheets on macOS square their top corners where they attach to the window.
+Dialogs keep all four corners rounded; Settings keeps one size across its tabs so switching tabs never
+makes it jump.
 
 ## Components
+
+- **Window top band (macOS):** 52px high across all three panes: the window buttons and the wordmark in
+  the sidebar, the database title in the list, the view switch and chat title in the reading pane.
+  Dragging any empty part of the band (or its titles) moves the window; double-click zooms it.
 
 - **Source item (sidebar):** icon + name + question count; selected = accent fill (macOS) or subtle
   fill with a 3px accent pill (Windows). Files and live connections show a remove/disconnect control

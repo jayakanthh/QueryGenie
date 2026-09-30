@@ -57,14 +57,44 @@ def ui_port() -> int:
     return 0
 
 
+MAC = sys.platform == "darwin"
+
+
+def mac_window_chrome(window):
+    """macOS: no title bar - the interface runs to the top edge, the traffic-light buttons stay and sit
+    centred in a 52 px band (an empty unified toolbar), as in Mail or Notes. pywebview's frameless mode
+    gives the full-height, transparent title bar but hides the buttons, so they are shown again here.
+    The window is moved by dragging the top bars (class pywebview-drag-region in the interface)."""
+    import AppKit
+    from PyObjCTools import AppHelper
+
+    def apply():
+        w = window.native
+        for b in (AppKit.NSWindowCloseButton, AppKit.NSWindowMiniaturizeButton, AppKit.NSWindowZoomButton):
+            w.standardWindowButton_(b).setHidden_(False)
+        toolbar = AppKit.NSToolbar.alloc().initWithIdentifier_("QueryGenie")
+        toolbar.setShowsBaselineSeparator_(False)
+        w.setToolbar_(toolbar)
+        w.setToolbarStyle_(AppKit.NSWindowToolbarStyleUnified)
+        w.setTitlebarAppearsTransparent_(True)
+        w.setTitleVisibility_(AppKit.NSWindowTitleHidden)
+
+    AppHelper.callAfter(apply)
+
+
 def main():
     import webview
     from api import Api
 
+    webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True   # drag the bar itself, not its buttons
     api = Api()
     window = webview.create_window(
         "QueryGenie", url=os.path.join(UI, "index.html"), js_api=api,
-        width=1280, height=820, min_size=(980, 640), background_color="#f5f5f7", text_select=True)
+        width=1280, height=820, min_size=(980, 640), background_color="#f5f5f7", text_select=True,
+        frameless=MAC, easy_drag=False)
+    api._window = window                                   # private: not exposed to the page
+    if MAC:
+        window.events.shown += lambda: mac_window_chrome(window)
     webview.start(debug=bool(os.environ.get("QG_DEBUG")), private_mode=False, http_server=True,
                   http_port=ui_port(), storage_path=os.path.join(st.app_dir(), "webview"))
     return window
