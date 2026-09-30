@@ -509,7 +509,9 @@ dialog.wide { max-width: min(720px, 94vw); }
 .list-title h2 { flex: 1; min-width: 0; }
 /* macOS without a title bar: the toggle sits right of the window buttons, as in most Mac apps */
 .mac-frameless #toggle-sidebar { position: fixed; left: 80px; top: 12px; z-index: 5; margin: 0; }
-.mac-frameless.sidebar-collapsed .list-title { padding-left: 104px; }
+/* collapsed: the top row keeps only the window buttons and the toggle; the title gets its own line */
+.mac-frameless.sidebar-collapsed .list-head { padding-top: 52px; }
+.mac-frameless.sidebar-collapsed .list-title { min-height: 0; margin-bottom: 0; }
 .window { transition: grid-template-columns 200ms var(--ease); }
 .sidebar-collapsed .window { grid-template-columns: 0 336px 1fr; }
 .os-win.sidebar-collapsed .window { grid-template-columns: 0 348px 1fr; }
@@ -541,4 +543,3 @@ dialog.wide { max-width: min(720px, 94vw); }
 .dock-row { display: flex; align-items: center; gap: 12px; max-width: 1100px; min-height: 28px; }
 .dock-row .dock-hint { flex: 1; min-width: 0; }
 .dock-row .model-pill { margin-right: -4px; }
-.mac-frameless.sidebar-collapsed #db-meta { display: none; }

@@ -168,7 +168,7 @@ async function selectDb(id) {
   if (!id) return;
   S.db = S.dbs.find((d) => d.id === id); localStorage.setItem("qg.db", id);
   $$("#sources [data-db]").forEach((b) => b.setAttribute("aria-selected", b.dataset.db === id));
-  $("#db-title").textContent = S.db.label;
+  $("#db-title").textContent = S.db.label; $("#db-title").title = S.db.label;
   $("#db-meta").textContent = S.db.live ? "Live · read-only" : S.db.group === "Files" ? "SQLite file" : "Sample";
   $("#search").value = "";
   await loadChats();
