@@ -492,7 +492,9 @@ dialog.wide { max-width: min(720px, 94vw); }
 /* ------------------------------------------------------------------ macOS without a title bar
    The interface runs to the top edge; the window buttons sit in a 52 px band shared by the three
    panes (see desktop/main.py). The bars in that band move the window. */
-.mac-frameless .sidebar .brand { height: 52px; padding: 0 14px 0 86px; }
+.sidebar-top { display: none; }
+.mac-frameless .sidebar-top { display: block; height: 52px; flex: none; }
+.mac-frameless .sidebar .brand { padding: 0 14px 12px; }
 .mac-frameless .list-head { padding-top: 0; }
 .mac-frameless .list-title { min-height: 52px; align-items: center; margin-bottom: -4px; }
 .mac-frameless .pane-bar { min-height: 52px; padding-top: 0; padding-bottom: 0; }
@@ -501,3 +503,42 @@ dialog.wide { max-width: min(720px, 94vw); }
 /* Settings keeps one size across its tabs, so switching tabs doesn't make the dialog jump. */
 #dlg-settings .sheet { height: min(640px, calc(100vh - 96px)); }
 #dlg-settings .sheet-body { flex: 1; }
+
+/* ------------------------------------------------------------------ collapsible sidebar */
+.list-title #toggle-sidebar { flex: none; margin: 0 2px 0 -4px; align-self: center; }
+.list-title h2 { flex: 1; min-width: 0; }
+/* macOS without a title bar: the toggle sits right of the window buttons, as in most Mac apps */
+.mac-frameless #toggle-sidebar { position: fixed; left: 80px; top: 12px; z-index: 5; margin: 0; }
+.mac-frameless.sidebar-collapsed .list-title { padding-left: 104px; }
+.window { transition: grid-template-columns 200ms var(--ease); }
+.sidebar-collapsed .window { grid-template-columns: 0 336px 1fr; }
+.os-win.sidebar-collapsed .window { grid-template-columns: 0 348px 1fr; }
+.sidebar-collapsed .sidebar { visibility: hidden; overflow: hidden; border-right: 0; }
+@media (max-width: 1180px) {
+  .sidebar-collapsed .window { grid-template-columns: 0 292px 1fr; }
+  .os-win.sidebar-collapsed .window { grid-template-columns: 0 300px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .window { transition: none; } }
+
+/* ------------------------------------------------------------------ model picker in the question box */
+.model-pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 10px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ink-2); font: 500 var(--fs-sm)/1 var(--font-ui); white-space: nowrap; max-width: 300px; flex: none; }
+.model-pill:hover, .model-pill[aria-expanded="true"] { background: var(--bg-hover); color: var(--ink); }
+.model-pill .mp-name { overflow: hidden; text-overflow: ellipsis; }
+.model-pill .mp-effort { color: var(--ink-3); }
+.model-pill .mp-effort:empty { display: none; }
+.model-menu { width: 320px; max-height: min(70vh, 560px); overflow: auto; }
+.model-menu h4 { margin: 6px 9px 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
+.model-menu button { justify-content: space-between; padding: 6px 9px; }
+.model-menu button .mm-l { display: grid; gap: 1px; min-width: 0; }
+.model-menu button .mm-l span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-menu button .mm-sub { font-size: var(--fs-xs); color: var(--ink-3); }
+.model-menu button:hover .mm-sub { color: inherit; opacity: 0.8; }
+.model-menu button .i { flex: none; }
+.model-menu .mm-note { margin: 2px 9px 6px; font-size: var(--fs-xs); color: var(--ink-3); }
+
+/* the row under the question box: hint on the left, model and effort on the right */
+.dock-row { display: flex; align-items: center; gap: 12px; max-width: 1100px; min-height: 28px; }
+.dock-row .dock-hint { flex: 1; min-width: 0; }
+.dock-row .model-pill { margin-right: -4px; }
+.mac-frameless.sidebar-collapsed #db-meta { display: none; }

@@ -20,7 +20,8 @@ import setup_tasks as st
 HISTORY_DB = os.path.join(st.app_dir(), "history.sqlite")
 SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
-                    "engine": None}          # None = the evaluated CodeS model in "model"
+                    "engine": None,          # None = the evaluated CodeS model in "model"
+                    "recent_engines": []}    # last few models chosen (for the quick picker)
 
 # Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
 # from source, in the repository's mlx_models/ and gguf_models/ (legacy/scripts/convert_mlx.py).
@@ -231,15 +232,16 @@ class Api:
         if not spec:
             key = s["model"]
             return {"kind": "evaluated", "model": key, "label": st.MODELS[key][1],
-                    "calibrated": key == "codes-1b-spider", "cloud": False}
-        from querygenie.providers import CLOUD
+                    "calibrated": key == "codes-1b-spider", "cloud": False, "effort": None, "effort_levels": None}
+        from querygenie.providers import CLOUD, effort_levels
         kind = spec["kind"]
         cloud = kind in CLOUD or (kind == "compat" and not any(
             h in (spec.get("base_url") or "") for h in ("localhost", "127.0.0.1", "[::1]")))
         where = CLOUD[kind]["name"] if kind in CLOUD else {"ollama": "Ollama", "compat": "OpenAI-compatible server",
                                                            "hf": "this computer", "mlx": "MLX", "gguf": "llama.cpp"}[kind]
         return {"kind": kind, "model": spec.get("model"), "label": spec.get("label") or spec.get("model"),
-                "where": where, "calibrated": False, "cloud": cloud}
+                "where": where, "calibrated": False, "cloud": cloud, "base_url": spec.get("base_url"),
+                "effort": spec.get("effort"), "effort_levels": effort_levels(kind)}
 
     def models_catalog(self):
         """Everything the Model settings can offer, with what is available on this computer."""
@@ -294,10 +296,50 @@ class Api:
         if spec is not None:
             if spec.get("kind") not in ENGINE_KINDS or not spec.get("model"):
                 return {"error": "Choose a model first."}
-            spec = {k: spec[k] for k in ("kind", "model", "label", "base_url") if spec.get(k)}
+            spec = {k: spec[k] for k in ("kind", "model", "label", "base_url", "effort") if spec.get(k)}
         s = self.settings_get(); s["engine"] = spec
+        if spec:
+            same = lambda e: (e.get("kind"), e.get("model"), e.get("base_url")) == (spec["kind"], spec["model"], spec.get("base_url"))
+            s["recent_engines"] = ([spec] + [e for e in s.get("recent_engines", []) if not same(e)])[:8]
         json.dump(s, open(SETTINGS, "w"), indent=2)
         return {"engine": self._engine_info()}
+
+    def engine_effort(self, effort):
+        """Change the reasoning effort of the current model (None = the model's default)."""
+        s = self.settings_get()
+        spec = s.get("engine")
+        if not spec:
+            return {"error": "The evaluated CodeS model has no effort setting."}
+        from querygenie.providers import effort_levels
+        if effort is not None and effort not in (effort_levels(spec["kind"]) or []):
+            return {"error": "This model has no such effort level."}
+        return self.engine_set({**spec, "effort": effort} if effort else {k: v for k, v in spec.items() if k != "effort"})
+
+    def models_quick(self):
+        """Short list for the model picker in the question box: the evaluated models, what's available on
+        this computer, and cloud or server models chosen before."""
+        import importlib.util
+        s = self.settings_get()
+        out = [{"spec": None, "evaluated": k, "label": v[1], "group": "Evaluated", "calibrated": k == "codes-1b-spider"}
+               for k, v in st.MODELS.items() if st.model_installed(k)]
+        found = self._legacy_paths()
+        runtime = {"mlx": importlib.util.find_spec("mlx_lm") is not None, "gguf": importlib.util.find_spec("llama_cpp") is not None}
+        for kind, name, label, _note in LEGACY_MODELS:
+            if kind != "hf" and runtime.get(kind) and name in found:
+                out.append({"spec": {"kind": kind, "model": name, "label": label}, "label": label, "group": "Earlier prototype"})
+        from querygenie import providers
+        try:
+            for m in providers.list_models("ollama"):
+                out.append({"spec": {"kind": "ollama", "model": m["id"], "label": m["id"]}, "label": m["id"], "group": "Ollama"})
+        except providers.ProviderError:
+            pass
+        seen = {(o["spec"] or {}).get("model") for o in out}
+        for e in s.get("recent_engines", []):
+            if e.get("model") not in seen and e.get("kind") not in ("mlx", "gguf", "ollama"):
+                info = self._engine_info(e)
+                out.append({"spec": {k: v for k, v in e.items() if k != "effort"}, "label": info["label"],
+                            "group": "Recent", "where": info["where"], "cloud": info["cloud"]})
+        return {"current": self._engine_info(), "current_model": s["model"], "options": out}
 
     # ---------------------------------------------------------------- asking
     def _get_backend(self):

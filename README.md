@@ -68,6 +68,8 @@ In the app:
   mean"* and shows the readings instead of guessing.
 - **Map view**: the whole database as a tree (tables, columns, keys, links). Tap a table or column
   for ready-made questions, or to use its name in your question.
+- **Model picker** under the question box: switch model, and set its effort where the provider has one
+  (Claude low → max; OpenAI-style reasoning models low / medium / high; Ollama thinking on / off).
 - **Settings → Model**: the evaluated CodeS-1B-Spider (the default, and the only model whose accuracy
   was measured); the earlier prototype's CodeS models (MLX 4-bit, GGUF 2-bit, base CodeS — from source
   only); any model in **Ollama**; your own CodeS-format model or any **OpenAI-compatible server**

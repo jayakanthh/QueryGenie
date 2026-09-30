@@ -53,8 +53,8 @@ def ollama_models(base_url=OLLAMA_URL):
 
 
 class Ollama(CandidateBackend):
-    def __init__(self, model, label="", base_url=OLLAMA_URL):
-        super().__init__(model, label)
+    def __init__(self, model, label="", base_url=OLLAMA_URL, effort=None):
+        super().__init__(model, label, effort)
         self.base_url = base_url.rstrip("/")
 
     def unload(self):
@@ -68,10 +68,12 @@ class Ollama(CandidateBackend):
         # Local and one model at a time: sequential avoids loading it four times over.
         out = []
         for i in range(4):
-            r = _request("POST", self.base_url + "/api/chat", body={
-                "model": self.model, "stream": False,
-                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
-                "options": {"temperature": 0.0 if i == 0 else 0.7}})
+            body = {"model": self.model, "stream": False,
+                    "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                    "options": {"temperature": 0.0 if i == 0 else 0.7}}
+            if self.effort in ("on", "off"):                  # thinking models only
+                body["think"] = self.effort == "on"
+            r = _request("POST", self.base_url + "/api/chat", body=body)
             out.append((r.get("message") or {}).get("content", ""))
         return out
 
@@ -80,8 +82,8 @@ class Ollama(CandidateBackend):
 class OpenAICompatible(CandidateBackend):
     cloud = True
 
-    def __init__(self, model, label="", base_url="https://api.openai.com/v1", api_key=None, cloud=True):
-        super().__init__(model, label)
+    def __init__(self, model, label="", base_url="https://api.openai.com/v1", api_key=None, cloud=True, effort=None):
+        super().__init__(model, label, effort)
         self.base_url, self.api_key, self.cloud = base_url.rstrip("/"), api_key, cloud
 
     def _headers(self):
@@ -89,9 +91,11 @@ class OpenAICompatible(CandidateBackend):
 
     def raw_candidates(self, prompt):
         def one(_i):
-            r = _request("POST", self.base_url + "/chat/completions", headers=self._headers(), body={
-                "model": self.model,
-                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]})
+            body = {"model": self.model,
+                    "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]}
+            if self.effort:                                   # reasoning models only; others reject it
+                body["reasoning_effort"] = self.effort
+            r = _request("POST", self.base_url + "/chat/completions", headers=self._headers(), body=body)
             choice = (r.get("choices") or [{}])[0]
             return (choice.get("message") or {}).get("content") or ""
         return parallel(one)

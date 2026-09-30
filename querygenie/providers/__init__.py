@@ -32,6 +32,18 @@ CLOUD = {
 }
 
 
+# Reasoning effort each kind of model accepts (None = no such setting). Values are sent as-is:
+# Claude output_config.effort, OpenAI-style reasoning_effort, Ollama think on/off.
+_OPENAI_EFFORT = ["low", "medium", "high"]
+EFFORT_LEVELS = {"anthropic": ["low", "medium", "high", "xhigh", "max"], "ollama": ["off", "on"],
+                 **{k: _OPENAI_EFFORT for k in ("openai", "xai", "deepseek", "mistral", "groq", "openrouter",
+                                                "together", "compat")}}
+
+
+def effort_levels(kind: str):
+    return EFFORT_LEVELS.get(kind)
+
+
 # ---------------------------------------------------------------- keys
 def _keyring():
     try:
@@ -96,6 +108,7 @@ def build(spec: dict, legacy_paths: dict):
 
     kind, model = spec.get("kind"), spec.get("model")
     label = spec.get("label") or model
+    effort = spec.get("effort") if spec.get("effort") in (effort_levels(kind) or []) else None
     if kind == "mlx":
         path = legacy_paths.get(model, model)
         if not os.path.isdir(path):
@@ -109,16 +122,16 @@ def build(spec: dict, legacy_paths: dict):
     if kind == "hf":
         return local.CodesLocal(model, label)
     if kind == "ollama":
-        return http_apis.Ollama(model, label, spec.get("base_url") or http_apis.OLLAMA_URL)
+        return http_apis.Ollama(model, label, spec.get("base_url") or http_apis.OLLAMA_URL, effort)
     if kind == "compat":
         base = spec.get("base_url") or ""
         local_server = any(h in base for h in ("localhost", "127.0.0.1", "[::1]"))
-        return http_apis.OpenAICompatible(model, label, base, key_get("compat"), cloud=not local_server)
+        return http_apis.OpenAICompatible(model, label, base, key_get("compat"), cloud=not local_server, effort=effort)
     if kind == "anthropic":
         from .anthropic_api import Claude
-        return Claude(model, label, _need_key("anthropic"))
+        return Claude(model, label, _need_key("anthropic"), effort)
     if kind == "gemini":
         return http_apis.Gemini(model, label, _need_key("gemini"))
     if kind in CLOUD:
-        return http_apis.OpenAICompatible(model, label, CLOUD[kind]["base_url"], _need_key(kind))
+        return http_apis.OpenAICompatible(model, label, CLOUD[kind]["base_url"], _need_key(kind), effort=effort)
     raise ProviderError(f"unknown model type {kind}")

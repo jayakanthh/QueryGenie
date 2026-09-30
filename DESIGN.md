@@ -199,8 +199,8 @@ makes it jump.
 
 ## Components
 
-- **Window top band (macOS):** 52px high across all three panes: the window buttons and the wordmark in
-  the sidebar, the database title in the list, the view switch and chat title in the reading pane.
+- **Window top band (macOS):** 52px high across all three panes: the window buttons and the sidebar
+  toggle in the sidebar (the wordmark sits just below), the database title in the list, the view switch and chat title in the reading pane.
   Dragging any empty part of the band (or its titles) moves the window; double-click zooms it.
 
 - **Source item (sidebar):** icon + name + question count; selected = accent fill (macOS) or subtle
@@ -211,6 +211,13 @@ makes it jump.
   the number of questions, and a relative time in mono. Keyboard: arrow keys move through rows.
 - **Thread:** the open chat's questions oldest first, one ledger entry each (question, verdict, tabs),
   separated by hairlines; per-question Copy SQL / Ask again / Remove appear on hover.
+- **Sidebar toggle:** a panel icon (⌃⌘S / Ctrl+Shift+S) that folds the sources column away; the chat list
+  and reading pane take the space. On macOS it sits right of the window buttons and stays there when the
+  sidebar is hidden; on Windows it leads the chat-list title. The choice is remembered.
+- **Model picker:** under the question box, right-aligned — the model's short name and, when the model
+  has one, its effort ("gemma4 · Default"). It opens upward: Effort first (Default plus the levels the
+  provider accepts), then models grouped by where they run, and "More models…" into Settings.
+  CodeS models show no effort: they always get four candidates.
 - **Compose field:** docked at the bottom of the reading pane; Return asks, Shift+Return adds a line.
   Under it, a standing note that each question is answered on its own (the model does not see earlier
   turns) — the chat groups questions; it does not give the model memory.

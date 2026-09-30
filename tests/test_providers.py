@@ -134,3 +134,21 @@ def test_build_rejects_missing_local_files(monkeypatch):
         providers.build({"kind": "gguf", "model": "/nope/model.gguf"}, {})
     local = providers.build({"kind": "compat", "model": "m", "base_url": "http://localhost:1234/v1"}, {})
     assert not local.cloud
+
+
+def test_effort_is_sent_only_when_chosen(tmp_path, fake_server):
+    db = _db(tmp_path)
+    _FakeOpenAI.seen.clear()
+    http_apis.OpenAICompatible("model-a", base_url=fake_server, cloud=False).decide(db, "Items over 10?")
+    assert all("reasoning_effort" not in body for _, body in _FakeOpenAI.seen)
+    _FakeOpenAI.seen.clear()
+    http_apis.OpenAICompatible("model-a", base_url=fake_server, cloud=False, effort="high").decide(db, "Items over 10?")
+    assert {body["reasoning_effort"] for _, body in _FakeOpenAI.seen} == {"high"}
+
+
+def test_effort_levels_per_provider(monkeypatch):
+    monkeypatch.setattr(providers, "key_get", lambda provider: None)
+    assert providers.effort_levels("anthropic")[-1] == "max" and providers.effort_levels("ollama") == ["off", "on"]
+    assert providers.effort_levels("gemini") is None and providers.effort_levels("mlx") is None
+    be = providers.build({"kind": "compat", "model": "m", "base_url": "http://localhost:1/v1", "effort": "turbo"}, {})
+    assert be.effort is None                               # unknown levels are ignored, never sent

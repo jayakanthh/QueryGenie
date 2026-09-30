@@ -136,6 +136,8 @@ async function openApp() {
   $("#app").hidden = false;
   $("#new-chat-kbd").textContent = mod() + "N";
   S.dbs = await api.databases(); S.counts = await api.history_counts();
+  let hidden = false; try { hidden = localStorage.getItem("qg.sidebar") === "hidden"; } catch (e) { /* default: shown */ }
+  setSidebar(hidden); renderModelPill();
   try { S.view = localStorage.getItem("qg.view") === "map" ? "map" : "chat"; } catch (e) { S.view = "chat"; }
   renderSources();
   const last = localStorage.getItem("qg.db");
@@ -707,6 +709,8 @@ function wireApp() {
   let t; $("#search").oninput = () => { clearTimeout(t); t = setTimeout(() => loadChats(), 180); };
   $$("#layout-seg [data-layout]").forEach((b) => (b.onclick = () => { S.layout = b.dataset.layout; Object.values(S.T).forEach((x) => (x.tab = null)); api.settings_set({ layout: S.layout }); renderThread("keep"); }));
   $("#new-chat").onclick = () => { newChat(); setView("chat"); };
+  $("#toggle-sidebar").onclick = toggleSidebar;
+  $("#model-pill").onclick = (e) => { e.preventDefault(); openModelMenu(); };
   $("#rename-chat").onclick = renameChat;
   $("#delete-chat").onclick = deleteChat;
   $("#schema-btn").onclick = () => setView("map");
@@ -717,10 +721,12 @@ function wireApp() {
   $("#m-server").onclick = () => { $("#add-menu").hidden = true; openConnect(); };
   $("#open-settings").onclick = openSettings;
   $$("dialog [data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
-  document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db")) $$(".menu").forEach((m) => (m.hidden = true)); });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db") && !e.target.closest("#model-pill")) { $$(".menu").forEach((m) => (m.hidden = true)); $("#model-pill").setAttribute("aria-expanded", "false"); } });
   document.addEventListener("keydown", (e) => {
     const m = S.os === "mac" ? e.metaKey : e.ctrlKey;
     if (m && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); setView("chat"); }
+    if (e.key.toLowerCase() === "s" && (S.os === "mac" ? e.metaKey && e.ctrlKey : e.ctrlKey && e.shiftKey)) { e.preventDefault(); toggleSidebar(); }
+    if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu();
     if (e.key === "Escape" && S.view === "map" && !$("#map-pop").hidden) closePop();
     if (m && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
     if (m && e.key === ",") { e.preventDefault(); openSettings(); }
@@ -785,6 +791,71 @@ async function openSettings() {
   $$("[data-set]").forEach((b) => (b.onclick = () => { $$("[data-set]").forEach((x) => x.setAttribute("aria-pressed", x === b)); $$("[data-setpanel]").forEach((p) => (p.hidden = p.dataset.setpanel !== b.dataset.set)); }));
   d.showModal();
 }
+// ------------------------------------------------------------------ collapsible sidebar
+const sidebarKey = () => (S.os === "mac" ? "⌃⌘S" : "Ctrl+Shift+S");
+function setSidebar(collapsed) {
+  document.documentElement.classList.toggle("sidebar-collapsed", collapsed);
+  const b = $("#toggle-sidebar"), what = collapsed ? "Show sidebar" : "Hide sidebar";
+  b.title = `${what} (${sidebarKey()})`; b.setAttribute("aria-label", what); b.setAttribute("aria-expanded", String(!collapsed));
+  try { localStorage.setItem("qg.sidebar", collapsed ? "hidden" : "shown"); } catch (e) { /* convenience only */ }
+}
+const toggleSidebar = () => setSidebar(!document.documentElement.classList.contains("sidebar-collapsed"));
+
+// ------------------------------------------------------------------ model picker in the question box
+const EFFORT_NAME = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max", on: "Thinking on", off: "Thinking off" };
+function shortName(label) { const l = String(label || ""); const last = l.includes("/") ? l.split("/").pop() : l; return last.length > 30 ? last.slice(0, 29) + "…" : last; }
+function renderModelPill() {
+  const e = (S.boot && S.boot.engine) || {};
+  $("#model-pill .mp-name").textContent = shortName(e.label);
+  $("#model-pill .mp-effort").textContent = e.effort_levels ? (EFFORT_NAME[e.effort] || "Default") : "";
+  $("#model-pill").title = `${e.label}${e.cloud ? " · cloud" : " · on this computer"}${e.calibrated ? " · accuracy measured" : ""} — choose the model`;
+}
+async function openModelMenu() {
+  const m = $("#model-menu"), pill = $("#model-pill");
+  if (!m.hidden) return closeModelMenu();
+  m.innerHTML = `<div class="sk" style="width:60%;margin:10px"></div>`; m.hidden = false; placeModelMenu();
+  pill.setAttribute("aria-expanded", "true");
+  const q = await api.models_quick(), cur = q.current;
+  const isCur = (o) => (o.spec ? cur.kind === o.spec.kind && cur.model === o.spec.model && (cur.base_url || "") === (o.spec.base_url || "")
+                               : cur.kind === "evaluated" && q.current_model === o.evaluated);
+  const GROUP = { Evaluated: "Evaluated · on this computer", "Earlier prototype": "Earlier prototype · on this computer",
+                  Ollama: "Ollama · on this computer", Recent: "Recently used" };
+  const groups = [...new Set(q.options.map((o) => o.group))];
+  let html = "";
+  if (cur.effort_levels) {
+    html += `<h4>Effort</h4>` + [null, ...cur.effort_levels].map((lvl) => `
+      <button role="menuitemradio" aria-checked="${(cur.effort || null) === lvl}" data-effort="${lvl ?? ""}"><span class="mm-l"><span>${lvl ? EFFORT_NAME[lvl] : "Default"}</span></span>${(cur.effort || null) === lvl ? icon("check", "i sm") : ""}</button>`).join("");
+    html += `<p class="mm-note">Higher effort thinks longer — slower, and costlier on paid services. Models that can't reason reject it.</p><hr>`;
+  }
+  html += groups.map((g) => `<h4>${esc(GROUP[g] || g)}</h4>` + q.options.map((o, i) => o.group !== g ? "" : `
+    <button role="menuitemradio" aria-checked="${isCur(o)}" data-opt="${i}" title="${esc(o.label)}"><span class="mm-l"><span>${esc(shortName(o.label))}</span>
+      ${o.calibrated ? `<span class="mm-sub">Accuracy measured on Spider</span>` : o.cloud ? `<span class="mm-sub">${esc(o.where)} · cloud</span>` : ""}</span>
+      ${isCur(o) ? icon("check", "i sm") : ""}</button>`).join("")).join("");
+  if (!cur.effort_levels && (cur.kind === "evaluated" || ["mlx", "gguf", "hf"].includes(cur.kind))) {
+    html += `<hr><p class="mm-note">CodeS models have no effort setting: every question gets four candidate queries${cur.calibrated ? " — the evaluated setup" : ""}.</p>`;
+  }
+  html += `<hr><button data-more>${icon("settings", "i sm")}<span class="mm-l"><span>More models…</span><span class="mm-sub">Ollama, your own, OpenAI, Claude, Gemini, Grok…</span></span></button>`;
+  m.innerHTML = html; placeModelMenu();
+  $$("[data-opt]", m).forEach((b) => (b.onclick = async () => {
+    const o = q.options[+b.dataset.opt]; closeModelMenu();
+    if (o.cloud && !confirm(`Use ${o.label} (${o.where})?\n\nFor every question, the database's schema, a few example values and the question are sent to ${o.where}. Result rows stay on this computer.`)) return;
+    if (!o.spec) await api.settings_set({ model: o.evaluated });
+    const r = await api.engine_set(o.spec); if (r.error) return alert(r.error);
+    S.boot = await api.boot(); renderModelPill();
+  }));
+  $$("[data-effort]", m).forEach((b) => (b.onclick = async () => {
+    closeModelMenu(); const r = await api.engine_effort(b.dataset.effort || null); if (r.error) return alert(r.error);
+    S.boot = await api.boot(); renderModelPill();
+  }));
+  $("[data-more]", m).onclick = async () => { closeModelMenu(); await openSettings(); $("[data-set=model]").click(); };
+}
+function placeModelMenu() {
+  const m = $("#model-menu"), r = $("#model-pill").getBoundingClientRect();
+  m.style.left = Math.max(12, Math.min(window.innerWidth - m.offsetWidth - 12, r.right - m.offsetWidth)) + "px";
+  m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + "px";
+}
+function closeModelMenu() { $("#model-menu").hidden = true; $("#model-pill").setAttribute("aria-expanded", "false"); }
+
 // ------------------------------------------------------------------ settings: which model answers
 // Groups: the evaluated model, the earlier prototype's models, Ollama, your own model, cloud services.
 // API keys go straight to the OS keychain through api.key_save and are never read back.
@@ -854,7 +925,7 @@ async function useEngine(spec, el) {
   }
   const r = await api.engine_set(spec);
   if (r.error) { alert(r.error); return; }
-  S.boot = await api.boot(); renderModelPanel();
+  S.boot = await api.boot(); renderModelPanel(); renderModelPill();
 }
 function wireModelPanel() {
   const box = $("#model-panel");

@@ -62,9 +62,10 @@ class CandidateBackend:
     cloud = False                # True when the schema is sent to a third-party service
     chat = True                  # instruction model (chat prompt) vs CodeS-style completion model
 
-    def __init__(self, model: str, label: str = ""):
+    def __init__(self, model: str, label: str = "", effort: str | None = None):
         self.model = model
         self.label = label or model
+        self.effort = effort          # provider-specific reasoning effort, None = the model's default
         self._schema_cache = {}
 
     # ---- to implement

@@ -53,23 +53,24 @@ def claude_models(api_key):
 class Claude(CandidateBackend):
     cloud = True
 
-    def __init__(self, model=DEFAULT_MODEL, label="", api_key=None):
-        super().__init__(model, label)
+    def __init__(self, model=DEFAULT_MODEL, label="", api_key=None, effort=None):
+        super().__init__(model, label, effort)
         self.api_key = api_key
 
     def raw_candidates(self, prompt):
         anthropic, client = _client(self.api_key)
         messages = [{"role": "user", "content": prompt}]
+        extra = {"output_config": {"effort": self.effort}} if self.effort else {}
 
         def one(_i):
             try:
                 if self.model in _FALLBACK_MODELS:
                     r = client.beta.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
                                                     messages=messages, betas=["server-side-fallback-2026-06-01"],
-                                                    fallbacks=[{"model": "claude-opus-4-8"}])
+                                                    fallbacks=[{"model": "claude-opus-4-8"}], **extra)
                 else:
                     r = client.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
-                                               messages=messages)
+                                               messages=messages, **extra)
             except anthropic.AnthropicError as exc:
                 raise ProviderError(_explain(anthropic, exc)) from exc
             if r.stop_reason == "refusal":
