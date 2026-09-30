@@ -37,39 +37,41 @@ evaluator, using the released fine-tuned CodeS-1B checkpoint.
 
 ## Run the app
 
+QueryGenie is a desktop app for macOS and Windows (a native window, not a web page).
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/app.py            # then open http://127.0.0.1:7860
+python desktop/main.py
 ```
 
-**Databases.** The app ships with a small academic database. For the 20 Spider development
-databases — concerts, pets, world countries, flights, museums and more, each with real example
-questions — run `python scripts/download_spider_dbs.py` once (downloads from Hugging Face). These
-are the databases the 77.8% / 83.3% figures were measured on. You can also **upload your own SQLite
-file** from the sidebar. All queries run on a read-only connection.
-
-The first question downloads `seeklhy/codes-1b-spider` (about 4.5 GB) and takes a little longer;
-after that each question takes a few seconds on an Apple M-series Mac or a GPU. A bundled academic
-database is created on first start. Stop the app with `Ctrl+C`.
+On first start a setup assistant checks the computer and downloads the model
+(`seeklhy/codes-1b-spider`, about 4.5 GB) and, optionally, the 20 Spider development databases
+(about 0.2 GB) from Hugging Face. Everything is stored in your user folder
+(`~/Library/Application Support/QueryGenie`, or `%APPDATA%\QueryGenie` on Windows), not in the app.
+To build a double-clickable app instead, see [`desktop/build.md`](desktop/build.md).
 
 In the app:
 
-- **Model** — *evaluated pipeline + confidence* runs exactly the setup measured above (1B or 3B).
-  The optional MLX and GGUF models (below) are faster but report no confidence.
-- **When should it abstain?** — four settings, each showing its measured coverage and accuracy:
-  answer everything (100% / 77.8%), balanced (90% / 83.3%), strict (63% / 86.1%), very strict
-  (40% / 88.3%).
-- Every answer shows a confidence badge (how many of the 4 candidate queries agree) and the SQL
-  behind the table. When the candidates disagree, the alternative interpretations are listed.
+- **Databases** (left): a small academic database, the 20 Spider databases the 77.8% / 83.3% figures
+  were measured on, any **SQLite file** you add, and live **PostgreSQL / MySQL** connections.
+  Everything runs read-only.
+- **Chats** (middle): *New chat* (⌘N / Ctrl+N) starts a thread; keep asking in it. Each question is
+  answered on its own — the model does not see earlier questions.
+- **Chat view**: every answer shows how many of the 4 candidate queries agree, the table, a chart,
+  the SQL (editable) and all four candidates. When they disagree it asks *"I'm not sure which you
+  mean"* and shows the readings instead of guessing.
+- **Map view**: the whole database as a tree (tables, columns, keys, links). Tap a table or column
+  for ready-made questions, or to use its name in your question.
+- **Settings → when to decline**: answer everything (100% / 77.8%), balanced (90% / 83.3%),
+  strict (63% / 86.1%), very strict (40% / 88.3%) — coverage and accuracy measured on Spider dev.
 
 ![Abstention in the app: the candidates disagree, so it asks "Did you mean…?"](docs/screenshots/app_abstain.png)
 
 ### Connect your own database
 
-Open **🔌 Connect a live database** in the sidebar, choose PostgreSQL or MySQL/MariaDB, enter host,
-database, user and password, and click **Connect**. QueryGenie reads the schema, builds a value
-index once, and then answers questions on the live database:
+**Add database → Connect to PostgreSQL or MySQL**, then enter host, database, user and password.
+QueryGenie reads the schema, builds a value index once, and answers on the live database:
 
 - the model's SQLite-style SQL is translated to the server's dialect (sqlglot) and shown next to
   the original;
@@ -82,23 +84,18 @@ SQLite for 94.4% of gold queries and 93.7% of model predictions
 ([`results/postgres_translation_check.md`](results/postgres_translation_check.md)). Accuracy and
 confidence were calibrated on SQLite; on other engines they are not yet measured.
 
-UI development without downloading a model: `QUERYGENIE_BACKEND=mock python src/app.py`.
+### The earlier web prototype
 
-### Optional: faster local models on Apple Silicon
-
-```bash
-pip install -r requirements-apple.txt           # see the file for the llama.cpp build flag
-python scripts/convert_mlx.py 3b --variant spider   # CodeS-3B-Spider, 4-bit MLX
-huggingface-cli download tensorblock/seeklhy_codes-7b-spider-GGUF \
-    codes-7b-spider-Q2_K.gguf --local-dir gguf_models   # CodeS-7B-Spider, 2-bit GGUF
-```
+The Gradio prototype shown at Reviews 1–2, with the experimental MLX / GGUF / base-CodeS backends,
+is kept in [`legacy/`](legacy/) and still runs: `python legacy/app.py` (then open
+http://127.0.0.1:7860). It uses the same evaluated core as the desktop app.
 
 ## Reproduce the results
 
 **1. Reproduction and the candidate record (GPU, about 1 hour).** Open
-[`notebooks/02_tier2_colab_eval.ipynb`](notebooks/02_tier2_colab_eval.ipynb) in Google Colab with a
+[`research/notebooks/02_tier2_colab_eval.ipynb`](research/notebooks/02_tier2_colab_eval.ipynb) in Google Colab with a
 T4 GPU runtime and run the Week-10 cell. It runs
-[`scripts/colab_eval_tier2.py`](scripts/colab_eval_tier2.py), which downloads Spider and the model
+[`research/colab_eval_tier2.py`](research/colab_eval_tier2.py), which downloads Spider and the model
 from Hugging Face, evaluates all 1,034 questions with the official evaluator, and saves
 `preds_<run>.txt` and `dump_<run>.jsonl` (all 4 candidates per question). Ablations are set with
 `QG_ABLATE` (`no_values`, `no_content`, `no_fk`, `no_select`); another model with `QG_MODEL`.
@@ -106,13 +103,13 @@ from Hugging Face, evaluates all 1,034 questions with the official evaluator, an
 **2. Enhancement analysis (CPU, seconds).**
 
 ```bash
-python src/abstention.py results/dump_T2-006.jsonl
+python research/abstention.py results/dump_T2-006.jsonl
 ```
 
 This reproduces the significance tests, the operating points and the accuracy–coverage figure
 from the committed candidate record.
 
-**3. Tests (no model needed).** `python -m pytest tests/ -q` (13 tests)
+**3. Tests (no model needed).** `python -m pytest tests/ -q` (15 tests)
 
 **4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
 (`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.
@@ -132,25 +129,49 @@ effects: final report, Section 6.
 ## Repository layout
 
 ```
-src/
-  app.py              Gradio web app (confidence badge, "Did you mean…?", strictness modes)
-  codes_prompt.py     The evaluated CodeS pipeline: prompt, candidates, selection, agreement
-  engine.py           Answer/abstain logic and the simple generate→execute→self-correct loop
-  model.py            Model backends: evaluated pipeline, transformers, MLX, GGUF, mock
-  abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
-  databases.py        database catalogue: sample, Spider dev databases, uploads, live connections
+querygenie/           the core — what the app runs, and what was evaluated
+  pipeline.py         the evaluated CodeS pipeline: prompt, 4 candidates, selection, agreement
+  model.py            CodesSFTBackend: fine-tuned CodeS with scored beam candidates
+  confidence.py       strictness modes, measured operating points, answer-or-abstain
+  databases.py        catalogue: sample, Spider dev, added files, live connections; schema map
   connectors.py       live PostgreSQL / MySQL: schema, value index, SQL translation, read-only execution
-  database.py, charts.py, build_sample_db.py   schema helpers, auto chart, sample database
-  eval_spider_full.py local (simple-metric) variant of the evaluation
-  eval_spider.py      legacy harness that produced run T2-001
+  sample_db.py        builds the small academic database
   vendor/             authors' CodeS utilities, unmodified (Apache-2.0)
-scripts/              Colab evaluation harness, Spider dataset + database download, MLX conversion, Week-4 smoke test
-notebooks/            Week-4 gate notebook; Colab notebook for all Tier-2 runs
+desktop/              the desktop app: native window (pywebview), interface (ui/), first-run setup,
+                      packaging (QueryGenie.spec, build.md)
+research/             how the numbers were produced
+  colab_eval_tier2.py the Colab evaluation harness behind every Tier-2 run (official evaluator)
+  abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
+  eval_spider_full.py local (simple-metric) variant of the evaluation
+  eval_spider_v1.py   first harness, produced run T2-001
+  check_postgres_translation.py   PostgreSQL translation check
+  smoke_test.py       Week-4 gate smoke test
+  notebooks/          Week-4 gate notebook; Colab notebook for all Tier-2 runs
+legacy/               Gradio web prototype (Reviews 1–2) and its MLX / GGUF / base-CodeS backends
+scripts/              setup: Spider dataset and database download, PostgreSQL loader, Mac setup
 results/              run log, audit, ablation, abstention results, figures, candidate record
-tests/                model-free tests of selection, agreement and abstention
-docs/                 reports (final report, reproducibility report, proposal), weekly reports,
-                      department SOP and templates, diagrams
+tests/                model-free tests: selection, agreement, abstention, databases, chats
+docs/                 reports, weekly reports, department SOP and templates, diagrams
 ```
+
+### Where files moved (30 September 2026)
+
+Documents written before this date (weekly reports, reproducibility reports v1–v2, the Review 2
+deck, `results/`) cite the old paths. The code is unchanged apart from imports.
+
+| Old path | New path |
+|---|---|
+| `src/codes_prompt.py` | `querygenie/pipeline.py` |
+| `src/model.py` | `querygenie/model.py` (evaluated backend) + `legacy/models.py` (other backends) |
+| `src/engine.py` | `querygenie/confidence.py` (abstention) + `legacy/self_correct.py` (retry loop) |
+| `src/databases.py`, `src/connectors.py`, `src/vendor/` | `querygenie/` (same names) |
+| `src/build_sample_db.py` | `querygenie/sample_db.py` |
+| `src/app.py`, `src/charts.py`, `src/database.py` | `legacy/` (same names) |
+| `src/abstention.py`, `src/eval_spider_full.py` | `research/` (same names) |
+| `src/eval_spider.py` | `research/eval_spider_v1.py` |
+| `scripts/colab_eval_tier2.py`, `scripts/check_postgres_translation.py`, `scripts/smoke_test.py` | `research/` (same names) |
+| `scripts/convert_mlx.py` | `legacy/scripts/convert_mlx.py` |
+| `notebooks/` | `research/notebooks/` |
 
 ## Documents
 
@@ -185,6 +206,6 @@ docs/                 reports (final report, reproducibility report, proposal), 
 
 ## Licence
 
-Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). The files in `src/vendor/` are
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). The files in `querygenie/vendor/` are
 from [RUCKBReasoning/codes](https://github.com/RUCKBReasoning/codes) (Apache-2.0), unmodified.
 Model weights and the Spider dataset are downloaded under their own licences and are not included.

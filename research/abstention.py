@@ -1,7 +1,7 @@
 """
 Week 11 — confidence-aware abstention on a CodeS candidate dump.
 
-Input: dump_<RUN>.jsonl written by scripts/colab_eval_tier2.py — one line per Spider dev
+Input: dump_<RUN>.jsonl written by research/colab_eval_tier2.py — one line per Spider dev
 question with the 4 beam candidates, their length-normalised beam scores, execution
 results (hash of the sorted rows) and official-evaluator correctness.
 
@@ -19,7 +19,7 @@ Protocol (proposal, Week 9):
   Wilcoxon signed-rank on the 10 differences (alpha = 0.05).
 
 Usage:
-    python src/abstention.py results/dump_T2-006.jsonl
+    python research/abstention.py results/dump_T2-006.jsonl
 """
 from __future__ import annotations
 import argparse, json, math, os

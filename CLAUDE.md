@@ -101,7 +101,8 @@ Done and measured (all runs in `results/reproduction_log.csv`):
   `docs/Enhancement_Proposal_Week9.docx`). 83.3% on answered at 90.4% coverage vs 77.8%; t-test
   p = 7.7e-10, Wilcoxon p = 9.8e-4, bootstrap CI [+4.5, +6.7] (`results/week12_comparative_results.md`).
   Self-correction and charts are app features, not graded enhancements.
-- **App** (`src/app.py`) runs the evaluated pipeline (`src/codes_prompt.py`) with confidence badge,
+- **App** is the desktop app (`desktop/`, macOS + Windows, pywebview; chats, schema map, packaged via
+  `desktop/QueryGenie.spec`). It runs the evaluated core (`querygenie/pipeline.py`) with confidence badge,
   "Did you mean…?" and strictness modes. Final report draft: `docs/Final_Report_Draft.docx`.
 - Weekly reports written through Week 12. **Signatures are collected at the end** (department
   decision) — don't flag them as blockers.
@@ -150,11 +151,17 @@ QueryGenie/
 │   │   └── Week 3/           # Weekly_Report, Paper_Annotation_Worksheet, flowchart
 │   ├── architecture.png              # QueryGenie system workflow (used in the deck)
 │   └── codes_architecture_flowchart.png  # CodeS paper pipeline (Week 3 deliverable)
-├── notebooks/                # 01_week4_gate_codes_setup.ipynb
-├── scripts/                  # local mac setup + smoke test
+├── querygenie/               # core package: evaluated pipeline, model, confidence, databases, connectors
+├── desktop/                  # desktop app (native window + ui/), first-run setup, PyInstaller spec
+├── research/                 # Colab harness, abstention analysis, eval scripts, smoke test, notebooks/
+├── legacy/                   # Gradio prototype (Reviews 1-2) + MLX/GGUF/base backends
+├── scripts/                  # setup: Spider download, Postgres loader, mac setup
 ├── results/                  # Reproduction_Log.xlsx, run logs, figures
-└── src/                      # application, evaluated pipeline, analysis (see README)
+└── tests/                    # model-free tests
 ```
+
+Files moved from `src/`, `scripts/` and `notebooks/` on 2026-09-30 — README has the old→new table;
+submitted documents keep the old paths.
 
 The user reorganises files as submissions go out (e.g. `Week 1/` holds what was actually handed in,
 renamed to match what the department asked for). Check the tree before assuming a path.

@@ -4,9 +4,9 @@ Create the bundled sample SQLite database(s) the prototype demos against.
 Run once (the app calls ensure_sample_dbs() on startup, so you rarely need to
 run this by hand):
 
-    python src/build_sample_db.py
+    python -m querygenie.sample_db
 
-Databases are written to src/sample_data/ and are small enough to commit.
+Databases are written to querygenie/sample_data/ and are small enough to commit.
 """
 
 from __future__ import annotations

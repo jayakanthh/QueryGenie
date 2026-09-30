@@ -1,5 +1,6 @@
 """
-QueryGenie — web app.
+LEGACY — the Gradio web prototype used through Week 11 (Reviews 1-2). Superseded by the desktop
+app (desktop/); kept runnable for the record. It runs the same evaluated core (querygenie/).
 
 Ask a database a question in plain English; QueryGenie generates SQL with a local CodeS
 model, executes it (read-only) and shows the results table plus an auto-selected chart.
@@ -15,8 +16,8 @@ Databases: a bundled academic database, the 20 Spider development databases (if
 downloaded — scripts/download_spider_dbs.py) and any SQLite file you upload.
 
 Run:
-    python src/app.py                        # real models (downloads weights once)
-    QUERYGENIE_BACKEND=mock python src/app.py  # UI only, no model
+    python legacy/app.py                        # real models (downloads weights once)
+    QUERYGENIE_BACKEND=mock python legacy/app.py  # UI only, no model
 """
 
 from __future__ import annotations
@@ -24,15 +25,20 @@ from __future__ import annotations
 import html
 import os
 import sqlite3
+import sys
 
 import gradio as gr
 import pandas as pd
 
-from charts import pick_chart
-from connectors import KINDS
-from databases import add_upload, build_catalog, connect, schema_markdown, tables_of
-from engine import MODES, operating_points, run_confident, run_confident_connected, run_query
-from model import ModelManager, available_models, default_model
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [HERE, os.path.dirname(HERE)]          # legacy/ modules, then the repo root (querygenie)
+
+from charts import pick_chart  # noqa: E402
+from querygenie.confidence import MODES, operating_points, run_confident, run_confident_connected  # noqa: E402
+from querygenie.connectors import KINDS  # noqa: E402
+from querygenie.databases import add_upload, build_catalog, connect, schema_markdown, tables_of  # noqa: E402
+from self_correct import run_query  # noqa: E402
+from models import ModelManager, available_models, default_model
 
 CATALOG = build_catalog()
 MANAGER = ModelManager()

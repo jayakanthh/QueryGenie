@@ -18,7 +18,7 @@ data/
 *.swp
 
 # Generated sample DBs (rebuilt on app startup via build_sample_db.py)
-src/sample_data/*.sqlite
+querygenie/sample_data/*.sqlite
 
 # Quantized MLX weights — rebuilt by scripts/convert_mlx.py (large, regenerable)
 mlx_models/
@@ -38,7 +38,7 @@ docs/_render_tmp*.pdf
 ~$*
 
 # Databases uploaded in the app (user data)
-src/sample_data/uploads/
+querygenie/sample_data/uploads/
 
 # Impeccable local review captures and mocks
 .impeccable/review/

@@ -1,5 +1,5 @@
 """
-The bridge between the desktop interface (desktop/ui) and the QueryGenie engine (src/).
+The bridge between the desktop interface (desktop/ui) and the QueryGenie core (querygenie/).
 
 pywebview exposes every public method of `Api` to JavaScript as window.pywebview.api.<name>(),
 returning a promise. Everything returned here is plain JSON.
@@ -42,7 +42,7 @@ def _rows(rows):
 
 
 def chart_spec(columns, rows):
-    """The same choice rules as src/charts.py (bar / line / scatter / histogram), as data for the UI."""
+    """The same choice rules as legacy/charts.py (bar / line / scatter / histogram), as data for the UI."""
     if not columns or not rows:
         return None
     rows = rows[:50]
@@ -75,7 +75,7 @@ class Api:
 
     # ---------------------------------------------------------------- boot & settings
     def boot(self):
-        from databases import build_catalog  # noqa: F401  (import check)
+        from querygenie.databases import build_catalog  # noqa: F401  (import check)
         s = self.settings_get()
         return {"platform": {"darwin": "mac", "win32": "win"}.get(sys.platform, "linux"),
                 "setup_needed": not st.model_installed(s["model"]),
@@ -85,7 +85,7 @@ class Api:
                 "operating_points": self._operating_points()}
 
     def _operating_points(self):
-        from engine import operating_points
+        from querygenie.confidence import operating_points
         return operating_points()
 
     def hardware(self):
@@ -115,7 +115,7 @@ class Api:
 
     # ---------------------------------------------------------------- databases
     def _catalog(self):
-        from databases import build_catalog
+        from querygenie.databases import build_catalog
         return build_catalog()
 
     @staticmethod
@@ -140,17 +140,17 @@ class Api:
         return out
 
     def schema(self, db_id):
-        from databases import tables_of
+        from querygenie.databases import tables_of
         info = self._catalog()[db_id]
         return [{"table": t, "columns": cols, "rows": n} for t, cols, n in tables_of(info)]
 
     def schema_map(self, db_id):
-        from databases import schema_graph
+        from querygenie.databases import schema_graph
         return schema_graph(self._catalog()[db_id])
 
     def add_sqlite(self):
         import webview
-        from databases import add_upload
+        from querygenie.databases import add_upload
         win = webview.windows[0]
         picked = win.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=False,
                                         file_types=("SQLite databases (*.sqlite;*.db;*.sqlite3)", "All files (*.*)"))
@@ -162,14 +162,14 @@ class Api:
             return {"error": str(exc)}
 
     def connect(self, kind, host, port, database, user, password):
-        from databases import connect
+        from querygenie.databases import connect
         try:
             return {"id": connect(kind, host, port, database, user, password)}
         except Exception as exc:  # noqa: BLE001 - shown to the user
             return {"error": str(exc).splitlines()[0][:300]}
 
     def disconnect(self, db_id):
-        from databases import CONNECTED
+        from querygenie.databases import CONNECTED
         info = CONNECTED.pop(db_id, None)
         if info is not None:
             info.conn.engine.dispose()
@@ -183,7 +183,7 @@ class Api:
 
     # ---------------------------------------------------------------- asking
     def _get_backend(self):
-        from model import CodesSFTBackend
+        from querygenie.model import CodesSFTBackend
         key = self.settings_get()["model"]
         if self._backend_key != key:
             if self._backend is not None:
@@ -194,7 +194,7 @@ class Api:
 
     def ask(self, db_id, question, mode=None, chat_id=None):
         """Answer one question. Without `chat_id` a new chat is started, titled by the question."""
-        from engine import ConfidentRun
+        from querygenie.confidence import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
         with self._lock:                                   # one generation at a time
@@ -251,7 +251,7 @@ class Api:
 
     def run_sql(self, db_id, sql):
         """An analyst's edited query, run read-only on the same database."""
-        from codes_prompt import SqliteTarget
+        from querygenie.pipeline import SqliteTarget
         info = self._catalog()[db_id]
         target = info.conn if info.conn is not None else SqliteTarget(info.path)
         ok, cols, rows, _h, err = target.signature(sql)

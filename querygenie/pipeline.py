@@ -1,6 +1,6 @@
 """
 The CodeS inference pipeline as evaluated in the reproduction (harness v2), shared by
-the Spider evaluation (eval_spider_full.py) and the application.
+the Spider evaluation (research/eval_spider_full.py) and the application.
 
   prompt     = schema sequence + matched contents + question (+ BOS), exactly as the
                authors' prepare_text2sql_prefix_sequence builds it
@@ -9,7 +9,7 @@ the Spider evaluation (eval_spider_full.py) and the application.
   confidence = execution agreement among the 4 candidates, beam probability as
                tie-breaker (Week-11 abstention, results/week11_abstention.md)
 
-Authors' code is vendored unmodified in src/vendor/ (Apache-2.0).
+Authors' code is vendored unmodified in querygenie/vendor/ (Apache-2.0).
 """
 from __future__ import annotations
 
@@ -17,14 +17,12 @@ import hashlib
 import math
 import os
 import sqlite3
-import sys
 from dataclasses import dataclass, field
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor"))
-from codes_db_utils import (get_db_schema, get_db_schema_sequence,  # noqa: E402
-                            get_matched_content_sequence, check_sql_executability,
-                            detect_special_char)
-from codes_bridge import get_matched_entries, get_column_picklist  # noqa: E402
+from .vendor.codes_db_utils import (get_db_schema, get_db_schema_sequence,
+                                    get_matched_content_sequence, check_sql_executability,
+                                    detect_special_char)
+from .vendor.codes_bridge import get_matched_entries, get_column_picklist
 
 # Abstention threshold on the confidence score (agreement + 0.01 * beam probability).
 # Median of the 10 calibration-half thresholds chosen for >= 90% coverage on Spider dev

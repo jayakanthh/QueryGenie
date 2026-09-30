@@ -16,8 +16,8 @@ Tier-2 runs belong on a CUDA machine. Record that distinction in the report.
 Usage
 -----
     source .venv/bin/activate
-    python scripts/smoke_test.py
-    python scripts/smoke_test.py --model seeklhy/codes-3b --beams 4
+    python research/smoke_test.py
+    python research/smoke_test.py --model seeklhy/codes-3b --beams 4
 """
 
 from __future__ import annotations

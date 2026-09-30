@@ -1,4 +1,7 @@
 """
+LEGACY (Weeks 4-11): the model backends of the Gradio prototype (legacy/app.py).
+The evaluated backend is querygenie/model.py; it is re-exported here so the prototype still runs.
+
 The text-to-SQL model wrapper + a manager for switching between CodeS backends.
 
 Two inference backends, both fully local on Apple Silicon:
@@ -10,7 +13,7 @@ Two inference backends, both fully local on Apple Silicon:
     needs a big-enough model to stay accurate — CodeS-3B 4-bit is the sweet spot.
 
 CodeS ships in 1B/3B/7B/15B (no 4B/8B). Quantized MLX weights are built locally by
-`scripts/convert_mlx.py` and live in `mlx_models/` (git-ignored, regenerable).
+`legacy/scripts/convert_mlx.py` and live in `mlx_models/` (git-ignored, regenerable).
 
 Backends (QUERYGENIE_BACKEND env var):
   - "codes" (default): the real model(s).
@@ -22,6 +25,11 @@ from __future__ import annotations
 import gc
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # repo root
+from querygenie.model import (SFT_PIPELINE_MODELS, CodesSFTBackend, _dtype_for,  # noqa: E402,F401
+                              _pick_device, default_model)
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,7 +40,7 @@ TRANSFORMERS_MODELS = {
     "CodeS-7B": "seeklhy/codes-7b",
     "CodeS-15B": "seeklhy/codes-15b",
 }
-# 4-bit MLX checkpoints — local dirs built by scripts/convert_mlx.py.
+# 4-bit MLX checkpoints — local dirs built by legacy/scripts/convert_mlx.py.
 # The "-spider" variants are the Spider-fine-tuned (SFT) checkpoints — the ones the
 # paper actually evaluates — and are the recommended default for the app.
 MLX_MODELS = {
@@ -47,13 +55,6 @@ MLX_MODELS = {
 GGUF_MODELS = {
     "CodeS-7B-Spider · SFT (GGUF Q2_K)": os.path.join(_REPO_ROOT, "gguf_models", "codes-7b-spider-Q2_K.gguf"),
 }
-# The pipeline evaluated in the reproduction (harness v2): Spider-fine-tuned CodeS, full
-# CodeS database prompt, 4 beams, execution-agreement confidence and abstention. Only
-# these backends report confidence; the abstention threshold was calibrated on 1B.
-SFT_PIPELINE_MODELS = {
-    "CodeS-1B-Spider · evaluated pipeline + confidence": "seeklhy/codes-1b-spider",
-    "CodeS-3B-Spider · evaluated pipeline + confidence (threshold from 1B)": "seeklhy/codes-3b-spider",
-}
 DEFAULT_MODEL = "CodeS-1B"
 _DEFAULT_MAX_NEW_TOKENS = 200
 
@@ -66,29 +67,6 @@ def available_models() -> list[str]:
     labels += [lbl for lbl in GGUF_MODELS if os.path.exists(GGUF_MODELS[lbl])]
     labels += ["CodeS-1B", "CodeS-3B"]
     return labels
-
-
-def default_model() -> str:
-    """The evaluated pipeline (the one whose accuracy and abstention were measured)."""
-    return next(iter(SFT_PIPELINE_MODELS))
-
-
-def _pick_device():
-    import torch
-
-    if torch.backends.mps.is_available():
-        return "mps"
-    if torch.cuda.is_available():
-        return "cuda"
-    return "cpu"
-
-
-def _dtype_for(device):
-    import torch
-
-    if device in ("mps", "cuda"):
-        return torch.bfloat16   # same range as fp32, half the memory, no fp16 NaNs
-    return torch.float32
 
 
 def _build_prompt(schema, question, prior_error):
@@ -143,70 +121,6 @@ class CodesBackend:
         text = self._tok.decode(out[0][inputs["input_ids"].shape[1]:],
                                 skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return _clean_sql(text)
-
-
-class CodesSFTBackend:
-    """The evaluated pipeline: SFT CodeS + full CodeS prompt + 4 scored beam candidates.
-    Unlike the other backends it returns a Decision (candidates, selection, confidence,
-    abstain flag) — see codes_prompt.py."""
-
-    has_confidence = True
-
-    def __init__(self, model_id: str, label: str = ""):
-        self.model_id = model_id
-        self.label = label or model_id
-        self._tok = None
-        self._model = None
-        self.device = None
-        self._schema_cache = {}
-
-    def load(self):
-        if self._model is not None:
-            return
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-
-        self.device = _pick_device()
-        self._tok = AutoTokenizer.from_pretrained(self.model_id)
-        self._model = AutoModelForCausalLM.from_pretrained(self.model_id, dtype=_dtype_for(self.device))
-        self._model.to(self.device)
-        self._model.eval()
-
-    unload = CodesBackend.unload
-
-    def decide(self, db_path: str, question: str, db_comments: dict | None = None,
-               max_new_tokens: int = 256):
-        """The evaluated setting: a local SQLite file."""
-        from codes_prompt import build_prefix
-
-        key = (db_path, os.path.getmtime(db_path))
-        schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key),
-                                      db_comments={os.path.splitext(os.path.basename(db_path))[0]: db_comments}
-                                      if db_comments else None)
-        self._schema_cache[key] = schema
-        return self._generate_and_decide(db_path, schema, prefix, max_new_tokens)
-
-    def decide_connected(self, source, question: str, max_new_tokens: int = 256):
-        """A connected database (connectors.SqlAlchemySource): same model, prompt shape and
-        selection; SQL is translated to the target dialect and run read-only."""
-        from codes_prompt import build_prefix_connected
-
-        schema, prefix = build_prefix_connected(source, question)
-        return self._generate_and_decide(source, schema, prefix, max_new_tokens)
-
-    def _generate_and_decide(self, target, schema, prefix, max_new_tokens):
-        import torch
-        from codes_prompt import decide, encode
-
-        self.load()
-        ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
-        with torch.no_grad():
-            gen = self._model.generate(input_ids=ids, attention_mask=torch.ones_like(ids),
-                                       max_new_tokens=max_new_tokens, num_beams=4,
-                                       num_return_sequences=4, pad_token_id=self._tok.eos_token_id,
-                                       return_dict_in_generate=True, output_scores=True)
-        texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
-                                       clean_up_tokenization_spaces=False)
-        return decide(target, schema, texts, [float(x) for x in gen.sequences_scores])
 
 
 class MLXBackend:

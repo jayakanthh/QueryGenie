@@ -6,9 +6,9 @@ CodeS ships as pytorch_model.bin (no safetensors), and mlx-lm needs safetensors,
 so this first re-saves the HF model as fp16 safetensors, then quantizes to 4-bit MLX.
 
 Usage:
-    python scripts/convert_mlx.py 3b          # -> mlx_models/codes-3b-4bit
-    python scripts/convert_mlx.py 1b
-    python scripts/convert_mlx.py 7b          # heavy: see the RAM note below
+    python legacy/scripts/convert_mlx.py 3b          # -> mlx_models/codes-3b-4bit
+    python legacy/scripts/convert_mlx.py 1b
+    python legacy/scripts/convert_mlx.py 7b          # heavy: see the RAM note below
 
 RAM note: the re-save step loads the full model in fp16 (~2 GB per 1B params). 1B/3B
 are fine on a 16 GB Mac; 7B (~14 GB) is very tight and 15B won't fit — build those on
@@ -22,7 +22,7 @@ import argparse
 import os
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # legacy/scripts/ -> repo
 
 
 def main() -> int:

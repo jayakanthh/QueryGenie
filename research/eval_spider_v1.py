@@ -1,5 +1,5 @@
 """
-LEGACY — superseded by scripts/colab_eval_tier2.py (kept because it produced logged run
+LEGACY — superseded by research/colab_eval_tier2.py (kept because it produced logged run
 T2-001; see results/harness_audit.md). Do not use for new results.
 
 Tier-2 reproduction: Execution Accuracy of CodeS on the Spider development set.
@@ -17,20 +17,20 @@ computed by result-set comparison here rather than the official test-suite scrip
 Both are expected to lower EX relative to the reported 77.9%; the gap is the finding.
 
 Usage:
-    python src/eval_spider.py --model seeklhy/codes-1b-spider --limit 50
-    python src/eval_spider.py --model seeklhy/codes-1b-spider           # full 1034
+    python research/eval_spider_v1.py --model seeklhy/codes-1b-spider --limit 50
+    python research/eval_spider_v1.py --model seeklhy/codes-1b-spider           # full 1034
 """
 
 from __future__ import annotations
 
-import argparse, csv, datetime, json, os, sqlite3, time
+import argparse, csv, datetime, json, os, sqlite3, sys, time
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from database import build_schema_string
-
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "legacy"))
+from database import build_schema_string  # noqa: E402
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 DEV = os.path.join(SPIDER, "dev.json")
 DBDIR = os.path.join(SPIDER, "database")

@@ -7,14 +7,14 @@ database and, translated by connectors.SqlAlchemySource, on the same data loaded
 PostgreSQL (scripts/load_spider_into_postgres.py). Results are compared as multisets of rows
 (numbers — including numbers stored as text — compared by value to 6 decimal places). Writes results/postgres_translation_check.json.
 
-    python scripts/check_postgres_translation.py --url postgresql+psycopg://qg@127.0.0.1:5544
+    python research/check_postgres_translation.py --url postgresql+psycopg://qg@127.0.0.1:5544
 """
 import argparse, collections, json, os, sqlite3, sys
 from decimal import Decimal
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO, "src"))
-from connectors import SqlAlchemySource  # noqa: E402
+sys.path.insert(0, REPO)
+from querygenie.connectors import SqlAlchemySource  # noqa: E402
 
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 

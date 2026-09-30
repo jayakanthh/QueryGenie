@@ -1,7 +1,7 @@
 """
 The databases the app can query.
 
-- The bundled academic database (src/sample_data/academic.sqlite, built on start-up).
+- The bundled academic database (querygenie/sample_data/academic.sqlite, built on start-up).
 - The 20 Spider development-set databases, if present under data/spider_full/ (downloaded
   from Hugging Face — an approved source — by scripts/download_spider_dbs.py). These are the
   databases the reproduction and the abstention results were measured on, so the accuracy
@@ -17,12 +17,12 @@ import shutil
 import sqlite3
 from dataclasses import dataclass, field
 
-from build_sample_db import ensure_sample_dbs
-from codes_prompt import load_db_comments
+from .pipeline import load_db_comments
+from .sample_db import ensure_sample_dbs
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPIDER = os.environ.get("QG_SPIDER_DIR") or os.path.join(REPO, "data", "spider_full", "spider_data")
-UPLOADS = os.environ.get("QG_UPLOADS_DIR") or os.path.join(REPO, "src", "sample_data", "uploads")
+UPLOADS = os.environ.get("QG_UPLOADS_DIR") or os.path.join(REPO, "querygenie", "sample_data", "uploads")
 
 ACADEMIC_EXAMPLES = [
     "Which students failed more than two subjects? A subject is failed if marks are below 40.",
@@ -94,7 +94,7 @@ CONNECTED = {}   # label -> DbInfo for live connections (kept in memory only, ne
 
 def connect(kind, host, port, database, user, password) -> str:
     """Open a live connection, read its schema and build the value index; return its label."""
-    from connectors import SqlAlchemySource, make_url
+    from .connectors import SqlAlchemySource, make_url
     if not database:
         raise ValueError("Enter a database name.")
     src = SqlAlchemySource(make_url(kind, host, port, database, user, password),

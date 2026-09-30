@@ -100,7 +100,7 @@ echo " Setup complete."
 echo
 echo " Next steps:"
 echo "   source .venv/bin/activate"
-echo "   python scripts/smoke_test.py"
+echo "   python research/smoke_test.py"
 echo
 echo " The first run downloads the CodeS-1B weights (~2-3 GB)."
 echo "=============================================="

@@ -9,10 +9,11 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[:0] = [ROOT, os.path.join(ROOT, "research")]
 
-from codes_prompt import ABSTAIN_TAU, decide, post_process  # noqa: E402
-from engine import MODES, ConfidentRun  # noqa: E402
+from querygenie.pipeline import ABSTAIN_TAU, decide, post_process  # noqa: E402
+from querygenie.confidence import MODES, ConfidentRun  # noqa: E402
 import abstention  # noqa: E402
 
 SCHEMA = {"schema_items": [{"table_name": "student", "column_names": ["student_id", "name", "year"]}]}
@@ -93,7 +94,7 @@ def test_abstention_signals_and_curve():
 
 
 def test_catalog_and_upload_validation(tmp_path, monkeypatch):
-    import databases
+    from querygenie import databases
     monkeypatch.setattr(databases, "UPLOADS", str(tmp_path / "uploads"))
     cat = databases.build_catalog()
     assert any(k.startswith("academic") for k in cat)
@@ -109,7 +110,7 @@ def test_catalog_and_upload_validation(tmp_path, monkeypatch):
 
 
 def test_candidate_execution_is_read_only(db):
-    from codes_prompt import result_signature
+    from querygenie.pipeline import result_signature
     ok, *_, err = result_signature(db, "DELETE FROM student")
     assert not ok and "readonly" in err.replace(" ", "").lower()
     con = sqlite3.connect(db); assert con.execute("SELECT COUNT(*) FROM student").fetchone()[0] == 3
@@ -118,14 +119,14 @@ def test_candidate_execution_is_read_only(db):
 # ---- connector: translation + read-only guard, tested on SQLite (no server needed) ----
 @pytest.fixture()
 def pg_like(db):
-    from connectors import SqlAlchemySource
+    from querygenie.connectors import SqlAlchemySource
     src = SqlAlchemySource(f"sqlite:///{db}")
     src.dialect = "postgres"          # exercise the Postgres rewrites without a Postgres server
     return src
 
 
 def test_translate_rejects_writes_and_multiple_statements(pg_like):
-    from connectors import ReadOnlyViolation
+    from querygenie.connectors import ReadOnlyViolation
     for bad in ["DELETE FROM student", "DROP TABLE student", "SELECT 1; SELECT 2",
                 "INSERT INTO student VALUES (9, 'x', 1)"]:
         with pytest.raises(ReadOnlyViolation):

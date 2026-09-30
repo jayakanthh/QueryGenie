@@ -7,10 +7,8 @@ import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
-SRC, DESK, VENDOR = os.path.join(ROOT, "src"), os.path.join(ROOT, "desktop"), os.path.join(ROOT, "src", "vendor")
-
-engine_modules = ["codes_prompt", "model", "engine", "databases", "connectors", "charts", "database",
-                  "build_sample_db", "codes_db_utils", "codes_bridge", "api", "setup_tasks"]
+DESK = os.path.join(ROOT, "desktop")
+sys.path.insert(0, ROOT)                     # so collect_submodules can find querygenie/
 
 datas = [
     (os.path.join(DESK, "ui"), "ui"),
@@ -25,14 +23,15 @@ for pkg in ["transformers", "tokenizers", "huggingface_hub", "safetensors", "tor
     except Exception:
         pass
 
-hiddenimports = engine_modules + collect_submodules("sqlglot.dialects") + [
+# Only the core package (querygenie/) is bundled; legacy/ and research/ are never imported by the app.
+hiddenimports = ["api", "setup_tasks"] + collect_submodules("querygenie") + collect_submodules("sqlglot.dialects") + [
     "sqlalchemy.dialects.postgresql", "sqlalchemy.dialects.mysql", "sqlalchemy.dialects.sqlite",
     "psycopg", "pymysql", "rapidfuzz", "func_timeout", "webview",
 ]
 
 a = Analysis(
     [os.path.join(DESK, "main.py")],
-    pathex=[DESK, SRC, VENDOR],
+    pathex=[DESK, ROOT],
     datas=datas,
     hiddenimports=hiddenimports,
     excludes=["gradio", "matplotlib", "scipy", "pytest", "IPython", "tkinter", "mlx", "mlx_lm", "llama_cpp",
