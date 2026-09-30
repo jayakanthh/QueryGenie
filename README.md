@@ -192,6 +192,7 @@ deck, `results/`) cite the old paths. The code is unchanged apart from imports.
 
 | Document | File |
 |---|---|
+| Project report (LaTeX, department template) | [`docs/report-latex/main.pdf`](docs/report-latex/main.pdf) — source in [`docs/report-latex/`](docs/report-latex/) |
 | Final report (draft) | [`docs/Final_Report_Draft.docx`](docs/Final_Report_Draft.docx) |
 | Code reproducibility report v2 | [`docs/Code_Reproducibility_Report_v2.docx`](docs/Code_Reproducibility_Report_v2.docx) |
 | Enhancement proposal (Week 9) | [`docs/Enhancement_Proposal_Week9.docx`](docs/Enhancement_Proposal_Week9.docx) |

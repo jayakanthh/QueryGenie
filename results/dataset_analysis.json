@@ -1,0 +1,75 @@
+{
+  "splits": {
+    "train_spider": {
+      "questions": 7000,
+      "databases": 140
+    },
+    "train_others": {
+      "questions": 1659,
+      "databases": 6
+    },
+    "dev": {
+      "questions": 1034,
+      "databases": 20
+    }
+  },
+  "dev_databases_seen_in_training": 0,
+  "dev_schema": {
+    "tables": {
+      "min": 2,
+      "max": 11,
+      "mean": 4.05,
+      "total": 81
+    },
+    "columns": {
+      "min": 7,
+      "max": 56,
+      "mean": 22.05,
+      "total": 441
+    },
+    "foreign_keys": {
+      "min": 1,
+      "max": 11,
+      "mean": 3.2,
+      "total": 64
+    }
+  },
+  "dev_questions_per_database": {
+    "min": 4,
+    "max": 120,
+    "mean": 51.7,
+    "total": 1034
+  },
+  "dev_gold_sql_features": {
+    "JOIN": 408,
+    "GROUP BY": 277,
+    "ORDER BY": 237,
+    "HAVING": 79,
+    "nested SELECT": 83,
+    "set operation (UNION/INTERSECT/EXCEPT)": 80,
+    "LIMIT": 189
+  },
+  "dev_by_difficulty": {
+    "easy": {
+      "questions": 248,
+      "correct": 224,
+      "ex": 90.3
+    },
+    "medium": {
+      "questions": 446,
+      "correct": 373,
+      "ex": 83.6
+    },
+    "hard": {
+      "questions": 174,
+      "correct": 113,
+      "ex": 64.9
+    },
+    "extra": {
+      "questions": 166,
+      "correct": 94,
+      "ex": 56.6
+    }
+  },
+  "dev_total_correct": 804
+}

@@ -1,0 +1,48 @@
+The literature reviewed for this project falls into five groups: surveys, benchmark datasets, neural and pre-trained approaches, methods built on large language models (LLMs), and the presentation of query results. All papers were obtained from arXiv, as the department requires.
+
+\section{Surveys}
+
+Several recent surveys map the field. Two cover LLM-based text-to-SQL in depth \cite{hong2024nextgeneration, liu2024a}, and two further reviews examine LLM-based systems and how LLMs are employed for the task \cite{mohammadjafari2024from, shi2024a}. Earlier surveys describe the concepts, methods and open directions of text-to-SQL parsing before the LLM era \cite{qin2022a, deng2022recent}. Together they trace the shift from task-specific neural parsers to general-purpose language models prompted or fine-tuned for SQL generation.
+
+\section{Benchmark datasets}
+
+Spider \cite{yu2018spider} is the standard cross-domain benchmark: questions over many databases, with training, development and test sets that use disjoint databases, so a model must generalise to schemas it has not seen. BIRD \cite{li2023can} extends the setting to large-scale, database-grounded evaluation. Variants of Spider probe robustness: Spider-Syn replaces schema words with synonyms \cite{gan2021towards}, Spider-DK requires domain knowledge \cite{gan2021exploring}, and Spider-Realistic removes explicit column mentions \cite{deng2020structuregrounded}. SParC \cite{yu2019sparc} and CoSQL \cite{yu2019cosql} move to multi-turn and conversational settings, CSpider \cite{min2019a} to Chinese questions, and NatSQL \cite{gan2021natural} proposes an intermediate representation that is easier to infer from natural language. Test-suite accuracy \cite{zhong2020semantic} evaluates a predicted query by running it against many generated variants of each database, which is stricter than a single execution. Across this work, Execution Accuracy has become the preferred metric over exact string match, because semantically equivalent queries can differ in form.
+
+\section{Neural and pre-trained approaches}
+
+Seq2SQL \cite{zhong2017seqsql} generated structured queries with reinforcement learning on single-table data. For cross-domain parsing, RAT-SQL \cite{wang2019ratsql} introduced relation-aware schema encoding and linking, and LGESQL \cite{cao2021lgesql} used line-graph relations over the schema. Pre-training on tables and text was explored by TaBERT \cite{yin2020tabert}, GraPPa \cite{yu2020grappa} and STAR \cite{cai2022star}; BRIDGE \cite{lin2020bridging} bridged textual and tabular data by adding matched cell values to the input --- an idea CodeS keeps in its value retriever. PICARD \cite{scholak2021picard} constrained auto-regressive decoding so that only valid SQL is produced, and RASAT \cite{qi2022rasat} and T5-SR \cite{li2023tsr} built on pre-trained sequence-to-sequence models. RESDSQL \cite{li2023resdsql}, from the same group as CodeS and this project's fallback anchor, decouples schema linking from skeleton parsing and ranks schema items with a classifier.
+
+\section{Methods based on large language models}
+
+With large language models, zero-shot prompting became competitive \cite{liu2023a}, and Binder \cite{cheng2022binding} bound language models to symbolic languages. DIN-SQL \cite{pourreza2023dinsql} decomposes the task into sub-problems and adds self-correction: when a query fails, the error is fed back to the model. DAIL-SQL \cite{gao2023texttosql} benchmarks prompt designs, MAC-SQL \cite{wang2023macsql} coordinates several agents, and DBCopilot \cite{wang2023dbcopilot} routes questions across very large collections of databases. CHESS \cite{talaei2024chess}, E-SQL \cite{caferoglu2024esql} and CHASE-SQL \cite{pourreza2024chasesql} improve schema linking, question enrichment and the selection among multiple candidate queries; one study asks whether schema linking is still needed with strong reasoning models \cite{maamari2024the}. SuperSQL \cite{li2024the} and DB-GPT-Hub \cite{zhou2024dbgpthub} assess how ready these systems are and provide open benchmarking, and LLM routing has been studied to trade cost against quality \cite{malekpour2024towards}.
+
+\textbf{CodeS} \cite{li2024codes}, the paper reproduced here, takes a different route from most of this work: rather than prompting a large closed model, it builds open models of 1B to 15B parameters by incrementally pre-training StarCoder \cite{li2023starcoder} on SQL-centric data and fine-tuning them, and it releases the weights. Its reported Spider development-set results for the fine-tuned models are summarised in Table~\ref{tab:codes-paper}.
+
+\begin{table}[!t]
+	\centering
+	\caption{Results reported in the CodeS paper (its Table 5), Spider development set.}
+	\label{tab:codes-paper}
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Model (fine-tuned on Spider)} & \textbf{EX (\%)} & \textbf{TS (\%)} \\ \hline
+		CodeS-1B --- reproduced in this project & 77.9 & 72.2 \\ \hline
+		CodeS-3B & 83.4 & 78.1 \\ \hline
+		CodeS-7B & 85.4 & 80.3 \\ \hline
+		CodeS-15B & 84.9 & 79.4 \\ \hline
+	\end{tabular}
+\end{table}
+
+\section{Presenting results and knowing when to abstain}
+
+LIDA \cite{dibia2023lida} generates visualisations of data automatically with language models; combining such result presentation with text-to-SQL remains little explored, and QueryGenie chooses a chart for each result. Two further ideas underpin the enhancement. Self-consistency \cite{wang2022selfconsistency} samples several reasoning paths and trusts the answer they agree on. Selective classification \cite{geifman2017selective} lets a model decline inputs on which it is not confident, and evaluates the trade-off between the share of inputs answered (coverage) and the accuracy on them.
+
+\section{Findings and the gap addressed}
+
+\begin{itemize}
+	\item Spider and BIRD are the accepted benchmarks, and Execution Accuracy is the preferred metric.
+	\item The field has moved from graph-based encoders and constrained decoding to approaches based on large language models.
+	\item Schema linking is repeatedly identified as the main bottleneck.
+	\item Most of the strongest systems depend on closed, hosted models, which raises cost, privacy and reproducibility concerns; CodeS was proposed to address this with open weights.
+	\item Self-correction and the selection among multiple candidates consistently help.
+	\item What the reviewed systems do not do is report how sure they are. They answer every question with the same apparent confidence. This project uses the candidates CodeS already produces to measure agreement, abstains when agreement is low, and evaluates the result as an accuracy--coverage trade-off with significance tests.
+\end{itemize}

@@ -1,0 +1,20 @@
+\section{Conclusion}
+
+This project reproduced CodeS \cite{li2024codes}, an open-source text-to-SQL model, and extended it so that it says when it is unsure.
+
+The fine-tuned CodeS-1B model was reproduced to within 0.1 points of its published Spider result: 77.8\% Execution Accuracy against 77.9\%, scored with the official evaluator, on hardware far smaller than the authors'. Getting there required an audit of our own evaluation harness, which traced most of an apparent 4--13 point gap to the scoring metric and a value-retriever bug rather than to the model. An ablation study showed that every part of the CodeS database prompt contributes 0.9 to 1.9 points, with the value retriever mattering most.
+
+On top of the reproduced model, confidence-aware abstention uses the agreement between the four candidate queries CodeS already produces. At the pre-registered operating point it answers 90.4\% of questions and is correct on 83.3\% of them, against 77.8\% when answering everything, and it removes about a third of the wrong answers (230 to 156). The improvement is significant under a paired t-test, a Wilcoxon signed-rank test and a question-level bootstrap. Accuracy rises steadily with the number of agreeing candidates, from 56.8\% when only one agrees to 88.3\% when all four do, so the signal is calibrated.
+
+The system is delivered as QueryGenie, a desktop application that runs the evaluated pipeline locally, shows how sure it is on every answer, and asks which reading the user meant when its candidates disagree.
+
+\section{Future scope of work}
+
+\begin{enumerate}
+	\item \textbf{Test-suite accuracy.} Score the saved predictions of run T2-006 on the distilled test-suite databases, to report the stricter metric the paper also gives (72.2\%).
+	\item \textbf{Larger models.} Evaluate CodeS-3B (paper: 83.4\%) and calibrate the abstention threshold for it rather than reusing the 1B threshold.
+	\item \textbf{A combined signal.} Combine execution agreement and beam probability, which lead at different coverages, into one confidence score tuned only on calibration data.
+	\item \textbf{The benchmark-to-reality gap.} Measure accuracy and abstention on a real institutional schema, where names, values and questions are messier than in Spider.
+	\item \textbf{More databases.} Extend the connectors to further SQL engines and data warehouses, and to document stores through a local SQL snapshot, measuring translation accuracy for each as was done for PostgreSQL.
+	\item \textbf{Other models.} Measure the accuracy and calibration of the other models the application can use, so that their confidence can be presented with the same evidence as CodeS-1B's.
+\end{enumerate}

@@ -1,0 +1,273 @@
+\documentclass[12pt]{report}
+\usepackage[top=3.0cm, bottom=3.0cm, left=3.0cm, right=3.0cm]{geometry}
+\usepackage{enumerate}	
+\usepackage{graphicx}
+\usepackage{algorithmic}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{setspace} 
+\usepackage{subfig}
+\usepackage{url}
+\usepackage{xurl} % long file names and paths may break at any character
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\setlength\parindent{8pt}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{lineno}
+\usepackage{soul}
+\usepackage{array}
+\usepackage[svgnames]{xcolor} % loaded once: the template loaded it twice (option clash)
+\usepackage{environ}
+\usepackage{setspace}
+\NewEnviron{myequation}{
+	\begin{equation}
+	\scalebox{1.4}{$\BODY$}
+	\end{equation}
+}
+\newcommand{\etal}{\textit{et al. }} %command to inclined the et al.
+
+\setlength\parindent{0pt} %Paragraph Indent is zero points
+
+% Colors for code
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+% Listing Style
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4
+}
+
+\lstset{style=mystyle}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Dedication Page Settings%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment{certificate}
+{
+	\centering
+}
+
+\newenvironment{abst}
+{
+	\centering
+	\doublespacing
+}
+
+\newenvironment{dedication}
+{
+\clearpage 
+\centering          % we want a new page
+	\thispagestyle{empty}% no header and footer
+	\vspace*{\stretch{1}}% some space at the top 
+	\raggedleft          % flush to the right margin
+%	\doublespacing		 % double linespacing 
+	\setstretch{2.0}
+}
+{\par % end the paragraph
+	\vspace{\stretch{4}} % space at bottom is three times that at the top
+	\clearpage           % finish off the page
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Dedication Page Settings%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% index
+\usepackage{makeidx}                       % for \printindex
+\makeindex                                 % creates paper.idx index file
+ 
+\begin{document}
+
+\thispagestyle{empty}
+\begin{center}
+	\begin{minipage}{1.1\linewidth}
+		\centering
+		%Thesis title
+		{ {\Large \textbf{QueryGenie: A Self-Correcting Natural Language to SQL Interface}}} \\
+		\vspace{1.0cm}
+		{
+			\textit{A report submitted in partial fulfillment of the requirements \\ for the award of the degree of} \\
+            \vspace{1.5cm}
+            \bfseries Bachelor of Technology\\
+            in \\
+            Computer Science \& Information Technology
+		}
+		\vspace{1.0cm}
+        {
+            \begin{center}
+            \large \textbf{by}
+            \end{center}
+            \vspace{0.5cm}
+            \begin{center}
+            \begin{tabular}{ l l }
+            \textbf{N V V S S Jayakanth Kamisetti} & \textbf{2320090050} \\[8pt]
+            \textbf{Boddupally Narendar} & \textbf{2320090009} \\[8pt]
+            \textbf{M Praneeth Reddy} & \textbf{2320090018} \\[8pt]
+            \end{tabular}
+            \end{center}
+        }
+		\vspace{1.0cm}
+		{
+			\large Under the Supervision of \par \textbf {M Parameswar}\\	
+		}
+		\vspace{1.0cm}
+		{
+			\centering
+			\includegraphics[scale=0.7]{images/logo.png}
+		}
+        
+		\normalsize \textbf{KONERU LAKSHMAIAH EDUCATION FOUNDATION, BOWRAMPET\\ 
+        \vspace{0.5cm}
+        Hyderabad-500043, Telangana, India}  \\
+		\vspace{0.5cm}
+		\normalsize 2026	
+		
+	\end{minipage}
+\end{center}
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Certificate Block						%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{certificate}
+	\clearpage
+	{
+			\centering
+			\includegraphics[scale=0.93]{images/header.png}
+	}
+    
+	\thispagestyle{empty}
+	\underline{\textbf{CERTIFICATE}}
+	
+\end{certificate}
+\par \null \par
+\input{cert.tex}
+
+\pagenumbering{roman}
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Acknowledgments						%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abst}
+	\thispagestyle{empty}
+	\section*{Acknowledgments}
+\end{abst}
+\doublespacing
+	\input{ack.tex}
+\thispagestyle{empty}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+
+
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Abstract Section						%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abst}
+	\thispagestyle{empty}
+\section*{Abstract}
+\end{abst}
+%\addcontentsline{toc}{chapter}{Abstract}
+\doublespacing
+\input{abstract.tex}
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents 
+
+\addcontentsline{toc}{chapter}{\listtablename}
+\listoftables
+
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+\cleardoublepage
+
+\newpage
+
+\clearpage
+\pagenumbering{arabic}
+\doublespace
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header fields
+\fancyhf[loh,reh]{\slshape\rightmark}
+\fancyhf[leh,roh]{\thepage}
+\renewcommand*\headrulewidth{1pt} %lets the head rule appear
+
+\hypersetup{
+%	colorlinks   = true,    % Colours links instead of ugly boxes
+	urlcolor     = blue,    % Colour for external hyperlinks
+	linkcolor    = blue,    % Colour of internal links
+	citecolor    = red      % Colour of citations
+}
+
+\chapter{Introduction}
+\input{intro.tex}
+
+\chapter{Literature survey}
+\input{liturature.tex}
+
+\chapter{Data Collection and Preliminary Analysis}
+\input{dcandpa.tex}
+%
+\chapter{Proposed Approach} 
+\input{proposed.tex}
+
+\chapter{Conclusion and Future Scope of work}
+\input{conclusion.tex} 
+
+\clearpage
+
+\newpage\phantomsection%
+\addcontentsline{toc}{chapter}{\indexname}                   % add Index to TOC
+\printindex
+
+
+\onehalfspacing
+\addcontentsline{toc}{chapter}{Bibliography}
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\clearpage
+\addcontentsline{toc}{chapter}{Biography}
+\input{biography.tex}
+
+
+%\newpage
+%\clearpage
+%\thispagestyle{plain}
+%\begin{figure}
+%	\centering
+%	\includegraphics[width=\textwidth]{phdComic.pdf}
+%\end{figure}
+%\appendix
+%\addcontentsline{toc}{chapter}{Appendix:}
+
+
+
+% that's all folks
+\end{document}

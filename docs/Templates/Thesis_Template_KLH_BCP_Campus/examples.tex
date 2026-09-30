@@ -1,0 +1,45 @@
+\begin{algorithm}[!tbh]
+	\textbf{Initial state :}\newline
+	T $\leftarrow$ ${T_1,...,T_k}$; //At the beginning of all time \newline
+	T $\leftarrow$ N $\leftarrow$ ${1, . . . , N}$; //with non-cooperative SUs \newline
+	
+	\textbf{Local Sensing phase}
+	\newline
+	$s \leftarrow \sqrt{snr} * randn (1,L)$ \;
+	$n \leftarrow randn (1,L)$\;
+	$y \leftarrow s + n$ \; 
+	$energy \leftarrow abs(y) ^ 2$ \; 
+	$test statistic \leftarrow (1/L) * sum(energy)$ \;
+	\If{test statistic $\ge$ threshold }
+	{	
+		decide $H_1$ \; 
+	}
+	\Else{
+		decide $H_0$ \;
+	}
+	\textbf{Adaptive coalition formation}
+	\newline	
+	\Do {Merge and split terminates}{
+		$	F \leftarrow  merge (T)$\;   Based on the merge rule defined above
+		$	T \leftarrow  split (F)$\;      Based on the Pareto order of split rule		
+	}
+	\textbf{Coalition Head selection}
+	\newline
+	coalition\_head $( )$;  //Algorithm \ref{DACS} \newline
+	
+	\textbf{Coalitional sensing}
+	\newline
+	$CH \leftarrow  H_0 | H1$; \scriptsize
+	//Each SU reports its sensing decision to the coalition head
+ \newline
+	$CH \rightarrow  global decision$ ; scriptsize //coalition head declares final decision based on OR rule as 
+	\caption{Coalition formation for CSS\label{CFCSS}}
+\end{algorithm}
+
+\begin{figure*}
+    \centering
+    \includegraphics[scale=0.8]{logo.png}
+    \label{Fig:logo}
+\end{figure*}
+
+

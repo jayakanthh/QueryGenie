@@ -1,0 +1,38 @@
+\section{Problem}
+
+Much of an organisation's data sits in relational databases, and getting answers out of them normally requires writing SQL. Administrative staff, faculty and management who need a number --- how many students failed more than two subjects, which department has the highest average marks --- usually have to ask someone who can write the query. Text-to-SQL systems remove that step: they translate a plain-English question into a query, run it and return the result.
+
+Recent language models do this well on benchmarks. The difficulty is what happens when they are wrong. A text-to-SQL system answers every question, including the ones it gets wrong, and a wrong table looks just as authoritative as a correct one. For a user who cannot read SQL, that is the central risk: silently wrong answers. Most strong systems also depend on closed, hosted models, which means sending the database schema to a third party and accepting results that cannot be reproduced exactly.
+
+\section{Motivation}
+
+CodeS \cite{li2024codes} is a family of open-source text-to-SQL models that addresses the second problem: its weights, code and evaluation setup are public, so it can run entirely on local hardware and its published numbers can be checked. It does not address the first. Like other systems, it returns one query per question with no indication of how likely that query is to be right.
+
+This project starts from the observation that CodeS already computes the information needed to know when it is unsure. At inference time it produces four candidate queries with beam search and keeps one. If those candidates agree, the answer is more likely to be correct; if they disagree, the question is probably ambiguous or hard. Using that agreement to decide when \emph{not} to answer --- and asking the user which reading they meant instead --- turns a model that is sometimes silently wrong into one that says when it does not know.
+
+\section{Objectives}
+
+Following the department's Phase-I procedure, the project had four objectives:
+\begin{enumerate}
+	\item Reproduce the published results of CodeS within the department's tolerance of $\pm$5--10\%, and document every deviation from the authors' setup.
+	\item Establish which parts of the CodeS pipeline matter, through an ablation study.
+	\item Propose, implement and statistically test one enhancement: confidence-aware abstention.
+	\item Deliver the system as a working application rather than a notebook.
+\end{enumerate}
+
+\section{Contributions}
+
+\begin{itemize}
+	\item \textbf{A faithful reproduction} of fine-tuned CodeS-1B on the Spider benchmark \cite{yu2018spider}: 77.8\% Execution Accuracy against the reported 77.9\%, with an audited evaluation harness and a documented list of the remaining deviations.
+	\item \textbf{An ablation study} of the CodeS database prompt and inference procedure, scored with the official evaluator.
+	\item \textbf{Confidence-aware abstention} based on execution agreement between beam candidates, with a hypothesis fixed before the results were seen, significance tests, and a measured trade-off between the share of questions answered and the accuracy on them.
+	\item \textbf{QueryGenie}, a desktop application for macOS and Windows that runs the evaluated pipeline locally, reports how many candidate queries agree, and asks for clarification when they do not.
+\end{itemize}
+
+\section{Scope}
+
+CodeS is built by incrementally pre-training StarCoder \cite{li2023starcoder} on SQL-centric data using eight A800 80\,GB GPUs, which is far beyond a student budget. The project therefore reproduces the published \emph{inference-time} results using the released fine-tuned checkpoint, which is the configuration behind the 77.9\% figure. Pre-training and fine-tuning were not repeated.
+
+\section{Organisation of the report}
+
+Chapter~2 reviews the text-to-SQL literature. Chapter~3 describes the Spider benchmark, where and how it was obtained, and a preliminary analysis of its questions and of the reproduced model's accuracy on them. Chapter~4 presents the approach: the architecture, the reproduction methodology and results, the ablation study, the enhancement and its statistical evaluation, the application, and how to run the code. Chapter~5 concludes and outlines future work.

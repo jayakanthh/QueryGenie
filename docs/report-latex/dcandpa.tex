@@ -1,0 +1,92 @@
+\section{The Spider benchmark}
+
+The reproduction and the enhancement are evaluated on Spider \cite{yu2018spider}, the benchmark on which CodeS reports its results. Spider is a cross-domain text-to-SQL dataset: each example is a natural-language question, a gold SQL query that answers it, and the SQLite database the query runs on. The training, development and test sets use disjoint databases, so a model is always evaluated on schemas it has never seen.
+
+\section{Data collection}
+
+The department permits data only from approved sources and explicitly bans Kaggle. Spider was therefore obtained from Hugging Face, which is on the approved list:
+
+\begin{itemize}
+	\item \textbf{Questions and gold queries:} the Hugging Face dataset \path{xlangai/spider}, maintained by the original authors' organisation, downloaded on 14 August 2026 by \path{scripts/download_spider.py}. The provenance (source, split sizes, library versions, time of download) is recorded in \path{results/dataset_provenance.json}. The older bare \texttt{spider} identifier no longer loads with current versions of the \texttt{datasets} library; \path{xlangai/spider} is the maintained copy of the same data.
+	\item \textbf{Databases and schema file:} the SQLite databases and \path{tables.json} that the questions refer to, from the Hugging Face repository \path{HAL-9001/spider-databases} (\path{scripts/download_spider_dbs.py}).
+	\item Kaggle was not used at any point.
+\end{itemize}
+
+\section{Size and composition}
+
+Table~\ref{tab:splits} gives the size of each split. All results in this report are on the development set, as in the CodeS paper; the test set's gold queries were not used.
+
+\begin{table}[!t]
+	\centering
+	\caption{Spider splits used in this project.}
+	\label{tab:splits}
+	\begin{tabular}{|l|r|r|}
+		\hline
+		\textbf{Split} & \textbf{Questions} & \textbf{Databases} \\ \hline
+		Training (Spider) & 7,000 & 140 \\ \hline
+		Training (other sources) & 1,659 & 6 \\ \hline
+		Development (evaluation) & 1,034 & 20 \\ \hline
+	\end{tabular}
+\end{table}
+
+None of the 20 development databases occurs in either training split. The development databases are small: they have 2 to 11 tables (4.05 on average, 81 in total), 7 to 56 columns (22.05 on average, 441 in total) and 1 to 11 foreign keys (3.2 on average). The number of questions per database varies from 4 to 120, with a mean of 51.7.
+
+\section{Preliminary analysis}
+
+\subsection{What the questions ask for}
+
+Table~\ref{tab:features} counts SQL features in the 1,034 gold queries of the development set. Almost two in five questions need a join between tables, about one in twelve needs a nested query, and about as many a set operation. These are the constructs where a query can run without error and still return the wrong rows --- a point that becomes central to the choice of enhancement in Chapter~4.
+
+\begin{table}[!t]
+	\centering
+	\caption{SQL features in the development-set gold queries (a query can have several).}
+	\label{tab:features}
+	\begin{tabular}{|l|r|r|}
+		\hline
+		\textbf{Feature} & \textbf{Queries} & \textbf{Share} \\ \hline
+		JOIN & 408 & 39.5\% \\ \hline
+		GROUP BY & 277 & 26.8\% \\ \hline
+		ORDER BY & 237 & 22.9\% \\ \hline
+		LIMIT & 189 & 18.3\% \\ \hline
+		Nested SELECT & 83 & 8.0\% \\ \hline
+		Set operation (UNION, INTERSECT, EXCEPT) & 80 & 7.7\% \\ \hline
+		HAVING & 79 & 7.6\% \\ \hline
+	\end{tabular}
+\end{table}
+
+\subsection{Difficulty}
+
+Spider assigns every query one of four difficulty levels according to its SQL components. Table~\ref{tab:difficulty} gives the number of development questions at each level, computed with the official evaluator's own classifier \cite{zhong2020semantic}, together with the Execution Accuracy of the reproduced CodeS-1B model at that level. The accuracies are taken from the saved record of run T2-006 (Chapter~4), and they add up to its overall result: 804 of 1,034 questions correct.
+
+\begin{table}[!t]
+	\centering
+	\caption{Development set by official difficulty level, and the reproduced CodeS-1B Execution Accuracy (run T2-006).}
+	\label{tab:difficulty}
+	\begin{tabular}{|l|r|r|r|}
+		\hline
+		\textbf{Difficulty} & \textbf{Questions} & \textbf{Correct} & \textbf{EX} \\ \hline
+		Easy & 248 & 224 & 90.3\% \\ \hline
+		Medium & 446 & 373 & 83.6\% \\ \hline
+		Hard & 174 & 113 & 64.9\% \\ \hline
+		Extra hard & 166 & 94 & 56.6\% \\ \hline
+		\textbf{All} & \textbf{1,034} & \textbf{804} & \textbf{77.8\%} \\ \hline
+	\end{tabular}
+\end{table}
+
+Accuracy falls steadily with difficulty, from 90.3\% on easy questions to 56.6\% on extra-hard ones. Hard and extra-hard questions make up a third of the development set (340 of 1,034) but account for 133 of the 230 wrong answers. A single accuracy figure therefore hides very different reliability across questions, which is the motivation for reporting confidence per question rather than one number for the system.
+
+\section{Preparing the input for the model}
+
+CodeS does not see the raw database. For each question it builds a textual database prompt, exactly as in the authors' code:
+
+\begin{itemize}
+	\item \textbf{Schema sequence:} every table with its columns, column types, primary keys, the foreign keys, and a few representative values per column read from the database.
+	\item \textbf{Column descriptions:} human-readable names from Spider's \path{tables.json}, where they differ from the column name.
+	\item \textbf{Matched contents:} cell values that match words in the question, found by the authors' value retriever (string similarity with \texttt{difflib} and \texttt{rapidfuzz}, score at least 0.9, at most 25 values per column).
+\end{itemize}
+
+The question follows the database prompt, and the beginning-of-sequence token is prepended. The longest prompt in the development set is 1,717 tokens, well inside the model's limit of 3,840 input tokens, so no prompt is ever truncated.
+
+\section{Data used by the application}
+
+The desktop application ships with a small academic database of its own --- a \texttt{student} table (6 students) and a \texttt{result} table (18 marks) --- which it builds on first start, and it can download the 20 Spider development databases above so that users can try the same databases the accuracy was measured on. Users can also open their own SQLite files or connect to PostgreSQL and MySQL servers. None of this application data is used in the evaluation.

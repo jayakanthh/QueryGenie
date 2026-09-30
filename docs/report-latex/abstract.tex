@@ -1,0 +1,9 @@
+Text-to-SQL models let people who do not know SQL query databases, but they answer every question with the same apparent confidence, so a wrong answer looks exactly like a right one. This project reproduces CodeS, an open-source text-to-SQL model (SIGMOD 2024), and extends it with confidence-aware abstention.
+
+\textbf{Reproduction.} Using the released fine-tuned CodeS-1B checkpoint and the authors' database prompt and inference procedure, we obtain 77.8\% Execution Accuracy on the 1,034-question Spider development set, scored with the official evaluator, against 77.9\% reported in the paper --- a difference of 0.1 points. An audit of our harness against the authors' code found the simplified metric and value-retriever bug behind earlier results of 71.7--73.8\%. An ablation shows every prompt component contributes 0.9 to 1.9 points.
+
+\textbf{Enhancement.} The system executes the four candidate queries produced by beam search and measures how many return the same result. When agreement is low it declines and asks the user to choose between readings. At a pre-registered operating point it answers 90.4\% of questions and is correct on 83.3\% of them, against 77.8\% when answering everything; wrong answers fall from 230 to 156 ($-32$\%). The gain is significant (paired t-test $p = 7.7 \times 10^{-10}$; Wilcoxon $p = 9.8 \times 10^{-4}$; bootstrap 95\% CI $+4.5$ to $+6.7$ points).
+
+\textbf{Application.} QueryGenie, a desktop application for macOS and Windows, runs the evaluated pipeline locally and shows, for every answer, how many candidate queries agree and the SQL behind it --- and, when unsure, the readings to choose from.
+
+\textbf{Keywords:} text-to-SQL, reproducibility, large language models, selective prediction, abstention.

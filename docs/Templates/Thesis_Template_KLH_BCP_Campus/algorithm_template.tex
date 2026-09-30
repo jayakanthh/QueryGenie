@@ -1,0 +1,107 @@
+\documentclass[]{article}
+\usepackage{algorithmic}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{fancyvrb}
+%opening
+\title{}
+\author{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\SetKwRepeat{Do}{do}{while}
+\begin{algorithm} [t]
+	Input energy(i,j) //Stores energy values of $j^th$ SU for the $i^th$ band; \newline
+	Initialize local decision(j,i); \newline
+	$Y^L$ $\leftarrow$ Training energy vectors; \newline
+	$Y^{L,k}$ $\leftarrow$ $C_k$ 
+	//partitions training vectors in to K disjoint clusters (C); \newline
+	$\alpha_k$ $\leftarrow$ $\mu_i$ 
+	//Initialize centre of cluster to determine Centroid $\alpha_k$, where $i=1,2,..,k$; \newline
+	
+		\DontPrintSemicolon
+		
+	\For{ each cluster $k$ }{
+		 $Y^{L,K}$ $\leftarrow$ $\left| \alpha_k \right|^-1$ $\sum_{Y^L}\epsilon \alpha_k Y^L, \forall_k = 1,2,..,k$\; 
+		 //calculating mean of all training energy vectors in cluster k
+		 $Dist_measure \leftarrow $ Euclidean $\|$ Cityblock \; // for minimizing distance of energy vectors to local minima
+	}
+	
+	$CH \leftarrow  H_0 | H_1$\; // each SU reports its sensing decision to FC \newline
+	$CH \rightarrow $ global decision\; // FC declares final decision based on suboptimal solution through convergence
+	
+	\caption{Proposed CSS scheme using k-means clustering algorithm\label{kmeans}}
+\end{algorithm}
+
+
+\begin{algorithm}
+	coalition\_head $( )$ 
+		\newline
+	\For{each node $S$}{
+		$S(D)$ $\leftarrow$ f (Ref.eqn.(10))\;
+		Node $S$ starts scanning on available channel set $C_1,C_2,..C_n$\;
+	}
+	
+	\Do {leader is selected}{
+		Sel $\leftarrow$ random ($C_1,... C_n$)\;
+		Node(S)  sends election message along with its $f$ value to  
+		all the nodes R in the set Sel\;
+		Node ‘R’ does the following:
+		\If{R(ID) $\leq$ f }
+		{	
+			discard the message\; 
+		}
+		\Else{
+			If $R$ wants to become the leader, then it sends election 
+			messages randomly to next set of Sel nodes\;
+		}
+	}	
+	
+\caption{Distributed algorithm for Coalition head selection\label{DACS}}
+\end{algorithm}
+
+\begin{algorithm}
+	\textbf{Initial state :}\newline
+	T $\leftarrow$ ${T_1,...,T_k}$; //At the beginning of all time \newline
+	T $\leftarrow$ N $\leftarrow$ ${1, . . . , N}$; //with non-cooperative SUs \newline
+	
+	\textbf{Local Sensing phase}
+	\newline
+	$s \leftarrow \sqrt{snr} * randn (1,L)$ \;
+	$n \leftarrow randn (1,L)$\;
+	$y \leftarrow s + n$ \; 
+	$energy \leftarrow abs(y) ^ 2$ \; 
+	$test statistic \leftarrow (1/L) * sum(energy)$ \;
+	\If{test statistic $\ge$ threshold }
+	{	
+		decide $H_1$ \; 
+	}
+	\Else{
+		decide $H_0$ \;
+	}
+	\textbf{Adaptive coalition formation}
+	\newline	
+	\Do {Merge and split terminates}{
+		$	F \leftarrow  merge (T)$\;   Based on the merge rule defined above
+		$	T \leftarrow  split (F)$\;      Based on the Pareto order of split rule		
+	}
+	\textbf{Coalition Head selection}
+	\newline
+	coalition\_head $( )$;  //Algorithm \ref{DACS} \newline
+	
+	\textbf{Coalitional sensing}
+	\newline
+	$CH \leftarrow  H_0 | H1$; \scriptsize
+	//Each SU reports its sensing decision to the coalition head
+ \newline
+	$CH \rightarrow  global decision$ ; scriptsize //coalition head declares final decision based on OR rule as 
+	\caption{Coalition formation for CSS\label{CFCSS}}
+\end{algorithm}
+
+
+\end{document}
