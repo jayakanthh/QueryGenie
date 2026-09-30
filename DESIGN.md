@@ -208,6 +208,12 @@ Dialog sheets on macOS square their top corners where they attach to the window.
   top-left. Databases over ~32 columns start folded. Tapping a node opens a popover of ready-made
   questions and "Use in my question"; choices go into the compose field and are never sent without
   Return. A foreign key highlights its target table with a dashed outline and offers "Go to".
+- **Model settings:** an "Answering with" panel (model, where it runs, calibrated or not) above five
+  groups — Evaluated, Earlier prototype, Ollama, Your own model, Cloud services. Cloud services sit
+  under a standing notice of what is sent; each provider row shows its key state ("Key saved in
+  Keychain" / "No key"), a password field to add one, and a live model list from the provider.
+  Unavailable models stay listed, dimmed, with the reason. Every answer names the model that wrote it
+  and, when that model is not CodeS-1B, carries a "confidence not calibrated" note under the verdict.
 - **Setup assistant:** step rail (Welcome · Your computer · Download · Ready) beside a content panel;
   a transform-animated progress meter with GB, MB/s and time left.
 

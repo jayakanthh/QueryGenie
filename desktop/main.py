@@ -77,6 +77,15 @@ def selftest() -> int:
     from api import Api
 
     api = Api()
+    if os.environ.get("QG_SELFTEST") == "models":          # the model catalogue only; loads no model
+        from querygenie import providers
+        c = api.models_catalog()
+        print(json.dumps({"ok": True, "current": c["current"]["label"],
+                          "legacy_available": [m["label"] for m in c["legacy"] if m["available"]],
+                          "ollama_running": c["ollama"]["running"], "ollama_models": len(c["ollama"]["models"]),
+                          "cloud_providers": len(c["cloud"]),
+                          "keyring": type(providers._keyring().get_keyring()).__name__}))
+        return 0
     boot = api.boot()
     if boot["setup_needed"]:
         print(json.dumps({"ok": False, "error": "model not installed; run the app once to set up"}))

@@ -61,6 +61,14 @@ then exits. It leaves no chat behind.
 - A PyInstaller warning about `transformers.AutoTokenizer` being missing is harmless (transformers
   loads it lazily); the self-test above confirms the model loads.
 
+## Models in the packaged build
+
+The bundle includes everything for the evaluated model, Ollama, OpenAI-style services, Gemini and
+Claude (`anthropic` SDK), and `keyring` for storing API keys in the OS keychain. MLX and llama.cpp
+are **not** bundled, so the earlier prototype's MLX / GGUF models appear in Settings as "needs a
+from-source install"; run `python desktop/main.py` after `pip install -r requirements-apple.txt` to
+use them. `QG_SELFTEST=models` prints the model catalogue without loading a model.
+
 ## Where the app keeps its data
 
 | | macOS | Windows |

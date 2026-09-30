@@ -1,7 +1,7 @@
 # Optional fast local backends for Apple Silicon. Not needed for the evaluated pipeline.
 -r requirements.txt
 
-# 4-bit MLX models (build them with scripts/convert_mlx.py)
+# 4-bit MLX models (build them with legacy/scripts/convert_mlx.py)
 mlx>=0.32 ; sys_platform == "darwin"
 mlx-lm>=0.31 ; sys_platform == "darwin"
 

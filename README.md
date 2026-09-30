@@ -4,8 +4,8 @@
 
 Ask a database a question in plain English — *“Which students failed more than two subjects?”* —
 and QueryGenie writes the SQL, runs it, and shows the result as a table and a chart. It runs
-locally on open weights ([CodeS](https://arxiv.org/abs/2402.16347)), so no schema or data leaves the
-machine. Unlike most text-to-SQL systems, it measures its own confidence: when its candidate
+locally on open weights ([CodeS](https://arxiv.org/abs/2402.16347)), so by default no schema or data
+leaves the machine. Unlike most text-to-SQL systems, it measures its own confidence: when its candidate
 queries disagree, it asks *“Did you mean…?”* instead of returning a confident wrong answer.
 
 Engineering Capstone Project (Phase I), Department of Computer Science & Information Technology,
@@ -63,6 +63,14 @@ In the app:
   mean"* and shows the readings instead of guessing.
 - **Map view**: the whole database as a tree (tables, columns, keys, links). Tap a table or column
   for ready-made questions, or to use its name in your question.
+- **Settings → Model**: the evaluated CodeS-1B-Spider (the default, and the only model whose accuracy
+  was measured); the earlier prototype's CodeS models (MLX 4-bit, GGUF 2-bit, base CodeS — from source
+  only); any model in **Ollama**; your own CodeS-format model or any **OpenAI-compatible server**
+  (LM Studio, vLLM…); and cloud services — **OpenAI, Anthropic (Claude), Google (Gemini), xAI (Grok)**,
+  DeepSeek, Mistral, Groq, OpenRouter and Together. Every model gets the same four-candidate
+  confidence check, labelled "not calibrated" for anything but CodeS-1B. Cloud services receive the
+  schema, a few example values and the question (never result rows), after a confirmation; API keys
+  are kept in the macOS Keychain / Windows Credential Manager.
 - **Settings → when to decline**: answer everything (100% / 77.8%), balanced (90% / 83.3%),
   strict (63% / 86.1%), very strict (40% / 88.3%) — coverage and accuracy measured on Spider dev.
 
@@ -109,7 +117,7 @@ python research/abstention.py results/dump_T2-006.jsonl
 This reproduces the significance tests, the operating points and the accuracy–coverage figure
 from the committed candidate record.
 
-**3. Tests (no model needed).** `python -m pytest tests/ -q` (15 tests)
+**3. Tests (no model needed).** `python -m pytest tests/ -q` (23 tests)
 
 **4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
 (`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.

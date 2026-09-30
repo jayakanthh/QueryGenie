@@ -19,7 +19,23 @@ import setup_tasks as st
 
 HISTORY_DB = os.path.join(st.app_dir(), "history.sqlite")
 SETTINGS = os.path.join(st.app_dir(), "settings.json")
-DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider"}
+DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
+                    "engine": None}          # None = the evaluated CodeS model in "model"
+
+# Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
+# from source, in the repository's mlx_models/ and gguf_models/ (legacy/scripts/convert_mlx.py).
+LEGACY_MODELS = [
+    ("mlx", "codes-3b-spider-4bit", "CodeS-3B-Spider · MLX 4-bit", "Fine-tuned on Spider; fast on Apple Silicon"),
+    ("mlx", "codes-7b-spider-4bit", "CodeS-7B-Spider · MLX 4-bit", "Fine-tuned on Spider; needs about 6 GB of memory"),
+    ("gguf", "codes-7b-spider-Q2_K.gguf", "CodeS-7B-Spider · GGUF 2-bit", "Fine-tuned on Spider; llama.cpp"),
+    ("mlx", "codes-3b-4bit", "CodeS-3B base · MLX 4-bit", "Not fine-tuned on Spider"),
+    ("mlx", "codes-1b-4bit", "CodeS-1B base · MLX 4-bit", "Not fine-tuned on Spider"),
+    ("hf", "seeklhy/codes-1b", "CodeS-1B base", "Not fine-tuned on Spider; downloads from Hugging Face on first use"),
+    ("hf", "seeklhy/codes-3b", "CodeS-3B base", "Not fine-tuned on Spider; downloads from Hugging Face on first use"),
+]
+ENGINE_KINDS = {"mlx", "gguf", "hf", "ollama", "compat", "openai", "anthropic", "gemini", "xai",
+                "deepseek", "mistral", "groq", "openrouter", "together"}
+
 MAX_ROWS = 200
 
 
@@ -78,7 +94,8 @@ class Api:
         from querygenie.databases import build_catalog  # noqa: F401  (import check)
         s = self.settings_get()
         return {"platform": {"darwin": "mac", "win32": "win"}.get(sys.platform, "linux"),
-                "setup_needed": not st.model_installed(s["model"]),
+                "setup_needed": s.get("engine") is None and not st.model_installed(s["model"]),
+                "engine": self._engine_info(),
                 "models": [{"key": k, "label": v[1], "installed": st.model_installed(k),
                             "size_gb": round(v[2] / 1e9, 1) if v[2] else None} for k, v in st.MODELS.items()],
                 "spider_installed": st.spider_installed(), "settings": s,
@@ -181,14 +198,113 @@ class Api:
             os.remove(info.path)
         return True
 
+    # ---------------------------------------------------------------- models
+    @staticmethod
+    def _legacy_paths():
+        """name -> path for every legacy model found on disk."""
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dirs = [st.models_dir(), os.path.join(repo, "mlx_models"), os.path.join(repo, "gguf_models")]
+        found = {}
+        for kind, name, *_ in LEGACY_MODELS:
+            if kind == "hf":
+                continue
+            for d in dirs:
+                p = os.path.join(d, name)
+                if (os.path.isdir(p) if kind == "mlx" else os.path.isfile(p)):
+                    found[name] = p
+                    break
+        return found
+
+    def _engine_info(self, spec=None):
+        """What answers questions now: label, and whether its confidence was calibrated."""
+        s = self.settings_get()
+        spec = spec if spec is not None else s.get("engine")
+        if not spec:
+            key = s["model"]
+            return {"kind": "evaluated", "model": key, "label": st.MODELS[key][1],
+                    "calibrated": key == "codes-1b-spider", "cloud": False}
+        from querygenie.providers import CLOUD
+        kind = spec["kind"]
+        cloud = kind in CLOUD or (kind == "compat" and not any(
+            h in (spec.get("base_url") or "") for h in ("localhost", "127.0.0.1", "[::1]")))
+        where = CLOUD[kind]["name"] if kind in CLOUD else {"ollama": "Ollama", "compat": "OpenAI-compatible server",
+                                                           "hf": "this computer", "mlx": "MLX", "gguf": "llama.cpp"}[kind]
+        return {"kind": kind, "model": spec.get("model"), "label": spec.get("label") or spec.get("model"),
+                "where": where, "calibrated": False, "cloud": cloud}
+
+    def models_catalog(self):
+        """Everything the Model settings can offer, with what is available on this computer."""
+        import importlib.util
+        from querygenie import providers
+        s = self.settings_get()
+        found = self._legacy_paths()
+        runtime = {"mlx": importlib.util.find_spec("mlx_lm") is not None,
+                   "gguf": importlib.util.find_spec("llama_cpp") is not None, "hf": True}
+        legacy = []
+        for kind, name, label, note in LEGACY_MODELS:
+            if not runtime[kind]:
+                why = "Needs " + ("mlx-lm (Apple Silicon)" if kind == "mlx" else "llama-cpp-python") + \
+                      " — run QueryGenie from source with requirements-apple.txt"
+            elif kind != "hf" and name not in found:
+                why = "Model files not found" + (" — build with legacy/scripts/convert_mlx.py" if kind == "mlx" else "")
+            else:
+                why = None
+            legacy.append({"kind": kind, "model": name, "label": label, "note": note, "available": why is None,
+                           "why": why})
+        try:
+            ollama = {"running": True, "models": providers.list_models("ollama")}
+        except providers.ProviderError:
+            ollama = {"running": False, "models": []}
+        cloud = [{"kind": k, "name": v["name"], "key_saved": providers.key_saved(k)} for k, v in providers.CLOUD.items()]
+        return {"current": self._engine_info(), "engine": s.get("engine"),
+                "evaluated": [{"key": k, "label": v[1], "installed": st.model_installed(k),
+                               "size_gb": round(v[2] / 1e9, 1) if v[2] else None, "calibrated": k == "codes-1b-spider"}
+                              for k, v in st.MODELS.items()],
+                "legacy": legacy, "ollama": ollama, "cloud": cloud,
+                "compat_key_saved": providers.key_saved("compat")}
+
+    def provider_models(self, kind, base_url=None):
+        """Ask a service which models it offers (also a quick check that the key or server works)."""
+        from querygenie import providers
+        try:
+            return {"models": providers.list_models(kind, base_url)}
+        except providers.ProviderError as exc:
+            return {"error": str(exc)}
+
+    def key_save(self, provider, key):
+        """Store an API key in the OS keychain. The key is never returned to the interface."""
+        from querygenie import providers
+        try:
+            providers.key_set(provider, key or None)
+        except providers.ProviderError as exc:
+            return {"error": str(exc)}
+        return {"saved": bool(key)}
+
+    def engine_set(self, spec):
+        """Choose what answers questions. None = the evaluated CodeS model (settings["model"])."""
+        if spec is not None:
+            if spec.get("kind") not in ENGINE_KINDS or not spec.get("model"):
+                return {"error": "Choose a model first."}
+            spec = {k: spec[k] for k in ("kind", "model", "label", "base_url") if spec.get(k)}
+        s = self.settings_get(); s["engine"] = spec
+        json.dump(s, open(SETTINGS, "w"), indent=2)
+        return {"engine": self._engine_info()}
+
     # ---------------------------------------------------------------- asking
     def _get_backend(self):
-        from querygenie.model import CodesSFTBackend
-        key = self.settings_get()["model"]
+        s = self.settings_get()
+        spec = s.get("engine")
+        key = json.dumps(spec, sort_keys=True) if spec else "evaluated:" + s["model"]
         if self._backend_key != key:
             if self._backend is not None:
-                self._backend.unload()
-            self._backend = CodesSFTBackend(st.model_path(key), label=st.MODELS[key][1])
+                self._backend.unload()                      # never hold two local models at once
+                self._backend = None
+            if spec:
+                from querygenie import providers
+                self._backend = providers.build(spec, self._legacy_paths())
+            else:
+                from querygenie.model import CodesSFTBackend
+                self._backend = CodesSFTBackend(st.model_path(s["model"]), label=st.MODELS[s["model"]][1])
             self._backend_key = key
         return self._backend
 
@@ -197,14 +313,19 @@ class Api:
         from querygenie.confidence import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
+        from querygenie.providers import ProviderError
         with self._lock:                                   # one generation at a time
-            backend = self._get_backend()
-            if info.conn is not None:
-                d = backend.decide_connected(info.conn, question)
-            else:
-                d = backend.decide(info.path, question, info.comments)
+            try:
+                backend = self._get_backend()
+                if info.conn is not None:
+                    d = backend.decide_connected(info.conn, question)
+                else:
+                    d = backend.decide(info.path, question, info.comments)
+            except ProviderError as exc:
+                raise RuntimeError(f"{self._engine_info()['label']}: {exc}") from exc
         run = ConfidentRun(question, d, mode)
         result = self._serialize(run, info)
+        result["engine"] = self._engine_info()
         chat_id = chat_id or self._new_chat(db_id, question)
         hid = self._save_history(db_id, question, result, chat_id)
         self._decisions[hid] = (d, info)

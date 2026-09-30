@@ -13,13 +13,13 @@ datasets>=2.18        # scripts/download_spider.py
 rapidfuzz>=3.0
 func_timeout>=4.3
 
-# Live database connections (src/connectors.py)
+# Live database connections (querygenie/connectors.py)
 sqlalchemy>=2.0
 sqlglot>=25
 psycopg[binary]>=3.1   # PostgreSQL
 pymysql>=1.1          # MySQL / MariaDB
 
-# Abstention analysis and figures (src/abstention.py)
+# Abstention analysis and figures (research/abstention.py)
 numpy>=1.26
 scipy>=1.11
 matplotlib>=3.8
@@ -30,3 +30,9 @@ pytest>=8.0
 # Desktop app (pywebview + PyInstaller)
 pywebview>=5
 pyinstaller>=6
+
+# Other models in the desktop app (querygenie/providers): Claude via the official SDK;
+# API keys in the macOS Keychain / Windows Credential Manager. Ollama and the OpenAI-style
+# services need no extra package.
+anthropic>=1.0
+keyring>=25
