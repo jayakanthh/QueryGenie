@@ -57,7 +57,8 @@ repository, and its status. Update the status column as each item is completed a
 |---|---|---|---|
 | 13 | Final figures + statistics | — | ⬜ |
 | 14 | Draft final report | `docs/Final_Report_Draft.docx` | ✅ draft (28 Sep, 14 pp): SOP structure Intro → Methodology → Results → Enhancement → Discussion → Conclusion; figures + appendices |
-| 15 | Public GitHub repo + README (10%) | `README.md`, `LICENSE`, `NOTICE`, `tests/` | 🟡 README rewritten (reproduce / run enhancement / requirements / licence), Apache-2.0, 9 tests; **repo still private — visibility change pending** |
+| 13–15 | Full-stack deliverable | `desktop/` (macOS + Windows app), `querygenie/` core, `desktop/build.md` | ✅ desktop app: chats, schema map, SQLite / PostgreSQL / MySQL, model choice (Ollama, cloud, own, legacy CodeS) with effort; macOS `.app` builds and self-tests. **Windows build untested; cloud providers untested (no keys) — TBD** |
+| 15 | Public GitHub repo + README (10%) | `README.md`, `LICENSE`, `NOTICE`, `tests/` | 🟡 README rewritten; repo reorganised (`querygenie/`, `desktop/`, `research/`, `legacy/`); Apache-2.0; 25 model-free tests. **Repo still private — visibility change pending. Only one member has commits — SOP needs all members committing under their own accounts; Praneeth not yet a collaborator** |
 | 16 | Final report + presentation (5%) | `docs/reviews/Review3_QueryGenie.pptx`, `docs/Final_Report_Draft.docx` | 🟡 Review-3 deck (19 slides, dept template, speaker notes, real app screenshots); LaTeX documentation pending department template |
 
 ---
