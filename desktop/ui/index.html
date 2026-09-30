@@ -13,7 +13,7 @@
   <section class="setup" id="setup" hidden>
     <div class="assistant" role="dialog" aria-labelledby="setup-title">
       <nav class="steps" aria-label="Setup steps">
-        <div class="brand"><span class="brand-mark"><svg class="i"><use href="#i-database"/></svg></span>QueryGenie</div>
+        <div class="brand"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark" src="brand/wordmark.png" alt="QueryGenie"></picture></div>
         <div class="step" data-step="welcome"><span class="dot">1</span>Welcome</div>
         <div class="step" data-step="machine"><span class="dot">2</span>Your computer</div>
         <div class="step" data-step="download"><span class="dot">3</span>Download</div>
@@ -21,6 +21,7 @@
       </nav>
 
       <div class="step-body" data-panel="welcome">
+        <img class="welcome-mark" src="brand/mark.png" alt="" aria-hidden="true">
         <h1 id="setup-title">Ask your databases in plain English</h1>
         <p class="lead">QueryGenie writes the SQL for you, runs it without changing anything, and tells you when it isn't sure.</p>
         <div class="facts">
@@ -65,7 +66,7 @@
   <!-- ============================================================ three-pane window -->
   <main class="window" id="app" hidden>
     <aside class="sidebar" aria-label="Databases">
-      <div class="brand"><span class="brand-mark"><svg class="i"><use href="#i-database"/></svg></span>QueryGenie</div>
+      <div class="brand"><picture><source srcset="brand/wordmark-dark.png" media="(prefers-color-scheme: dark)"><img class="wordmark" src="brand/wordmark.png" alt="QueryGenie"></picture></div>
       <div class="src-scroll" id="sources" role="listbox" aria-label="Databases"></div>
       <div class="sidebar-foot">
         <button class="btn quiet" id="add-db" title="Add a database"><svg class="i"><use href="#i-plus"/></svg>Add database</button>

@@ -1,4 +1,9 @@
-# QueryGenie
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="desktop/assets/brand/logo-wordmark-dark.png">
+    <img alt="QueryGenie" src="desktop/assets/brand/logo-wordmark.png" width="440">
+  </picture>
+</h1>
 
 **A self-correcting natural-language-to-SQL interface that tells you when it isn't sure.**
 

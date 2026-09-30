@@ -128,9 +128,10 @@ svg.i.sm { width: 14px; height: 14px; }
 
 /* sidebar ---------------------------------------------------------- */
 .sidebar { background: var(--bg-sidebar); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
-.sidebar .brand { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px; font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.01em; }
-.brand-mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-fill); color: var(--accent-ink); display: grid; place-items: center; }
-.brand-mark svg { width: 13px; height: 13px; }
+.sidebar .brand { display: flex; align-items: center; padding: 14px 14px 10px; }
+.brand picture { display: block; line-height: 0; }
+.brand .wordmark { height: 26px; width: auto; display: block; }
+.welcome-mark { width: 64px; height: auto; margin-bottom: 4px; }
 .src-scroll { flex: 1; overflow: auto; padding: 4px 8px 12px; }
 .src-group { margin-top: 12px; }
 .src-group h3 { margin: 0 6px 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); display: flex; align-items: center; justify-content: space-between; }
@@ -327,7 +328,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.28); }
 .assistant { width: min(760px, 100%); display: grid; grid-template-columns: 220px 1fr; background: var(--bg-pane); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-pop); overflow: hidden; min-height: 470px; }
 .os-win .assistant { border-radius: 8px; }
 .steps { background: var(--bg-sidebar); border-right: 1px solid var(--line); padding: 22px 16px; display: grid; align-content: start; gap: 4px; }
-.steps .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: var(--fs-md); margin-bottom: 18px; }
+.steps .brand { display: flex; align-items: center; margin-bottom: 18px; }
 .step { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--radius-sm); color: var(--ink-3); font-size: var(--fs-sm); font-weight: 500; }
 .step .dot { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-size: var(--fs-xs); flex: none; }
 .step.now { color: var(--ink); background: var(--bg-hover); }

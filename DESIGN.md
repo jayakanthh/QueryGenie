@@ -119,6 +119,20 @@ stronger type and sharper confidence states than a stock control.
 - "I'm not sure which you mean" is a designed outcome with its own block, never an error.
 - Montserrat for the interface, IBM Plex Mono for SQL and data; both self-hosted.
 
+## Brand
+
+The logo is a blue **Q** whose tail is a chevron, with a teal sparkle; the wordmark sets "Query" in
+deep navy and "Genie" in brand blue. Originals are in `desktop/assets/brand/source/`;
+`desktop/assets/brand/make_brand_assets.py` builds everything from them (cleaned mark, wordmark, a
+dark-background wordmark with "Query" in light ink, the interface copies and the app icon).
+
+- **Brand Blue** `#005cfc` · **Deep Navy** `#001144` (mark shading; "Query" is `#020e2e`) ·
+  **Sparkle Teal** `#01d5bb`.
+- The wordmark heads the sidebar and the setup assistant; the mark alone opens the setup welcome and
+  sits on a white rounded tile as the app icon. On dark backgrounds use the dark wordmark.
+- The teal belongs to the logo only. It is not a confidence colour and never appears in the interface
+  as a status (see the Reserved Status Rule).
+
 ## Colors
 
 Restrained: system-like neutrals in three layers plus one blue, with four confidence colours
