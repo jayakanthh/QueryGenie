@@ -128,9 +128,9 @@ svg.i.sm { width: 14px; height: 14px; }
 
 /* sidebar ---------------------------------------------------------- */
 .sidebar { background: var(--bg-sidebar); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
-.sidebar .brand { display: flex; align-items: center; padding: 14px 14px 10px; }
+.sidebar .brand { display: flex; align-items: center; justify-content: center; padding: 18px 14px 16px; }
 .brand picture { display: block; line-height: 0; }
-.brand .wordmark { height: 26px; width: auto; display: block; }
+.brand .wordmark { height: 40px; width: auto; max-width: 100%; display: block; }
 .welcome-mark { width: 64px; height: auto; margin-bottom: 4px; }
 .src-scroll { flex: 1; overflow: auto; padding: 4px 8px 12px; }
 .src-group { margin-top: 12px; }
@@ -325,7 +325,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.28); }
 .assistant { width: min(760px, 100%); display: grid; grid-template-columns: 220px 1fr; background: var(--bg-pane); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-pop); overflow: hidden; min-height: 470px; }
 .os-win .assistant { border-radius: 8px; }
 .steps { background: var(--bg-sidebar); border-right: 1px solid var(--line); padding: 22px 16px; display: grid; align-content: start; gap: 4px; }
-.steps .brand { display: flex; align-items: center; margin-bottom: 18px; }
+.steps .brand { display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
 .step { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--radius-sm); color: var(--ink-3); font-size: var(--fs-sm); font-weight: 500; }
 .step .dot { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-size: var(--fs-xs); flex: none; }
 .step.now { color: var(--ink); background: var(--bg-hover); }
@@ -494,7 +494,7 @@ dialog.wide { max-width: min(720px, 94vw); }
    panes (see desktop/main.py). The bars in that band move the window. */
 .sidebar-top { display: none; }
 .mac-frameless .sidebar-top { display: block; height: 52px; flex: none; }
-.mac-frameless .sidebar .brand { padding: 0 14px 12px; }
+.mac-frameless .sidebar .brand { padding: 2px 14px 16px; }
 .mac-frameless .list-head { padding-top: 0; }
 .mac-frameless .list-title { min-height: 52px; align-items: center; margin-bottom: -4px; }
 .mac-frameless .pane-bar { min-height: 52px; padding-top: 0; padding-bottom: 0; }

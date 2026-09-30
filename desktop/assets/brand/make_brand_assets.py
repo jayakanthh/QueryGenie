@@ -92,8 +92,8 @@ def main():
 
     # Interface copies at 2x the size they are shown at.
     fit_box(mark, 160).save(os.path.join(UI, "mark.png"), optimize=True)
-    fit_height(word, 72).save(os.path.join(UI, "wordmark.png"), optimize=True)
-    fit_height(word_dark, 72).save(os.path.join(UI, "wordmark-dark.png"), optimize=True)
+    fit_height(word, 112).save(os.path.join(UI, "wordmark.png"), optimize=True)
+    fit_height(word_dark, 112).save(os.path.join(UI, "wordmark-dark.png"), optimize=True)
 
     icon = app_icon(mark)
     icon.save(os.path.join(ASSETS, "icon-1024.png"), optimize=True)
