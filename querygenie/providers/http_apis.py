@@ -66,16 +66,19 @@ class Ollama(CandidateBackend):
 
     def raw_candidates(self, prompt):
         # Local and one model at a time: sequential avoids loading it four times over.
-        out = []
-        for i in range(4):
-            body = {"model": self.model, "stream": False,
-                    "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
-                    "options": {"temperature": 0.0 if i == 0 else 0.7}}
-            if self.effort in ("on", "off"):                  # thinking models only
-                body["think"] = self.effort == "on"
-            r = _request("POST", self.base_url + "/api/chat", body=body)
-            out.append((r.get("message") or {}).get("content", ""))
-        return out
+        return [self._once(prompt, 0.0 if i == 0 else 0.7) for i in range(4)]
+
+    def complete_once(self, prompt):
+        return self._once(prompt, 0.0)
+
+    def _once(self, prompt, temperature):
+        body = {"model": self.model, "stream": False,
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                "options": {"temperature": temperature}}
+        if self.effort in ("on", "off"):                      # thinking models only
+            body["think"] = self.effort == "on"
+        r = _request("POST", self.base_url + "/api/chat", body=body)
+        return (r.get("message") or {}).get("content", "")
 
 
 # ---------------------------------------------------------------- OpenAI-compatible
@@ -90,15 +93,16 @@ class OpenAICompatible(CandidateBackend):
         return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
     def raw_candidates(self, prompt):
-        def one(_i):
-            body = {"model": self.model,
-                    "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]}
-            if self.effort:                                   # reasoning models only; others reject it
-                body["reasoning_effort"] = self.effort
-            r = _request("POST", self.base_url + "/chat/completions", headers=self._headers(), body=body)
-            choice = (r.get("choices") or [{}])[0]
-            return (choice.get("message") or {}).get("content") or ""
-        return parallel(one)
+        return parallel(lambda _i: self.complete_once(prompt))
+
+    def complete_once(self, prompt):
+        body = {"model": self.model,
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]}
+        if self.effort:                                       # reasoning models only; others reject it
+            body["reasoning_effort"] = self.effort
+        r = _request("POST", self.base_url + "/chat/completions", headers=self._headers(), body=body)
+        choice = (r.get("choices") or [{}])[0]
+        return (choice.get("message") or {}).get("content") or ""
 
 
 def openai_models(base_url, api_key=None):
@@ -119,15 +123,15 @@ class Gemini(CandidateBackend):
         self.api_key = api_key
 
     def raw_candidates(self, prompt):
-        name = self.model if self.model.startswith("models/") else "models/" + self.model
+        return parallel(lambda _i: self.complete_once(prompt))
 
-        def one(_i):
-            r = _request("POST", f"{GEMINI_URL}/{name}:generateContent", headers={"x-goog-api-key": self.api_key},
-                         body={"systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                               "contents": [{"role": "user", "parts": [{"text": prompt}]}]})
-            parts = ((r.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
-            return "".join(p.get("text", "") for p in parts if not p.get("thought"))
-        return parallel(one)
+    def complete_once(self, prompt):
+        name = self.model if self.model.startswith("models/") else "models/" + self.model
+        r = _request("POST", f"{GEMINI_URL}/{name}:generateContent", headers={"x-goog-api-key": self.api_key},
+                     body={"systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                           "contents": [{"role": "user", "parts": [{"text": prompt}]}]})
+        parts = ((r.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+        return "".join(p.get("text", "") for p in parts if not p.get("thought"))
 
 
 def gemini_models(api_key):

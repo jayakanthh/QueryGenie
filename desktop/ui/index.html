@@ -164,6 +164,8 @@
         <div class="set-tabs seg" role="tablist"><button data-set="general" aria-pressed="true">General</button><button data-set="model">Model</button><button data-set="storage">Storage</button></div>
         <div data-setpanel="general" class="stack">
           <div class="field"><label>When should QueryGenie decline to answer?</label><div id="mode-opts" class="stack" style="gap:6px"></div></div>
+          <label class="opt"><input type="checkbox" id="repair-opt"><div><b>Repair failed queries</b>
+            <span>When a candidate query fails, send it back to the model once with the error and use the repaired query (self-correction, as in DIN-SQL). Measured on Spider with CodeS-1B it changes little — 61 of 377 failed queries ran after repair and one more answer was right — because CodeS was not trained to read errors; chat models (Ollama, cloud) are likely to gain more, though that is not measured. The percentages above are without repair.</span></div></label>
           <p class="note" style="margin:0"><svg class="i"><use href="#i-info"/></svg>Percentages were measured on the Spider benchmark's 1,034 questions with CodeS-1B on SQLite. Other models use the same agreement rules, but their accuracy is not measured; nor is PostgreSQL or MySQL.</p>
         </div>
         <div data-setpanel="model" class="stack model-panel" hidden><div id="model-panel"></div><div id="model-dl" class="form-msg"></div></div>

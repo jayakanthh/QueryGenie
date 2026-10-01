@@ -58,22 +58,22 @@ class Claude(CandidateBackend):
         self.api_key = api_key
 
     def raw_candidates(self, prompt):
+        return parallel(lambda _i: self.complete_once(prompt))
+
+    def complete_once(self, prompt):
         anthropic, client = _client(self.api_key)
         messages = [{"role": "user", "content": prompt}]
         extra = {"output_config": {"effort": self.effort}} if self.effort else {}
-
-        def one(_i):
-            try:
-                if self.model in _FALLBACK_MODELS:
-                    r = client.beta.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
-                                                    messages=messages, betas=["server-side-fallback-2026-06-01"],
-                                                    fallbacks=[{"model": "claude-opus-4-8"}], **extra)
-                else:
-                    r = client.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
-                                               messages=messages, **extra)
-            except anthropic.AnthropicError as exc:
-                raise ProviderError(_explain(anthropic, exc)) from exc
-            if r.stop_reason == "refusal":
-                return ""                         # counts as a candidate that did not run
-            return "".join(b.text for b in r.content if b.type == "text")
-        return parallel(one)
+        try:
+            if self.model in _FALLBACK_MODELS:
+                r = client.beta.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
+                                                messages=messages, betas=["server-side-fallback-2026-06-01"],
+                                                fallbacks=[{"model": "claude-opus-4-8"}], **extra)
+            else:
+                r = client.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
+                                           messages=messages, **extra)
+        except anthropic.AnthropicError as exc:
+            raise ProviderError(_explain(anthropic, exc)) from exc
+        if r.stop_reason == "refusal":
+            return ""                             # counts as a candidate that did not run
+        return "".join(b.text for b in r.content if b.type == "text")

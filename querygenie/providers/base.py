@@ -72,6 +72,17 @@ class CandidateBackend:
     def raw_candidates(self, prompt: str) -> list[str]:
         raise NotImplementedError
 
+    def complete_once(self, prompt: str) -> str:
+        """One greedy answer to `prompt` (used to repair a failed query)."""
+        raise NotImplementedError
+
+    def fix_sql(self, failed_sql: str, error: str) -> str:
+        from ..repair import chat_repair_prompt, completion_hint
+        _target, _schema, prompt = self.last_context
+        if self.chat:
+            return extract_sql(self.complete_once(chat_repair_prompt(prompt, failed_sql, error)))
+        return self.complete_once(prompt + completion_hint(failed_sql, error))
+
     def unload(self):
         pass
 
@@ -90,6 +101,7 @@ class CandidateBackend:
 
     def _decide(self, target, schema, prefix, question):
         prompt = chat_prompt(prefix, question) if self.chat else prefix
+        self.last_context = (target, schema, prompt)       # for the optional repair step
         texts = [extract_sql(t) if self.chat else t for t in self.raw_candidates(prompt)]
         texts = (texts + [""] * N_CANDIDATES)[:N_CANDIDATES]
         # No beam scores outside the evaluated model: equal scores, so the tie-break is neutral.

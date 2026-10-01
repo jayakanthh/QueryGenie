@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import decimal
 import json
+import re
 import os
 import sqlite3
 import sys
@@ -21,6 +22,7 @@ HISTORY_DB = os.path.join(st.app_dir(), "history.sqlite")
 SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
                     "engine": None,          # None = the evaluated CodeS model in "model"
+                    "repair": True,          # send failed candidate queries back once with their error
                     "recent_engines": []}    # last few models chosen (for the quick picker)
 
 # Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
@@ -58,8 +60,12 @@ def _rows(rows):
     return [[_jsonable(c) for c in r] for r in rows[:MAX_ROWS]]
 
 
+_DATE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$")
+
+
 def chart_spec(columns, rows):
-    """The same choice rules as legacy/charts.py (bar / line / scatter / histogram), as data for the UI."""
+    """The same choice rules as legacy/charts.py, as data for the UI: a date or year column with a number
+    -> line (sorted by date); text with a number -> bar; two numbers -> scatter; one number -> histogram."""
     if not columns or not rows:
         return None
     rows = rows[:50]
@@ -68,6 +74,21 @@ def chart_spec(columns, rows):
         vals = [r[i] for r in rows if r[i] is not None]
         return bool(vals) and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals)
 
+    def datelike(i):
+        vals = [r[i] for r in rows if r[i] is not None]
+        if not vals:
+            return False
+        if all(isinstance(v, str) and _DATE.match(v.strip()) for v in vals):
+            return True
+        name = str(columns[i]).lower()                       # a "year" column holding years
+        return ("year" in name or "date" in name) and all(isinstance(v, int) and 1000 <= v <= 2999 for v in vals)
+
+    dates = [i for i in range(len(columns)) if datelike(i)]
+    num = [i for i in range(len(columns)) if numeric(i) and i not in dates]
+    if dates and num and len(rows) > 1:
+        x, y = dates[0], num[0]
+        pts = sorted(([str(r[x]), r[y]] for r in rows if r[x] is not None and r[y] is not None), key=lambda p: p[0])
+        return {"kind": "line", "x": columns[x], "y": columns[y], "points": pts}
     num = [i for i in range(len(columns)) if numeric(i)]
     cat = [i for i in range(len(columns)) if i not in num]
     if cat and num:
@@ -523,10 +544,17 @@ class Api:
                     d = backend.decide_connected(info.conn, question)
                 else:
                     d = backend.decide(info.path, question, info.comments)
+                repairs = {}
+                if self.settings_get().get("repair", True):
+                    from querygenie.repair import self_correct
+                    d, repairs = self_correct(backend, d)
             except ProviderError as exc:
                 raise RuntimeError(f"{self._engine_info()['label']}: {exc}") from exc
         run = ConfidentRun(question, d, mode)
         result = self._serialize(run, info)
+        for i, r in repairs.items():
+            result["candidates"][i]["repaired"] = r
+        result["repaired"] = len(repairs)
         result["engine"] = self._engine_info()
         result["unclear"] = self._unclear(info, question)
         chat_id = chat_id or self._new_chat(db_id, question)

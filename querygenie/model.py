@@ -101,6 +101,7 @@ class CodesSFTBackend:
         import torch
         from .pipeline import decide, encode
 
+        self.last_context = (target, schema, prefix)       # for an optional repair step (querygenie/repair.py)
         self.load()
         ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
         with torch.no_grad():
@@ -111,3 +112,18 @@ class CodesSFTBackend:
         texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
                                        clean_up_tokenization_spaces=False)
         return decide(target, schema, texts, [float(x) for x in gen.sequences_scores])
+
+    def fix_sql(self, failed_sql: str, error: str, max_new_tokens: int = 256) -> str:
+        """One repair attempt for a query that failed (application feature, not part of the evaluated
+        pipeline): the same prompt with the failed query and its error as an SQL comment, greedy."""
+        import torch
+        from .pipeline import encode
+        from .repair import completion_hint
+
+        _target, _schema, prefix = self.last_context
+        self.load()
+        ids = torch.tensor([encode(self._tok, prefix + completion_hint(failed_sql, error))], device=self.device)
+        with torch.no_grad():
+            out = self._model.generate(input_ids=ids, attention_mask=torch.ones_like(ids), max_new_tokens=max_new_tokens,
+                                       num_beams=1, do_sample=False, pad_token_id=self._tok.eos_token_id)
+        return self._tok.decode(out[0][ids.shape[1]:], skip_special_tokens=True, clean_up_tokenization_spaces=False)

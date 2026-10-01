@@ -595,3 +595,9 @@ dialog.wide { max-width: min(720px, 94vw); }
 .switch input:disabled + span { opacity: 0.4; }
 @media (prefers-reduced-motion: reduce) { .switch span, .switch span::after { transition: none; } }
 .model-menu h4.mm-group { display: flex; align-items: center; gap: 6px; }
+
+/* self-correction: a repaired candidate */
+.cand-top .kbd.rep { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--accent); border-color: var(--accent); }
+.cand details.was { margin-top: 6px; font-size: var(--fs-xs); color: var(--ink-3); }
+.cand details.was summary { cursor: pointer; }
+.cand details.was pre { opacity: 0.75; text-decoration: line-through; text-decoration-color: var(--ink-3); }

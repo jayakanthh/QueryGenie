@@ -68,6 +68,10 @@ In the app:
   mean"* and shows the readings instead of guessing.
 - **Map view**: the whole database as a tree (tables, columns, keys, links). Tap a table or column
   for ready-made questions, or to use its name in your question.
+- **Self-correction:** a candidate query that fails is sent back once with its error and replaced by the repair
+  (Settings → General). Measured on Spider with CodeS-1B it changes little — 61 of 377 failed queries ran after
+  repair, one more answer was right (77.76% → 77.85%; [`results/repair_eval.md`](results/repair_eval.md)) — since
+  CodeS was not trained on error feedback; the reported figures are without it.
 - **Model picker** under the question box: switch model, and set its effort where the provider has one
   (Claude low → max; OpenAI-style reasoning models low / medium / high; Ollama thinking on / off).
 - **Settings → Model**: the evaluated CodeS-1B-Spider (the default, and the only model whose accuracy

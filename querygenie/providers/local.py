@@ -59,6 +59,15 @@ class MLXCodes(CandidateBackend):
                          sampler=make_sampler(temp=0.0 if i == 0 else SAMPLE_TEMPERATURE))
                 for i in range(N_CANDIDATES)]
 
+    def complete_once(self, prompt):
+        from mlx_lm import generate
+        from mlx_lm.sample_utils import make_sampler
+
+        self.load()
+        ids = encode(getattr(self._tok, "_tokenizer", self._tok), prompt)
+        return generate(self._model, self._tok, prompt=ids, max_tokens=MAX_NEW_TOKENS, verbose=False,
+                        sampler=make_sampler(temp=0.0))
+
 
 class GGUFCodes(CandidateBackend):
     chat = False
@@ -88,3 +97,8 @@ class GGUFCodes(CandidateBackend):
                                             temperature=0.0 if i == 0 else SAMPLE_TEMPERATURE,
                                             )["choices"][0]["text"]
                 for i in range(N_CANDIDATES)]
+
+    def complete_once(self, prompt):
+        self.load()
+        ids = self._llm.tokenize(prompt.encode("utf-8"), add_bos=True)[-(4096 - MAX_NEW_TOKENS):]
+        return self._llm.create_completion(ids, max_tokens=MAX_NEW_TOKENS, temperature=0.0)["choices"][0]["text"]

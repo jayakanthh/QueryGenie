@@ -297,7 +297,8 @@ function turnHtml(it) {
   const unanimous = it.ran && it.agree === 4;
   const showGuess = t.guess ?? unanimous;
   if (it.unclear && !showGuess) return head + clarifyHtml(it);
-  const top = (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
+  const repairNote = it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "";
+  const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
   if (!it.answered && t.reading == null) body = "";
@@ -390,8 +391,10 @@ function sqlHtml(it, t) {
 function candidatesHtml(it) {
   return `<div class="cands">${it.candidates.map((c, i) => {
     const st = !c.runs ? `<span class="state bad">${icon("circle-x", "i sm")}Did not run</span>` : c.agrees ? `<span class="state ok">${icon("circle-check", "i sm")}Agrees</span>` : `<span class="state diff">${icon("circle-alert", "i sm")}Different result</span>`;
-    return `<div class="cand"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${st}</div>
-      <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}</div>`;
+    const rep = c.repaired ? `<span class="kbd rep" title="This query failed and was repaired">${icon("refresh-cw", "i sm")}repaired</span>` : "";
+    const was = c.repaired ? `<details class="was"><summary>The original query failed: ${esc(c.repaired.error)}</summary><pre class="selectable">${esc(c.repaired.from)}</pre></details>` : "";
+    return `<div class="cand"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${rep}${st}</div>
+      <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}${was}</div>`;
   }).join("")}</div>`;
 }
 
@@ -650,6 +653,16 @@ function chartSvg(spec) {
     xLabels = pts.map((p, i) => (i % every ? "" : `<text x="${(L + i * bw + bw / 2).toFixed(1)}" y="${T + h + 16}" text-anchor="middle" font-size="11" fill="${ink3}">${esc(String(p[0]).slice(0, 12))}</text>`)).join("");
     return svgFrame(W, H, L, T, w, h, 0, max, ink3, line, marks + xLabels, spec);
   }
+  if (spec.kind === "line") {                               // dates in order; one point per row
+    const ys = pts.map((p) => p[1] || 0), max = nice(Math.max(0, ...ys)), lo = Math.min(0, ...ys);
+    const X = (i) => L + (pts.length === 1 ? w / 2 : (i / (pts.length - 1)) * w), Y = (v) => T + h - ((v - lo) / ((max - lo) || 1)) * h;
+    const path = pts.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(p[1] || 0).toFixed(1)}`).join(" ");
+    marks = `<path d="${path}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` +
+      pts.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p[1] || 0).toFixed(1)}" r="4" fill="${col}" stroke="var(--bg-pane)" stroke-width="2" data-tip="${esc(p[0])}: ${esc(fmt(p[1]))}"/>`).join("");
+    const every = Math.ceil(pts.length / 8);
+    xLabels = pts.map((p, i) => (i % every && i !== pts.length - 1 ? "" : `<text x="${X(i).toFixed(1)}" y="${T + h + 16}" text-anchor="middle" font-size="11" fill="${ink3}">${esc(String(p[0]).slice(0, 10))}</text>`)).join("");
+    return svgFrame(W, H, L, T, w, h, lo, max, ink3, line, marks + xLabels, spec);
+  }
   // scatter
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const xmin = Math.min(...xs), xmax = Math.max(...xs), ymax = nice(Math.max(...ys)), ymin = Math.min(0, Math.min(...ys));
@@ -810,6 +823,8 @@ async function openSettings() {
     return `<label class="opt"><input type="radio" name="mode" value="${k}" ${S.mode === k ? "checked" : ""}><div><b>${label}</b>
       <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
   $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
+  $("#repair-opt").checked = S.boot.settings.repair !== false;
+  $("#repair-opt").onchange = async (e) => { await api.settings_set({ repair: e.target.checked }); S.boot = await api.boot(); };
   S.boot = await api.boot(); S.provider = null; renderModelPanel();
   const st = await api.storage();
   $("#storage-kv").innerHTML = `<dt>App data</dt><dd>${esc(st.app_dir)}</dd><dt>Models</dt><dd>${esc(st.models_dir)}</dd><dt>Databases</dt><dd>${esc(st.data_dir)}</dd>`;

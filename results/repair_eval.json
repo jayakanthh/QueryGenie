@@ -1,0 +1,24 @@
+{
+  "questions": 1034,
+  "selection_matches_T2-006": 1034,
+  "questions_with_a_failed_candidate": 211,
+  "queries_repaired": 377,
+  "repaired_queries_that_run": 61,
+  "answers_changed": 1,
+  "now_correct": 1,
+  "now_wrong": 0,
+  "before": {
+    "ex": 77.76,
+    "correct": 804,
+    "balanced_coverage": 90.43,
+    "balanced_accuracy": 83.32
+  },
+  "after": {
+    "ex": 77.85,
+    "correct": 805,
+    "balanced_coverage": 90.52,
+    "balanced_accuracy": 83.23
+  },
+  "model": "/Users/jaikanthkamisetti/Library/Application Support/QueryGenie/models/codes-1b-spider",
+  "dump": "/Users/jaikanthkamisetti/Documents/Projects/QueryGenie/results/dump_T2-006.jsonl"
+}
