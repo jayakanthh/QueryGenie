@@ -41,13 +41,24 @@ def _words(text: str) -> list[str]:
 
 
 def _part_in(p: str, q: set[str]) -> bool:
-    """One name part appears in the question: same word up to plurals, the same root ("injured" /
-    "injuries"), or a near-identical spelling, which catches typos ("countires" / "countries")."""
+    """One name part appears in the question: same word up to plurals, an abbreviation ("dept"), the same
+    root ("injured" / "injuries"), or a near-identical spelling, which catches typos ("countires")."""
     if _forms(p) & q:
+        return True
+    if any(_abbreviates(w, p) for w in q):
         return True
     if len(p) < 5:
         return False
     return any(len(w) >= 5 and (w[:5] == p[:5] or SequenceMatcher(None, p, w).ratio() >= 0.8) for w in q)
+
+
+def _abbreviates(w: str, p: str) -> bool:
+    """"dept" for department, "sub" for subject, "qty" for quantity: a short word of at least three
+    letters that starts like the name and whose letters all appear in it, in order."""
+    if not (3 <= len(w) < len(p) and w[0] == p[0] and len(w) >= 0.3 * len(p)):
+        return False
+    it = iter(p)
+    return all(ch in it for ch in w)
 
 
 def _named(name: str, q: set[str], joined: set[str]) -> bool:

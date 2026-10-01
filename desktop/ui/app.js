@@ -292,8 +292,12 @@ function turnHtml(it) {
     <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
     ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
-  if (it.unclear && !t.guess) return head + clarifyHtml(it);
-  const top = (it.unclear ? `<p class="note">${icon("info")}<span>This is the model's guess at what you meant. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
+  // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
+  // on one reading, in which case show it, saying that it is the model's reading.
+  const unanimous = it.ran && it.agree === 4;
+  const showGuess = t.guess ?? unanimous;
+  if (it.unclear && !showGuess) return head + clarifyHtml(it);
+  const top = (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
   if (!it.answered && t.reading == null) body = "";

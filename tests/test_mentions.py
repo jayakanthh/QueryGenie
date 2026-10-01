@@ -43,7 +43,8 @@ def test_questions_that_name_something_are_clear(tmp_path):
     for q in ["show me all students", "list the results", "average marks per subject",
               "Which department has the most?", "Show Asha's marks",          # a stored value
               "how many high schoolers are there?",                           # Highschooler
-              "list all studnets"]:                                           # a typo
+              "list all studnets",                                            # a typo
+              "which dept scored msot"]:                                      # an abbreviation
         assert not unclear(path, schema, q), q
 
 
