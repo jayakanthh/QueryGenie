@@ -236,12 +236,15 @@ makes it jump.
   top-left. Databases over ~32 columns start folded. Tapping a node opens a popover of ready-made
   questions and "Use in my question"; choices go into the compose field and are never sent without
   Return. A foreign key highlights its target table with a dashed outline and offers "Go to".
-- **Model settings:** an "Answering with" panel (model, where it runs, calibrated or not) above five
-  groups — Evaluated, Earlier prototype, Ollama, Your own model, Cloud services. Cloud services sit
-  under a standing notice of what is sent; each provider row shows its key state ("Key saved in
-  Keychain" / "No key"), a password field to add one, and a live model list from the provider.
-  Unavailable models stay listed, dimmed, with the reason. Every answer names the model that wrote it
-  and, when that model is not CodeS-1B, carries a "confidence not calibrated" note under the verdict.
+- **Model settings:** an "Answering with" panel (model, where it runs, calibrated or not) above a grid
+  of provider tiles in two groups, "On this computer" and "Cloud services" (the latter under a standing
+  note of what is sent). A tile is the provider's logo on a neutral square, its name and one status line
+  ("Running · 5 models", "Key saved · 2 in picker"); the provider in use has an accent outline and
+  "In use". A tile opens the provider's page: back button, logo, one-line description, the API key
+  (cloud) or server address, and a model list where each row has Use and an on/off switch for the
+  picker; models can be added by name. Logos are from Lobe Icons (MIT; trademarks of their owners),
+  single-colour ones in the ink colour. Every answer names the model that wrote it and, when that model
+  is not CodeS-1B, carries a "confidence not calibrated" note under the verdict.
 - **Setup assistant:** step rail (Welcome · Your computer · Download · Ready) beside a content panel;
   a transform-animated progress meter with GB, MB/s and time left.
 

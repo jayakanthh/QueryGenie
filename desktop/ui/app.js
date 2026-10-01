@@ -801,7 +801,7 @@ async function openSettings() {
     return `<label class="opt"><input type="radio" name="mode" value="${k}" ${S.mode === k ? "checked" : ""}><div><b>${label}</b>
       <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
   $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
-  S.boot = await api.boot(); renderModelPanel();
+  S.boot = await api.boot(); S.provider = null; renderModelPanel();
   const st = await api.storage();
   $("#storage-kv").innerHTML = `<dt>App data</dt><dd>${esc(st.app_dir)}</dd><dt>Models</dt><dd>${esc(st.models_dir)}</dd><dt>Databases</dt><dd>${esc(st.data_dir)}</dd>`;
   $("#clear-history").onclick = async () => {
@@ -836,38 +836,38 @@ async function openModelMenu() {
   m.innerHTML = `<div class="sk" style="width:60%;margin:10px"></div>`; m.hidden = false; placeModelMenu();
   pill.setAttribute("aria-expanded", "true");
   const q = await api.models_quick(), cur = q.current;
-  const isCur = (o) => (o.spec ? cur.kind === o.spec.kind && cur.model === o.spec.model && (cur.base_url || "") === (o.spec.base_url || "")
-                               : cur.kind === "evaluated" && q.current_model === o.evaluated);
-  const GROUP = { Evaluated: "Evaluated · on this computer", "Earlier prototype": "Earlier prototype · on this computer",
-                  Ollama: "Ollama · on this computer", Recent: "Recently used" };
-  const groups = [...new Set(q.options.map((o) => o.group))];
+  await loadProviderIcons();
+  const isCur = (o) => (o.evaluated ? cur.kind === "evaluated" && q.current_model === o.evaluated
+                                    : cur.kind === o.spec.kind && cur.model === o.spec.model && (cur.base_url || "") === (o.spec.base_url || ""));
+  const flat = [];
   let html = "";
   if (cur.effort_levels) {
     html += `<h4>Effort</h4>` + [null, ...cur.effort_levels].map((lvl) => `
       <button role="menuitemradio" aria-checked="${(cur.effort || null) === lvl}" data-effort="${lvl ?? ""}"><span class="mm-l"><span>${lvl ? EFFORT_NAME[lvl] : "Default"}</span></span>${(cur.effort || null) === lvl ? icon("check", "i sm") : ""}</button>`).join("");
     html += `<p class="mm-note">Higher effort thinks longer — slower, and costlier on paid services. Models that can't reason reject it.</p><hr>`;
   }
-  html += groups.map((g) => `<h4>${esc(GROUP[g] || g)}</h4>` + q.options.map((o, i) => o.group !== g ? "" : `
-    <button role="menuitemradio" aria-checked="${isCur(o)}" data-opt="${i}" title="${esc(o.label)}"><span class="mm-l"><span>${esc(shortName(o.label))}</span>
-      ${o.calibrated ? `<span class="mm-sub">Accuracy measured on Spider</span>` : o.cloud ? `<span class="mm-sub">${esc(o.where)} · cloud</span>` : ""}</span>
-      ${isCur(o) ? icon("check", "i sm") : ""}</button>`).join("")).join("");
+  html += q.groups.map((g) => `<h4 class="mm-group">${picon(g.icon, "pi sm")}${esc(g.name)}${g.cloud ? " · cloud" : ""}</h4>` + g.models.map((o) => {
+    const i = flat.push({ ...o, cloud: g.cloud }) - 1;
+    return `<button role="menuitemradio" aria-checked="${isCur(o)}" data-opt="${i}" title="${esc(o.label)}"><span class="mm-l"><span>${esc(shortName(o.label))}</span>
+      ${o.evaluated === "codes-1b-spider" ? `<span class="mm-sub">Accuracy measured on Spider</span>` : ""}</span>${isCur(o) ? icon("check", "i sm") : ""}</button>`;
+  }).join("")).join("");
   if (!cur.effort_levels && (cur.kind === "evaluated" || ["mlx", "gguf", "hf"].includes(cur.kind))) {
     html += `<hr><p class="mm-note">CodeS models have no effort setting: every question gets four candidate queries${cur.calibrated ? " — the evaluated setup" : ""}.</p>`;
   }
-  html += `<hr><button data-more>${icon("settings", "i sm")}<span class="mm-l"><span>More models…</span><span class="mm-sub">Ollama, your own, OpenAI, Claude, Gemini, Grok…</span></span></button>`;
+  html += `<hr><button data-more>${icon("settings", "i sm")}<span class="mm-l"><span>More models…</span><span class="mm-sub">Switch models on or off, add cloud services</span></span></button>`;
   m.innerHTML = html; placeModelMenu();
   $$("[data-opt]", m).forEach((b) => (b.onclick = async () => {
-    const o = q.options[+b.dataset.opt]; closeModelMenu();
-    if (o.cloud && !confirm(`Use ${o.label} (${o.where})?\n\nFor every question, the database's schema, a few example values and the question are sent to ${o.where}. Result rows stay on this computer.`)) return;
-    if (!o.spec) await api.settings_set({ model: o.evaluated });
-    const r = await api.engine_set(o.spec); if (r.error) return alert(r.error);
+    const o = flat[+b.dataset.opt]; closeModelMenu();
+    if (o.cloud && !confirm(`Use ${o.label}?\n\nFor every question, the database's schema, a few example values and the question are sent to this service. Result rows stay on this computer.`)) return;
+    if (o.evaluated) await api.settings_set({ model: o.evaluated });
+    const r = await api.engine_set(o.evaluated ? null : o.spec); if (r.error) return alert(r.error);
     S.boot = await api.boot(); renderModelPill();
   }));
   $$("[data-effort]", m).forEach((b) => (b.onclick = async () => {
     closeModelMenu(); const r = await api.engine_effort(b.dataset.effort || null); if (r.error) return alert(r.error);
     S.boot = await api.boot(); renderModelPill();
   }));
-  $("[data-more]", m).onclick = async () => { closeModelMenu(); await openSettings(); $("[data-set=model]").click(); };
+  $("[data-more]", m).onclick = async () => { closeModelMenu(); S.provider = null; await openSettings(); $("[data-set=model]").click(); };
 }
 function placeModelMenu() {
   const m = $("#model-menu"), r = $("#model-pill").getBoundingClientRect();
@@ -876,119 +876,108 @@ function placeModelMenu() {
 }
 function closeModelMenu() { $("#model-menu").hidden = true; $("#model-pill").setAttribute("aria-expanded", "false"); }
 
-// ------------------------------------------------------------------ settings: which model answers
-// Groups: the evaluated model, the earlier prototype's models, Ollama, your own model, cloud services.
-// API keys go straight to the OS keychain through api.key_save and are never read back.
-const isCurrent = (spec) => { const e = S.models && S.models.engine;
-  return spec ? !!e && e.kind === spec.kind && e.model === spec.model && (e.base_url || "") === (spec.base_url || "") : !e; };
+// ------------------------------------------------------------------ settings: providers and their models
+// Settings -> Model is a grid of provider tiles; a tile opens that provider's page, where models are
+// switched on or off for the picker under the question box, chosen, or added by name. API keys go
+// straight to the OS keychain through api.key_save and are never read back.
+const PICON = {};
+async function loadProviderIcons() {
+  const keys = ["ollama", "anthropic", "openai", "gemini", "xai", "deepseek", "mistral", "groq", "openrouter", "together", "hf", "compat"];
+  await Promise.all(keys.filter((k) => !(k in PICON)).map(async (k) => {
+    try { PICON[k] = await (await fetch(`providers/${k}.svg`)).text(); } catch (e) { PICON[k] = ""; }
+  }));
+}
+function picon(key, cls = "pi") {
+  if (key === "brand") return `<span class="${cls}"><img src="brand/mark.png" alt=""></span>`;
+  return `<span class="${cls}" aria-hidden="true">${PICON[key] || icon("cpu")}</span>`;
+}
 function engineLine(cur) {
   const cal = cur.calibrated ? `${icon("circle-check", "i sm")}Accuracy measured on Spider` : `${icon("info", "i sm")}Confidence not calibrated for this model`;
   return `<div class="engine-now"><div><span class="lbl-sm">Answering with</span><b>${esc(cur.label)}</b>
     <span class="where">${cur.cloud ? `${esc(cur.where)} · sends the schema to the provider` : `Runs on this computer${cur.where && cur.where !== "this computer" ? " · " + esc(cur.where) : ""}`}</span></div>
     <span class="cal ${cur.calibrated ? "ok" : ""}">${cal}</span></div>`;
 }
-function radioOpt(spec, title, sub, disabled = false, extra = "") {
-  return `<label class="opt${disabled ? " off" : ""}"><input type="radio" name="engine" data-spec='${esc(JSON.stringify(spec))}' ${isCurrent(spec) && !disabled ? "checked" : ""} ${disabled ? "disabled" : ""}>
-    <div><b>${esc(title)}</b><span>${sub}</span>${extra}</div></label>`;
-}
 async function renderModelPanel() {
   const box = $("#model-panel");
+  if (S.provider) return renderProvider(S.provider);
   box.innerHTML = `<div class="sk" style="width:70%"></div>`;
-  S.models = await api.models_catalog(); const M = S.models;
-  const s = await api.settings_get();
-  const evaluated = M.evaluated.map((m) => {
-    const cur = !M.engine && s.model === m.key;
-    return `<label class="opt${m.installed ? "" : " off"}"><input type="radio" name="engine" data-evaluated="${m.key}" ${cur ? "checked" : ""} ${m.installed ? "" : "disabled"}><div>
-      <b>${esc(m.label)} · ${m.size_gb} GB</b><span>${m.calibrated ? "The evaluated model — 77.8% on Spider, 83.3% when it may decline." : "Larger; uses the confidence threshold measured on 1B."}
-      ${m.installed ? "" : ` Not installed — <button class="btn quiet link" data-dl="${m.key}">Download</button>`}</span></div></label>`; }).join("");
-  const legacy = M.legacy.map((m) => radioOpt({ kind: m.kind, model: m.model, label: m.label }, m.label,
-    esc(m.available ? m.note : m.why), !m.available)).join("");
-  const ollama = M.ollama.running
-    ? (M.ollama.models.length ? M.ollama.models.map((m) => radioOpt({ kind: "ollama", model: m.id, label: m.id }, m.id, `${m.size_gb} GB · Ollama`)).join("")
-      : `<p class="note">${icon("info")}Ollama is running but has no models. Pull one in Terminal, e.g. <code>ollama pull qwen2.5-coder</code>, then <button class="btn quiet link" data-refresh>refresh</button>.</p>`)
-    : `<p class="note">${icon("info")}<span>Ollama isn't running. Install it from ollama.com, start it, pull a model (for example <code>ollama pull qwen2.5-coder</code>), then <button class="btn quiet link" data-refresh>refresh</button>.</span></p>`;
-  const cloud = M.cloud.map((c) => `
-    <div class="cloud-row" data-provider="${c.kind}">
-      <div class="cloud-top"><b>${esc(c.name)}</b>
-        <span class="key-state ${c.key_saved ? "ok" : ""}">${c.key_saved ? icon("lock", "i sm") + "Key saved in Keychain" : "No key"}</span>
-        <span style="flex:1"></span>
-        <button class="btn quiet" data-key>${c.key_saved ? "Change key" : "Add key"}</button>
-        ${c.key_saved ? `<button class="btn" data-load>Choose model</button>` : ""}</div>
-      <div class="cloud-key" hidden><input class="input" type="password" autocomplete="off" placeholder="Paste your ${esc(c.name)} API key" aria-label="${esc(c.name)} API key">
-        <button class="btn primary" data-save>Save</button>${c.key_saved ? `<button class="btn quiet" data-forget>Remove key</button>` : ""}</div>
-      <div class="cloud-models" hidden></div>
-      <div class="form-msg bad" data-msg></div>
-    </div>`).join("");
-  box.innerHTML = engineLine(M.current) + `
-    <section class="mgroup"><h3>Evaluated model</h3><div class="stack tight">${evaluated}</div></section>
-    <section class="mgroup"><h3>Earlier prototype models</h3><p class="gnote">CodeS models from the Gradio prototype. Same prompt and confidence check; accuracy not measured in this app.</p><div class="stack tight">${legacy}</div></section>
-    <section class="mgroup"><h3>Ollama <span class="tag">on this computer</span></h3><div class="stack tight">${ollama}</div></section>
-    <section class="mgroup"><h3>Your own model</h3>
-      <div class="own"><label class="lbl-sm" for="own-hf">A CodeS-format model — Hugging Face name or a folder on this computer</label>
-        <div class="row-in"><input class="input" id="own-hf" placeholder="e.g. seeklhy/codes-7b-spider or /path/to/model" value="${esc(M.engine && M.engine.kind === "hf" ? M.engine.model : "")}"><button class="btn" data-own-hf>Use</button></div></div>
-      <div class="own"><label class="lbl-sm" for="own-url">Any OpenAI-compatible server — LM Studio, vLLM, llama.cpp server, or a hosted endpoint</label>
-        <div class="row-in"><input class="input" id="own-url" placeholder="http://localhost:1234/v1" value="${esc(M.engine && M.engine.kind === "compat" ? M.engine.base_url : "")}"><button class="btn" data-own-load>Load models</button></div>
-        <div class="row-in"><input class="input" id="own-key" type="password" autocomplete="off" placeholder="${M.compat_key_saved ? "API key saved in Keychain — paste to replace" : "API key (only if the server needs one)"}"></div>
-        <div class="own-models"></div><div class="form-msg bad" id="own-msg"></div></div>
-    </section>
-    <section class="mgroup"><h3>Cloud services</h3>
-      <p class="warn">${icon("triangle-alert", "i sm")}<span>These send your database's <b>schema, a few example values and your question</b> to the provider. The query itself runs here, so result rows stay on this computer. Each question costs four requests on your account. Confidence is not calibrated for these models.</span></p>
-      <div class="stack tight">${cloud}</div>
-      <p class="gnote">OpenRouter gives access to hundreds of models from many labs through one key. Any other service with an OpenAI-compatible API can be added under "Your own model".</p>
-    </section>`;
-  wireModelPanel();
-}
-async function useEngine(spec, el) {
-  if (spec && spec.kind && S.models.cloud.some((c) => c.kind === spec.kind)) {
-    const name = S.models.cloud.find((c) => c.kind === spec.kind).name;
-    if (!confirm(`Use ${spec.model} from ${name}?\n\nFor every question, the database's schema, a few example values and the question are sent to ${name}. Result rows stay on this computer.`)) { if (el) el.checked = false; return renderModelPanel(); }
-  }
-  const r = await api.engine_set(spec);
-  if (r.error) { alert(r.error); return; }
-  S.boot = await api.boot(); renderModelPanel(); renderModelPill();
-}
-function wireModelPanel() {
-  const box = $("#model-panel");
-  $$("input[name=engine]", box).forEach((i) => (i.onchange = async () => {
-    if (i.dataset.evaluated) { await api.settings_set({ model: i.dataset.evaluated }); return useEngine(null, i); }
-    useEngine(JSON.parse(i.dataset.spec), i);
-  }));
-  $$("[data-dl]", box).forEach((b) => (b.onclick = async (e) => { e.preventDefault(); await api.setup_start(b.dataset.dl, false); pollModel(); }));
-  $$("[data-refresh]", box).forEach((b) => (b.onclick = (e) => { e.preventDefault(); renderModelPanel(); }));
-  $$(".cloud-row", box).forEach((row) => {
-    const kind = row.dataset.provider, msg = $("[data-msg]", row);
-    $("[data-key]", row).onclick = () => { const k = $(".cloud-key", row); k.hidden = !k.hidden; if (!k.hidden) $("input", k).focus(); };
-    $("[data-save]", row).onclick = async () => {
-      const inp = $(".cloud-key input", row); if (!inp.value.trim()) return;
-      const r = await api.key_save(kind, inp.value); inp.value = "";
-      if (r.error) { msg.textContent = r.error; return; }
-      await renderModelPanel(); const again = $(`.cloud-row[data-provider=${kind}] [data-load]`); if (again) again.click();
-    };
-    const forget = $("[data-forget]", row); if (forget) forget.onclick = async () => { await api.key_save(kind, null); renderModelPanel(); };
-    const load = $("[data-load]", row);
-    if (load) load.onclick = async () => {
-      const list = $(".cloud-models", row); list.hidden = false; list.innerHTML = `<div class="sk" style="width:50%"></div>`; msg.textContent = "";
-      const r = await api.provider_models(kind);
-      if (r.error) { list.hidden = true; msg.textContent = r.error; return; }
-      pickerInto(list, r.models, (id) => ({ kind, model: id, label: id }));
-    };
-  });
-  $("[data-own-hf]", box).onclick = () => { const v = $("#own-hf").value.trim(); if (v) useEngine({ kind: "hf", model: v, label: v.split("/").pop() }); };
-  $("[data-own-load]", box).onclick = async () => {
-    const url = $("#own-url").value.trim(), key = $("#own-key").value, out = $(".own-models", box); $("#own-msg").textContent = "";
-    if (!url) return;
-    if (key) { await api.key_save("compat", key); $("#own-key").value = ""; }
-    out.innerHTML = `<div class="sk" style="width:50%"></div>`;
-    const r = await api.provider_models("compat", url);
-    if (r.error) { out.innerHTML = ""; $("#own-msg").textContent = r.error; return; }
-    pickerInto(out, r.models, (id) => ({ kind: "compat", model: id, label: id, base_url: url }));
+  await loadProviderIcons();
+  const o = await api.providers_overview();
+  const tile = (t) => {
+    const status = (t.current ? "In use · " : "") + t.status;
+    return `<button class="ptile${t.current ? " cur" : ""}" data-provider="${t.key}" title="${esc(t.detail || t.name)} — ${esc(status)}">
+      ${picon(t.icon)}<span class="pt-text"><b>${esc(t.detail || t.name)}</b><span>${esc(status)}</span></span></button>`;
   };
+  box.innerHTML = engineLine(o.current) + `
+    <section class="mgroup"><h3>On this computer</h3><div class="ptiles">${o.tiles.filter((t) => t.group === "local").map(tile).join("")}</div></section>
+    <section class="mgroup"><h3>Cloud services</h3>
+      <p class="gnote">These receive your database's schema, a few example values and the question — never result rows — and each question costs four requests on your account.</p>
+      <div class="ptiles">${o.tiles.filter((t) => t.group === "cloud").map(tile).join("")}</div></section>`;
+  $$("[data-provider]", box).forEach((b) => (b.onclick = () => { S.provider = b.dataset.provider; renderProvider(S.provider); }));
 }
-function pickerInto(el, models, toSpec) {
-  if (!models.length) { el.innerHTML = `<p class="gnote">No models offered.</p>`; return; }
-  el.innerHTML = `<div class="row-in"><select class="input" aria-label="Model">${models.map((m) => `<option value="${esc(m.id)}">${esc(m.name ? `${m.name} (${m.id})` : m.id)}</option>`).join("")}</select>
-    <button class="btn primary" data-use>Use this model</button></div>`;
-  $("[data-use]", el).onclick = () => useEngine(toSpec($("select", el).value));
+const PROVIDER_INFO = {
+  evaluated: ["Evaluated model", "brand", "The CodeS model whose accuracy was measured on Spider. It runs on this computer."],
+  legacy: ["Earlier prototype", "brand", "CodeS models from the Gradio prototype. Same prompt and confidence check; their accuracy was not measured in this app."],
+  ollama: ["Ollama", "ollama", "Runs any model you have pulled in Ollama, on this computer. Pull more in Terminal, e.g. ollama pull qwen2.5-coder."],
+  hf: ["Your CodeS model", "hf", "A CodeS-format model from Hugging Face or a folder on this computer — for example a CodeS fine-tune of your own."],
+  compat: ["OpenAI-compatible server", "compat", "LM Studio, vLLM, a llama.cpp server, or any hosted endpoint with an OpenAI-style API."],
+};
+async function renderProvider(key) {
+  const box = $("#model-panel");
+  box.innerHTML = `<div class="sk" style="width:60%"></div>`;
+  await loadProviderIcons();
+  const [o, d] = await Promise.all([api.providers_overview(), api.provider_detail(key)]);
+  const t = o.tiles.find((x) => x.key === key);
+  const [name, ic, blurb] = PROVIDER_INFO[key] || [t.detail || t.name, t.icon, "A cloud service. It receives the schema, a few example values and the question for every question; result rows stay on this computer."];
+  let html = `<div class="phead"><button class="btn quiet icon" data-back title="All providers" aria-label="All providers">${icon("chevron-right", "i flip")}</button>
+      ${picon(ic, "pi lg")}<div><h3>${esc(name)}</h3><p>${esc(blurb)}</p></div></div>`;
+  if (d.cloud) {
+    html += `<div class="prow"><div><b>API key</b><span>${d.key_saved ? `${icon("lock", "i sm")}Saved in your ${S.os === "mac" ? "Keychain" : "Credential Manager"}` : "Not added"}</span></div>
+      <div class="pkey"><input class="input" type="password" autocomplete="off" placeholder="${d.key_saved ? "Paste a new key to replace it" : `Paste your ${esc(name)} API key`}" aria-label="API key">
+      <button class="btn primary" data-key-save>Save</button>${d.key_saved ? `<button class="btn quiet" data-key-remove>Remove</button>` : ""}</div></div>`;
+  }
+  if (key === "compat") {
+    html += `<div class="prow"><div><b>Server address</b><span>The OpenAI-style base address, ending in /v1</span></div>
+      <div class="pkey"><input class="input" id="p-url" value="${esc(d.base_url || "")}" placeholder="http://localhost:1234/v1" aria-label="Server address"><button class="btn" data-url-save>Save</button></div></div>
+      <div class="prow"><div><b>API key</b><span>${d.key_saved ? `${icon("lock", "i sm")}Saved` : "Only if the server needs one"}</span></div>
+      <div class="pkey"><input class="input" type="password" autocomplete="off" placeholder="Optional" aria-label="API key"><button class="btn" data-key-save>Save</button>${d.key_saved ? `<button class="btn quiet" data-key-remove>Remove</button>` : ""}</div></div>`;
+  }
+  if (d.error) html += `<p class="form-msg bad">${esc(d.error)}</p>`;
+  const rows = d.models.map((m, i) => `
+    <div class="mrow${m.available ? "" : " off"}${m.current ? " cur" : ""}">
+      <div class="mr-l"><b title="${esc(m.label)}">${esc(m.label)}</b>${m.note ? `<span>${esc(m.note)}</span>` : ""}</div>
+      ${m.evaluated && !m.available ? `<button class="btn" data-dl="${m.evaluated}">${icon("download", "i sm")}Download${m.size_gb ? ` · ${m.size_gb} GB` : ""}</button>`
+        : m.current ? `<span class="pt-badge cur">${icon("check", "i sm")}In use</span>`
+        : `<button class="btn" data-use="${i}" ${m.available ? "" : "disabled"}>Use</button>`}
+      ${key === "evaluated" ? "" : `<label class="switch" title="${m.on ? "Shown" : "Hidden"} in the model picker"><input type="checkbox" role="switch" data-toggle="${i}" ${m.on ? "checked" : ""} ${m.available ? "" : "disabled"} aria-label="Show ${esc(m.label)} in the model picker"><span></span></label>`}
+      ${m.custom ? `<button class="btn quiet icon" data-remove-model="${i}" title="Remove" aria-label="Remove ${esc(m.label)}">${icon("x", "i sm")}</button>` : ""}
+    </div>`).join("");
+  const empty = d.cloud && !d.key_saved ? "Add your API key to see this service's models." : key === "compat" && !d.base_url ? "Save the server's address to see its models." : "No models yet.";
+  html += `<div class="mlist"><div class="ml-head"><span>Model</span><span>In picker</span></div>${rows || `<p class="gnote" style="padding:10px 12px">${empty}</p>`}</div>`;
+  if (d.can_add) html += `<div class="padd"><input class="input" id="p-add" placeholder="${key === "hf" ? "e.g. seeklhy/codes-7b-spider, or /path/to/model" : "Add a model by name"}" aria-label="Model name"><button class="btn" data-add>${icon("plus", "i sm")}Add</button></div>`;
+  box.innerHTML = html;
+  const msg = (text) => { let p = $(".form-msg.bad", box); if (!p) { p = document.createElement("p"); p.className = "form-msg bad"; $(".phead", box).after(p); } p.textContent = text; };
+  $("[data-back]", box).onclick = () => { S.provider = null; renderModelPanel(); };
+  $$("[data-use]", box).forEach((b) => (b.onclick = () => useEngine(d.models[+b.dataset.use], d)));
+  $$("[data-toggle]", box).forEach((c) => (c.onchange = async () => { await api.provider_toggle(key, d.models[+c.dataset.toggle].id, c.checked); }));
+  $$("[data-remove-model]", box).forEach((b) => (b.onclick = async () => { await api.provider_remove_model(key, d.models[+b.dataset.removeModel].id); renderProvider(key); }));
+  $$("[data-dl]", box).forEach((b) => (b.onclick = async () => { await api.setup_start(b.dataset.dl, false); pollModel(); }));
+  const add = $("[data-add]", box);
+  if (add) { const go = async () => { const v = $("#p-add").value.trim(); if (!v) return; const r = await api.provider_add_model(key, v); if (r.error) return msg(r.error); renderProvider(key); };
+    add.onclick = go; $("#p-add").onkeydown = (e) => { if (e.key === "Enter") go(); }; }
+  const save = $("[data-key-save]", box);
+  if (save) save.onclick = async () => { const inp = save.previousElementSibling; if (!inp.value.trim()) return;
+    const r = await api.key_save(key, inp.value); inp.value = ""; if (r.error) return msg(r.error); renderProvider(key); };
+  const rm = $("[data-key-remove]", box); if (rm) rm.onclick = async () => { await api.key_save(key, null); renderProvider(key); };
+  const url = $("[data-url-save]", box); if (url) url.onclick = async () => { await api.provider_set_url(key, $("#p-url").value); renderProvider(key); };
+}
+async function useEngine(m, d) {
+  if (d && d.cloud && !confirm(`Use ${m.label}?\n\nFor every question, the database's schema, a few example values and the question are sent to this service. Result rows stay on this computer.`)) return;
+  if (m.evaluated) await api.settings_set({ model: m.evaluated });
+  const r = await api.engine_set(m.evaluated ? null : m.spec);
+  if (r.error) { alert(r.error); return; }
+  S.boot = await api.boot(); renderModelPill();
+  if (S.provider) renderProvider(S.provider); else renderModelPanel();
 }
 async function pollModel() {
   const s = await api.setup_status(); const el = $("#model-dl");

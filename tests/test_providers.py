@@ -152,3 +152,29 @@ def test_effort_levels_per_provider(monkeypatch):
     assert providers.effort_levels("gemini") is None and providers.effort_levels("mlx") is None
     be = providers.build({"kind": "compat", "model": "m", "base_url": "http://localhost:1/v1", "effort": "turbo"}, {})
     assert be.effort is None                               # unknown levels are ignored, never sent
+
+
+def test_provider_switches_drive_the_picker(tmp_path, monkeypatch):
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "desktop"))
+    import api
+    monkeypatch.setattr(api, "SETTINGS", str(tmp_path / "settings.json"))
+    monkeypatch.setattr(providers, "list_models",
+                        lambda kind, base_url=None, key_name=None: [{"id": "llama3:8b", "size_gb": 4.7}, {"id": "qwen:7b", "size_gb": 4.4}]
+                        if kind == "ollama" else [{"id": "gpt-x"}, {"id": "gpt-y"}])
+    monkeypatch.setattr(providers, "key_saved", lambda p: p == "openai")
+    a = api.Api.__new__(api.Api)
+    names = lambda: {g["key"]: [m["id"] for m in g["models"]] for g in a.models_quick()["groups"]}
+
+    assert names()["ollama"] == ["llama3:8b", "qwen:7b"]           # found on this computer: on by default
+    assert "openai" not in names()                                  # cloud: off until switched on
+    a.provider_toggle("ollama", "qwen:7b", False)
+    a.provider_toggle("openai", "gpt-y", True)
+    assert names()["ollama"] == ["llama3:8b"] and names()["openai"] == ["gpt-y"]
+    a.provider_add_model("openai", "gpt-custom")
+    assert names()["openai"] == ["gpt-custom", "gpt-y"]
+    a.engine_set({"kind": "ollama", "model": "qwen:7b", "label": "qwen:7b"})   # choosing a model switches it on
+    assert names()["ollama"] == ["llama3:8b", "qwen:7b"]
+    tile = {t["key"]: t for t in a.providers_overview()["tiles"]}
+    assert tile["ollama"]["current"] and tile["openai"]["status"] == "Key saved · 2 in picker"
+    a.provider_remove_model("openai", "gpt-custom")
+    assert names()["openai"] == ["gpt-y"]

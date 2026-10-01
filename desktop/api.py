@@ -243,37 +243,6 @@ class Api:
                 "where": where, "calibrated": False, "cloud": cloud, "base_url": spec.get("base_url"),
                 "effort": spec.get("effort"), "effort_levels": effort_levels(kind)}
 
-    def models_catalog(self):
-        """Everything the Model settings can offer, with what is available on this computer."""
-        import importlib.util
-        from querygenie import providers
-        s = self.settings_get()
-        found = self._legacy_paths()
-        runtime = {"mlx": importlib.util.find_spec("mlx_lm") is not None,
-                   "gguf": importlib.util.find_spec("llama_cpp") is not None, "hf": True}
-        legacy = []
-        for kind, name, label, note in LEGACY_MODELS:
-            if not runtime[kind]:
-                why = "Needs " + ("mlx-lm (Apple Silicon)" if kind == "mlx" else "llama-cpp-python") + \
-                      " — run QueryGenie from source with requirements-apple.txt"
-            elif kind != "hf" and name not in found:
-                why = "Model files not found" + (" — build with legacy/scripts/convert_mlx.py" if kind == "mlx" else "")
-            else:
-                why = None
-            legacy.append({"kind": kind, "model": name, "label": label, "note": note, "available": why is None,
-                           "why": why})
-        try:
-            ollama = {"running": True, "models": providers.list_models("ollama")}
-        except providers.ProviderError:
-            ollama = {"running": False, "models": []}
-        cloud = [{"kind": k, "name": v["name"], "key_saved": providers.key_saved(k)} for k, v in providers.CLOUD.items()]
-        return {"current": self._engine_info(), "engine": s.get("engine"),
-                "evaluated": [{"key": k, "label": v[1], "installed": st.model_installed(k),
-                               "size_gb": round(v[2] / 1e9, 1) if v[2] else None, "calibrated": k == "codes-1b-spider"}
-                              for k, v in st.MODELS.items()],
-                "legacy": legacy, "ollama": ollama, "cloud": cloud,
-                "compat_key_saved": providers.key_saved("compat")}
-
     def provider_models(self, kind, base_url=None):
         """Ask a service which models it offers (also a quick check that the key or server works)."""
         from querygenie import providers
@@ -297,6 +266,14 @@ class Api:
             if spec.get("kind") not in ENGINE_KINDS or not spec.get("model"):
                 return {"error": "Choose a model first."}
             spec = {k: spec[k] for k in ("kind", "model", "label", "base_url", "effort") if spec.get(k)}
+        if spec:
+            key = self._provider_of(spec)
+            conf = self._pconf(self.settings_get(), key)
+            if key in ("legacy", "ollama"):
+                conf["hidden"] = [m for m in conf["hidden"] if m != spec["model"]]
+            elif spec["model"] not in conf["enabled"] + conf["custom"]:
+                conf["enabled"].append(spec["model"])
+            self._save_pconf(key, conf)
         s = self.settings_get(); s["engine"] = spec
         if spec:
             same = lambda e: (e.get("kind"), e.get("model"), e.get("base_url")) == (spec["kind"], spec["model"], spec.get("base_url"))
@@ -315,31 +292,205 @@ class Api:
             return {"error": "This model has no such effort level."}
         return self.engine_set({**spec, "effort": effort} if effort else {k: v for k, v in spec.items() if k != "effort"})
 
-    def models_quick(self):
-        """Short list for the model picker in the question box: the evaluated models, what's available on
-        this computer, and cloud or server models chosen before."""
-        import importlib.util
+    # ---------------------------------------------------------------- providers (Settings -> Model tiles)
+    # Per provider, settings["providers"][key] keeps: "hidden" (discovered models switched off),
+    # "enabled" (listed models switched on), "custom" (model names typed in) and, for a server, "base_url".
+    # Models found on this computer (legacy, Ollama) are on by default; cloud models are off until enabled.
+    LOCAL_PROVIDERS = [("evaluated", "Evaluated model", "brand"), ("legacy", "Earlier prototype", "brand"),
+                       ("ollama", "Ollama", "ollama"), ("hf", "Your CodeS model", "hf"),
+                       ("compat", "OpenAI-compatible server", "compat")]
+
+    def _pconf(self, s, key):
+        return {"hidden": [], "enabled": [], "custom": [], **(s.get("providers", {}).get(key) or {})}
+
+    def _save_pconf(self, key, conf):
         s = self.settings_get()
-        out = [{"spec": None, "evaluated": k, "label": v[1], "group": "Evaluated", "calibrated": k == "codes-1b-spider"}
-               for k, v in st.MODELS.items() if st.model_installed(k)]
-        found = self._legacy_paths()
-        runtime = {"mlx": importlib.util.find_spec("mlx_lm") is not None, "gguf": importlib.util.find_spec("llama_cpp") is not None}
-        for kind, name, label, _note in LEGACY_MODELS:
-            if kind != "hf" and runtime.get(kind) and name in found:
-                out.append({"spec": {"kind": kind, "model": name, "label": label}, "label": label, "group": "Earlier prototype"})
+        s.setdefault("providers", {})[key] = conf
+        json.dump(s, open(SETTINGS, "w"), indent=2)
+
+    @staticmethod
+    def _provider_of(spec):
+        if not spec:
+            return "evaluated"
+        legacy_names = {name for _k, name, *_ in LEGACY_MODELS}
+        if spec["kind"] in ("mlx", "gguf") or (spec["kind"] == "hf" and spec["model"] in legacy_names):
+            return "legacy"
+        return spec["kind"]
+
+    def _is_current(self, s, spec, evaluated=None):
+        e = s.get("engine")
+        if evaluated:
+            return not e and s["model"] == evaluated
+        return bool(e) and (e["kind"], e["model"], e.get("base_url")) == (spec["kind"], spec["model"], spec.get("base_url"))
+
+    def _provider_models(self, key, s, live=None):
+        """Models of one provider: [{id, label, spec, on, current, available, note, custom}]."""
+        import importlib.util
+        conf, out = self._pconf(s, key), []
+        if key == "evaluated":
+            for k, v in st.MODELS.items():
+                out.append({"id": k, "label": v[1], "spec": None, "evaluated": k, "on": True, "custom": False,
+                            "current": self._is_current(s, None, k), "available": st.model_installed(k),
+                            "note": ("Accuracy measured on Spider: 77.8%, 83.3% when it may decline" if k == "codes-1b-spider"
+                                     else "Uses the confidence threshold measured on 1B") +
+                                    ("" if st.model_installed(k) else " · not downloaded"),
+                            "size_gb": round(v[2] / 1e9, 1) if v[2] else None})
+            return out
+        if key == "legacy":
+            found = self._legacy_paths()
+            runtime = {"mlx": importlib.util.find_spec("mlx_lm") is not None,
+                       "gguf": importlib.util.find_spec("llama_cpp") is not None, "hf": True}
+            for kind, name, label, note in LEGACY_MODELS:
+                ok = runtime[kind] and (kind == "hf" or name in found)
+                why = (None if ok else "Needs " + ("mlx-lm (Apple Silicon)" if kind == "mlx" else "llama-cpp-python") +
+                       " — run from source with requirements-apple.txt" if not runtime[kind] else
+                       "Model files not found" + (" — build with legacy/scripts/convert_mlx.py" if kind == "mlx" else ""))
+                spec = {"kind": kind, "model": name, "label": label}
+                out.append({"id": name, "label": label, "spec": spec, "on": ok and name not in conf["hidden"],
+                            "current": self._is_current(s, spec), "available": ok, "note": note if ok else why, "custom": False})
+            return out
+        cloud = key not in ("ollama", "hf", "compat")
+        base = conf.get("base_url") if key == "compat" else None
+        ids = []
+        for m in (live or []):
+            ids.append((m["id"], m.get("name") or "", False, m.get("size_gb")))
+        for c in conf["custom"]:
+            if c not in [i[0] for i in ids]:
+                ids.append((c, "", True, None))
+        for c in conf["enabled"]:
+            if c not in [i[0] for i in ids]:
+                ids.append((c, "", False, None))
+        for mid, name, custom, size in ids:
+            spec = {"kind": key, "model": mid, "label": mid}
+            if base:
+                spec["base_url"] = base
+            on = (mid not in conf["hidden"]) if key == "ollama" and not custom else (mid in conf["enabled"] or custom)
+            note = name if name and name != mid else ""
+            if size:
+                note = f"{size} GB" + (f" · {note}" if note else "")
+            out.append({"id": mid, "label": mid, "spec": spec, "on": on, "current": self._is_current(s, spec),
+                        "available": True, "note": note, "custom": custom})
+        return out
+
+    def providers_overview(self):
+        """The tiles: one per provider, with a one-line status."""
         from querygenie import providers
-        try:
-            for m in providers.list_models("ollama"):
-                out.append({"spec": {"kind": "ollama", "model": m["id"], "label": m["id"]}, "label": m["id"], "group": "Ollama"})
-        except providers.ProviderError:
-            pass
-        seen = {(o["spec"] or {}).get("model") for o in out}
-        for e in s.get("recent_engines", []):
-            if e.get("model") not in seen and e.get("kind") not in ("mlx", "gguf", "ollama"):
-                info = self._engine_info(e)
-                out.append({"spec": {k: v for k, v in e.items() if k != "effort"}, "label": info["label"],
-                            "group": "Recent", "where": info["where"], "cloud": info["cloud"]})
-        return {"current": self._engine_info(), "current_model": s["model"], "options": out}
+        s = self.settings_get()
+        cur = self._provider_of(s.get("engine"))
+        tiles = []
+        for key, name, icon in self.LOCAL_PROVIDERS:
+            conf = self._pconf(s, key)
+            running = True
+            if key == "ollama":
+                try:
+                    models = self._provider_models(key, s, providers.list_models("ollama"))
+                except providers.ProviderError:
+                    models, running = self._provider_models(key, s, []), False
+            else:
+                models = self._provider_models(key, s)
+            avail = [m for m in models if m["available"]]
+            on = sum(m["on"] for m in avail)
+            counted = (f"{len(avail)} model{'' if len(avail) == 1 else 's'}" if on == len(avail)
+                       else f"{on} of {len(avail)} in picker")
+            if key == "evaluated":
+                status = "Measured on Spider" if avail else "Not downloaded"
+            elif key == "ollama":
+                status = f"Running · {counted}" if running else "Not running"
+            elif key == "compat":
+                status = conf.get("base_url") or "Not set up"
+            elif key == "hf":
+                status = f"{len(models)} added" if models else "Add a model by name"
+            else:
+                status = counted
+            tiles.append({"key": key, "name": name, "icon": icon, "group": "local", "status": status,
+                          "on": on, "current": cur == key})
+        for key, meta in providers.CLOUD.items():
+            conf = self._pconf(s, key)
+            saved = providers.key_saved(key)
+            on = len(set(conf["enabled"]) | set(conf["custom"])) if saved else 0
+            status = ("Key saved" + (f" · {on} in picker" if on else "")) if saved else "No key"
+            tiles.append({"key": key, "name": meta["name"].split(" (")[0], "detail": meta["name"], "icon": key, "group": "cloud",
+                          "status": status, "on": on, "current": cur == key})
+        return {"tiles": tiles, "current": self._engine_info()}
+
+    def provider_detail(self, key):
+        """One provider's page. Cloud and server providers are asked for their live model list."""
+        from querygenie import providers
+        s = self.settings_get()
+        conf = self._pconf(s, key)
+        live, error = None, None
+        if key not in ("evaluated", "legacy", "hf"):
+            try:
+                if key == "compat":
+                    live = providers.list_models("compat", conf.get("base_url")) if conf.get("base_url") else None
+                elif key == "ollama" or providers.key_saved(key):
+                    live = providers.list_models(key)
+            except providers.ProviderError as exc:
+                error = str(exc)
+        cloud = key in providers.CLOUD
+        return {"key": key, "cloud": cloud, "key_saved": providers.key_saved("compat" if key == "compat" else key) if (cloud or key == "compat") else None,
+                "base_url": conf.get("base_url"), "error": error, "models": self._provider_models(key, s, live),
+                "effort_levels": providers.effort_levels(key), "can_add": key not in ("evaluated", "legacy")}
+
+    def provider_toggle(self, key, model, on):
+        """Show or hide a model in the picker under the question box."""
+        s = self.settings_get()
+        conf = self._pconf(s, key)
+        discovered = key in ("legacy", "ollama") and model not in conf["custom"]
+        if discovered:
+            conf["hidden"] = [m for m in conf["hidden"] if m != model] + ([] if on else [model])
+        else:
+            conf["enabled"] = [m for m in conf["enabled"] if m != model] + ([model] if on else [])
+        self._save_pconf(key, conf)
+        return {"ok": True}
+
+    def provider_add_model(self, key, model):
+        model = (model or "").strip()
+        if not model or key in ("evaluated", "legacy"):
+            return {"error": "Type a model name."}
+        conf = self._pconf(self.settings_get(), key)
+        if model not in conf["custom"]:
+            conf["custom"].append(model)
+        self._save_pconf(key, conf)
+        return {"ok": True}
+
+    def provider_remove_model(self, key, model):
+        conf = self._pconf(self.settings_get(), key)
+        conf["custom"] = [m for m in conf["custom"] if m != model]
+        conf["enabled"] = [m for m in conf["enabled"] if m != model]
+        self._save_pconf(key, conf)
+        return {"ok": True}
+
+    def provider_set_url(self, key, url):
+        if key != "compat":
+            return {"error": "Only a server has an address."}
+        conf = self._pconf(self.settings_get(), key)
+        conf["base_url"] = (url or "").strip().rstrip("/") or None
+        self._save_pconf(key, conf)
+        return {"ok": True}
+
+    def models_quick(self):
+        """The picker under the question box: every model switched on, grouped by provider."""
+        from querygenie import providers
+        s = self.settings_get()
+        groups = []
+        for key, name, icon in self.LOCAL_PROVIDERS:
+            live = None
+            if key == "ollama":
+                try:
+                    live = providers.list_models("ollama")
+                except providers.ProviderError:
+                    live = []
+            items = [m for m in self._provider_models(key, s, live) if m["on"] and m["available"]]
+            if items:
+                groups.append({"key": key, "name": name, "icon": icon, "cloud": False, "models": items})
+        for key, meta in providers.CLOUD.items():
+            if not providers.key_saved(key):
+                continue
+            items = [m for m in self._provider_models(key, s) if m["on"]]
+            if items:
+                groups.append({"key": key, "name": meta["name"].split(" (")[0], "icon": key, "cloud": True, "models": items})
+        return {"current": self._engine_info(), "current_model": s["model"], "groups": groups}
 
     # ---------------------------------------------------------------- asking
     def _get_backend(self):
