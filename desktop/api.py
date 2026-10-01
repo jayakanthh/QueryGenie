@@ -377,11 +377,37 @@ class Api:
         run = ConfidentRun(question, d, mode)
         result = self._serialize(run, info)
         result["engine"] = self._engine_info()
+        result["unclear"] = self._unclear(info, question)
         chat_id = chat_id or self._new_chat(db_id, question)
         hid = self._save_history(db_id, question, result, chat_id)
         self._decisions[hid] = (d, info)
         result["id"], result["chat_id"] = hid, chat_id
         return result
+
+    def _unclear(self, info, question):
+        """None if the question names a table, column or stored value; otherwise the database's tables,
+        so the interface can ask "all of what?" instead of presenting the model's guess as the answer."""
+        from querygenie.mentions import is_unclear, schema_mentions
+        from querygenie.pipeline import matched_contents_for, matched_contents_from_index
+        try:
+            if info.conn is not None:
+                schema = info.conn.introspect()
+                values = lambda: matched_contents_from_index(info.conn.build_index(), question)
+            else:
+                from querygenie.vendor.codes_db_utils import get_db_schema
+                db_id = os.path.splitext(os.path.basename(info.path))[0]
+                schema = get_db_schema(info.path, {db_id: info.comments} if info.comments else {}, db_id)
+                values = lambda: matched_contents_for(info.path, schema, question)
+            m = schema_mentions(schema, question)
+            if is_unclear(m):                         # the value scan is the slower check: only if needed
+                m = schema_mentions(schema, question, values())
+            if not is_unclear(m):
+                return None
+            from querygenie.databases import tables_of
+            return {"tables": [{"table": t, "rows": n, "columns": list(cols[:5]), "more": max(0, len(cols) - 5)}
+                               for t, cols, n in tables_of(info)]}
+        except Exception:  # noqa: BLE001 - a safeguard must never stop an answer
+            return None
 
     def _serialize(self, run, info):
         d = run.decision

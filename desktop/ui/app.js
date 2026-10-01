@@ -292,7 +292,9 @@ function turnHtml(it) {
     <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
     ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
-  const top = (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
+  if (it.unclear && !t.guess) return head + clarifyHtml(it);
+  const top = (it.unclear ? `<p class="note">${icon("info")}<span>This is the model's guess at what you meant. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
+    + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
   if (!it.answered && t.reading == null) body = "";
   else if (S.layout === "confidence") body = `<div class="stack">${candidatesHtml(it)}${tabsHtml(it, t, ["table", "chart", "sql"])}</div>`;
@@ -300,6 +302,21 @@ function turnHtml(it) {
   else body = tabsHtml(it, t, ["table", "chart", "sql", "candidates"]);
   const live = it.live ? `<p class="note">${icon("info")}Connected to ${esc(it.backend)}: the query was translated and run in a read-only transaction. The confidence percentages were measured on SQLite and are not yet calibrated for ${esc(it.backend)}.</p>` : "";
   return head + top + body + live;
+}
+// "Show me all": the question names no table, column or value, so ask which one instead of
+// presenting the model's guess (see querygenie/mentions.py).
+function clarifyHtml(it) {
+  const tables = it.unclear.tables;
+  return `<div class="unsure clarify"><div class="unsure-head">${icon("circle-help")}<div><h2>All of what?</h2>
+    <p>Your question doesn't name anything in <b>${esc(S.db.label)}</b>, so any answer would be a guess. Choose what you mean and I'll ask again —
+    or <button class="btn quiet link" data-guess>see what the model guessed</button>.</p></div></div>
+    <div class="readings">${tables.map((t) => `
+      <button class="reading" data-clarify="${esc(t.table)}"><span class="r-top">${icon("table", "i sm")}${esc(t.table)}<span style="margin-left:auto" class="mono">${t.rows.toLocaleString()} rows</span></span>
+        <span class="r-prev">${t.columns.map(esc).join(", ")}${t.more ? ` … +${t.more}` : ""}</span></button>`).join("")}</div></div>`;
+}
+function clarifiedQuestion(q, table) {
+  const m = q.trim().match(/^(.*?)([?.!]*)$/);
+  return `${m[1]} in the ${table} table${m[2] || ""}`;
 }
 function modeName(m) {
   return { answer_all: "Answers everything", balanced: "Balanced", strict: "Strict (3 of 4 agree)", very_strict: "Very strict (all 4 agree)" }[m] || m;
@@ -651,6 +668,9 @@ function wireTurn(el) {
     t.readingData = await api.interpretation(it.id, t.reading);
     rerenderTurn(el);
   }));
+  $$("[data-clarify]", el).forEach((b) => (b.onclick = () => submitQuestion(clarifiedQuestion(it.question, b.dataset.clarify))));
+  const guess = $("[data-guess]", el); if (guess) guess.onclick = () => { t.guess = true; rerenderTurn(el); };
+  const back = $("[data-unclear-back]", el); if (back) back.onclick = () => { t.guess = false; rerenderTurn(el); };
   $("[data-act=copy]", el).onclick = (e) => copyText(selectedSql(it, t).sql, e.currentTarget, true);
   $("[data-act=reask]", el).onclick = () => submitQuestion(it.question);
   $("[data-act=delete]", el).onclick = async () => {

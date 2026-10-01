@@ -543,3 +543,7 @@ dialog.wide { max-width: min(720px, 94vw); }
 .dock-row { display: flex; align-items: center; gap: 12px; max-width: 1100px; min-height: 28px; }
 .dock-row .dock-hint { flex: 1; min-width: 0; }
 .dock-row .model-pill { margin-right: -4px; }
+
+/* "All of what?": a question that names nothing in the database */
+.unsure.clarify .readings { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.unsure.clarify .r-top .i { color: var(--accent); }
