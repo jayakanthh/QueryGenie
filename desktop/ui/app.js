@@ -337,8 +337,13 @@ function unsureHtml(it, t) {
     return `<div class="unsure"><div class="unsure-head">${icon("circle-x")}<div><h2>I couldn't answer this reliably</h2>
       <p>None of the four candidate queries ran on this database. Try naming the table or column you mean, or rephrase the question.</p></div></div></div>`;
   }
-  return `<div class="unsure"><div class="unsure-head">${icon("circle-help")}<div><h2>I'm not sure which you mean</h2>
-    <p>The four candidate queries disagree — the most common answer has only ${it.agree} of 4 behind it. Choose the reading you meant; I won't guess.</p></div></div>
+  const ran = it.candidates.filter((c) => c.runs).length, onlyEmpty = it.interpretations.every((r) => r.rows_total === 0);
+  const why = ran < 4
+    ? `Only ${ran} of the 4 candidate queries ran${ran === 1 && onlyEmpty ? ", and it found no rows" : ""} — the others had errors (see All 4 queries).
+       ${ran === 1 ? "That's too little to trust" : it.interpretations.length > 1 ? "The ones that ran don't agree" : `The ones that ran agree, but that's only ${it.agree} of 4`}. Try naming what you want in a full question, e.g. "What is … of …?"`
+    : `The four candidate queries disagree — the most common answer has only ${it.agree} of 4 behind it. Choose the reading you meant; I won't guess.`;
+  return `<div class="unsure"><div class="unsure-head">${icon("circle-help")}<div><h2>${ran === 1 ? "I couldn't answer this reliably" : "I'm not sure which you mean"}</h2>
+    <p>${why}</p></div></div>
     <div class="readings">${it.interpretations.map((r) => `
       <button class="reading" data-reading="${r.index}" aria-pressed="${t.reading === r.index}">
         <span class="r-top"><span class="letter">${r.letter}</span>Reading ${r.letter}<span style="margin-left:auto">${cells(r.support)}</span></span>
