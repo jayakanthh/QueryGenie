@@ -13,6 +13,7 @@ The system is delivered as QueryGenie, a desktop application that runs the evalu
 \begin{enumerate}
 	\item \textbf{Test-suite accuracy.} Score the saved predictions of run T2-006 on the distilled test-suite databases, to report the stricter metric the paper also gives (72.2\%).
 	\item \textbf{Larger models.} Evaluate CodeS-3B (paper: 83.4\%) and calibrate the abstention threshold for it rather than reusing the 1B threshold.
+	\item \textbf{A learned reranker.} A correct query is among the four candidates for 83.1\% of questions but is selected for 77.8\%; a reranker trained to choose among them could raise plain Execution Accuracy, which majority voting does not (it lowers it to 75.7\%).
 	\item \textbf{A combined signal.} Combine execution agreement and beam probability, which lead at different coverages, into one confidence score tuned only on calibration data.
 	\item \textbf{The benchmark-to-reality gap.} Measure accuracy and abstention on a real institutional schema, where names, values and questions are messier than in Spider.
 	\item \textbf{More databases.} Extend the connectors to further SQL engines and data warehouses, and to document stores through a local SQL snapshot, measuring translation accuracy for each as was done for PostgreSQL.

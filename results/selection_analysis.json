@@ -1,0 +1,18 @@
+{
+  "questions": 1034,
+  "first_executable": {
+    "correct": 804,
+    "ex": 77.76
+  },
+  "majority_vote": {
+    "correct": 783,
+    "ex": 75.73,
+    "selection_changed": 69,
+    "changed_now_correct": 11,
+    "changed_now_wrong": 32
+  },
+  "oracle": {
+    "correct": 859,
+    "ex": 83.08
+  }
+}

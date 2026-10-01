@@ -233,6 +233,25 @@ Figure~\ref{fig:coverage} shows the whole accuracy--coverage curve, and Table~\r
 	\end{tabular}
 \end{table}
 
+\subsection{Agreement for choosing, not only for abstaining?}
+
+A natural question is whether agreement could also raise plain Execution Accuracy, by returning the answer most candidates agree on instead of the first one that executes. Table~\ref{tab:select} answers it from the same four-candidate record (\path{research/selection_analysis.py}; no model run). Majority vote is \emph{worse}: it changes the selection on 69 questions, 11 of which become correct and 32 wrong, so accuracy falls from 77.76\% to 75.73\%. When the candidates split, the first beam is right more often than the majority. Agreement is therefore a good signal for deciding \emph{whether} to trust an answer, which is how the enhancement uses it, but not for deciding \emph{which} answer to give.
+
+\begin{table}[!t]
+	\centering
+	\caption{Choosing among the four candidates of run T2-006.}
+	\label{tab:select}
+	\begin{tabular}{|l|r|r|}
+		\hline
+		\textbf{Selection rule} & \textbf{Correct} & \textbf{EX} \\ \hline
+		First candidate that executes (CodeS, reproduced) & 804 & 77.76\% \\ \hline
+		Majority vote over the candidates' results & 783 & 75.73\% \\ \hline
+		Upper bound: a correct candidate is among the four & 859 & 83.08\% \\ \hline
+	\end{tabular}
+\end{table}
+
+The upper bound shows the room that remains: a correct query is among the four candidates for 83.1\% of questions, while the selection rule picks it for 77.8\%. Closing part of that gap would need a learned reranker, which is left as future work.
+
 \subsection{Limits of the enhancement}
 
 \begin{itemize}
