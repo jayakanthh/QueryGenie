@@ -23,6 +23,7 @@ SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
                     "engine": None,          # None = the evaluated CodeS model in "model"
                     "repair": True,          # send failed candidate queries back once with their error
+                    "context_turns": 3,      # earlier questions of a chat used as context for follow-ups
                     "recent_engines": []}    # last few models chosen (for the quick picker)
 
 # Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
@@ -531,19 +532,65 @@ class Api:
             self._backend_key = key
         return self._backend
 
-    def ask(self, db_id, question, mode=None, chat_id=None):
-        """Answer one question. Without `chat_id` a new chat is started, titled by the question."""
+    def _context(self, chat_id, k):
+        """The last k questions of a chat (oldest first) with the SQL that answered them, stopping at a
+        question asked as a new topic."""
+        if not chat_id or k <= 0:
+            return []
+        con = self._db()
+        rows = con.execute("SELECT question, result FROM history WHERE chat_id = ? ORDER BY created DESC, rowid DESC",
+                           (chat_id,)).fetchall()
+        con.close()
+        out = []
+        for q, res in rows:
+            r = json.loads(res)
+            sel = (r.get("candidates") or [{}])[r.get("selected", 0)] if r.get("candidates") else {}
+            out.append({"question": q, "sql": sel.get("sql") if r.get("ran") else None})
+            if len(out) >= k or r.get("context_break"):
+                break
+        return out[::-1]
+
+    def _swap_followup(self, info, history, question):
+        """'What about IT?' -> the previous question with the value swapped (querygenie/context.py)."""
+        from querygenie.context import substitute
+        from querygenie.pipeline import matched_contents_for, matched_contents_from_index
+        try:
+            if info.conn is not None:
+                index = info.conn.build_index()
+                return substitute(history, question, lambda t: matched_contents_from_index(index, t),
+                                  lambda col: index.get(col, []))
+            from querygenie.vendor.codes_db_utils import get_db_schema
+            db_id = os.path.splitext(os.path.basename(info.path))[0]
+            schema = get_db_schema(info.path, {db_id: info.comments} if info.comments else {}, db_id)
+
+            def values_of(col):
+                t, c = col.split(".", 1)
+                con = sqlite3.connect(f"file:{info.path}?mode=ro", uri=True)
+                try:
+                    return [str(r[0]) for r in con.execute(f'SELECT DISTINCT "{c}" FROM "{t}" WHERE "{c}" IS NOT NULL LIMIT 500')]
+                finally:
+                    con.close()
+            return substitute(history, question, lambda t: matched_contents_for(info.path, schema, t), values_of)
+        except Exception:  # noqa: BLE001 - a rewrite that fails just means no rewrite
+            return None
+
+    def ask(self, db_id, question, mode=None, chat_id=None, fresh=False):
+        """Answer one question. Without `chat_id` a new chat is started, titled by the question. In a chat,
+        the last few questions are context for a follow-up unless `fresh` (a new topic)."""
         from querygenie.confidence import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
+        history = [] if fresh else self._context(chat_id, int(self.settings_get().get("context_turns", 3)))
+        rewritten = self._swap_followup(info, history, question) if history else None
+        model_question, model_history = (rewritten, None) if rewritten else (question, history)
         from querygenie.providers import ProviderError
         with self._lock:                                   # one generation at a time
             try:
                 backend = self._get_backend()
                 if info.conn is not None:
-                    d = backend.decide_connected(info.conn, question)
+                    d = backend.decide_connected(info.conn, model_question, history=model_history or None)
                 else:
-                    d = backend.decide(info.path, question, info.comments)
+                    d = backend.decide(info.path, model_question, info.comments, history=model_history or None)
                 repairs = {}
                 if self.settings_get().get("repair", True):
                     from querygenie.repair import self_correct
@@ -556,7 +603,12 @@ class Api:
             result["candidates"][i]["repaired"] = r
         result["repaired"] = len(repairs)
         result["engine"] = self._engine_info()
-        result["unclear"] = self._unclear(info, question)
+        from querygenie.context import combined_question, linking_text
+        result["unclear"] = self._unclear(info, linking_text(history, question))
+        result["context_break"] = bool(fresh)
+        if history:
+            result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten),
+                                 "asked_as": rewritten or (None if getattr(backend, "chat", False) else combined_question(history, question))}
         chat_id = chat_id or self._new_chat(db_id, question)
         hid = self._save_history(db_id, question, result, chat_id)
         self._decisions[hid] = (d, info)

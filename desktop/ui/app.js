@@ -198,6 +198,7 @@ function markSelected() { $$("#rows [data-id]").forEach((b) => b.setAttribute("a
 
 // ------------------------------------------------------------------ chats
 function newChat() {
+  S.fresh = false;
   S.chat = null; S.T = {}; localStorage.removeItem("qg.chat." + S.db.id);
   markSelected(); renderThread(); $("#question").focus();
 }
@@ -220,7 +221,8 @@ function renderThread(scroll = "end") {
   $("#rename-chat").hidden = $("#delete-chat").hidden = !c;
   $("#layout-seg").hidden = !c;
   $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
-  $("#dock-hint").innerHTML = c ? `${icon("info", "i sm")}Each question is answered on its own — the model doesn't see earlier questions, so name the table or filter again.`
+  renderContextBar();
+  $("#dock-hint").innerHTML = c ? (contextTurns() ? `Return to ask · Shift+Return for a new line` : `${icon("info", "i sm")}Each question is answered on its own — turn on follow-up context in Settings → General.`)
                                 : `Return to ask · Shift+Return for a new line`;
   let html;
   if (!c && !working) {
@@ -241,6 +243,19 @@ function renderThread(scroll = "end") {
   if (scroll === "end") th.scrollTop = th.scrollHeight;
 }
 
+// ------------------------------------------------------------------ follow-up context
+const contextTurns = () => { const v = S.boot && S.boot.settings.context_turns; return v === undefined ? 3 : +v; };
+function renderContextBar() {
+  const bar = $("#ctx"), n = contextTurns(), turns = S.chat ? S.chat.turns.length : 0;
+  if (!S.chat || !turns || !n || S.view === "map") { bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.innerHTML = S.fresh
+    ? `${icon("message-square-plus", "i sm")}<span>The next question starts a new topic — earlier questions won't be used.</span><button class="btn quiet link" data-ctx-undo>Undo</button>`
+    : `${icon("history", "i sm")}<span>Follow-ups use the last ${Math.min(n, turns) === 1 ? "question" : Math.min(n, turns) + " questions"} in this chat as context.</span><button class="btn quiet link" data-ctx-new>New topic</button>`;
+  const nw = $("[data-ctx-new]", bar); if (nw) nw.onclick = () => { S.fresh = true; renderContextBar(); $("#question").focus(); };
+  const un = $("[data-ctx-undo]", bar); if (un) un.onclick = () => { S.fresh = false; renderContextBar(); };
+}
+
 // ------------------------------------------------------------------ asking
 function autosize() { const t = $("#question"); t.style.height = "auto"; t.style.height = Math.min(120, t.scrollHeight) + "px"; }
 async function submitQuestion(text) {
@@ -252,7 +267,8 @@ async function submitQuestion(text) {
   $("#question").value = ""; autosize(); $("#ask-btn").disabled = true;
   renderThread(); renderChats();
   try {
-    const res = await api.ask(db, q, S.mode, chatId);
+    const res = await api.ask(db, q, S.mode, chatId, !!S.fresh);
+    S.fresh = false;
     S.working = false;
     if (S.db.id === db && (S.chat ? S.chat.id : null) === chatId) { await loadChats(); await openChat(res.chat_id); }
     else if (S.db.id === db) await loadChats();
@@ -289,7 +305,7 @@ function turnHtml(it) {
         <button class="btn quiet icon" data-act="reask" title="Ask again in this chat">${icon("refresh-cw", "i sm")}</button>
         <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button>
       </span></div>
-    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
+    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → "))}">${icon("history", "i sm")}Follow-up</span>` : it.context_break ? `<span>New topic</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
     ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
   // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
@@ -297,7 +313,10 @@ function turnHtml(it) {
   const unanimous = it.ran && it.agree === 4;
   const showGuess = t.guess ?? unanimous;
   if (it.unclear && !showGuess) return head + clarifyHtml(it);
-  const repairNote = it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "";
+  const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
+      ? `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`
+      : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
+  const repairNote = askedNote + (it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "");
   const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
@@ -419,6 +438,7 @@ const G = { tableH: 34, colH: 26, colPitch: 32, blockGap: 16, gap1: 84, gap2: 64
 function textW(text, font) { const c = (textW.c ||= document.createElement("canvas").getContext("2d")); c.font = font; return c.measureText(String(text)).width; }
 
 async function renderMap() {
+  renderContextBar();
   const db = S.db, m = (MAPS[db.id] ||= { data: null, open: new Set(), t: { k: 1, tx: 0, ty: 0 }, fitted: false });
   $("#chat-title").innerHTML = `<span class="t pywebview-drag-region">Schema map</span><span class="n pywebview-drag-region">${esc(db.label)}</span>`;
   $("#dock-hint").innerHTML = `${icon("info", "i sm")}Tap a table or column to ask about it. Questions you pick appear here — edit, then press Return.`;
@@ -823,6 +843,8 @@ async function openSettings() {
     return `<label class="opt"><input type="radio" name="mode" value="${k}" ${S.mode === k ? "checked" : ""}><div><b>${label}</b>
       <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
   $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
+  $("#ctx-opt").value = String(contextTurns());
+  $("#ctx-opt").onchange = async (e) => { await api.settings_set({ context_turns: +e.target.value }); S.boot = await api.boot(); renderContextBar(); };
   $("#repair-opt").checked = S.boot.settings.repair !== false;
   $("#repair-opt").onchange = async (e) => { await api.settings_set({ repair: e.target.checked }); S.boot = await api.boot(); };
   S.boot = await api.boot(); S.provider = null; renderModelPanel();

@@ -27,12 +27,17 @@ SYSTEM_PROMPT = (
 )
 
 
-def chat_prompt(prefix: str, question: str) -> str:
+def chat_prompt(prefix: str, question: str, ask: str | None = None, history: list | None = None) -> str:
     """The CodeS database description (the same schema linking the evaluated model sees), laid out
-    for an instruction-following chat model."""
+    for an instruction-following chat model. `question` is the text the prefix was built from; `ask`
+    the question to put to the model (they differ for follow-ups, see querygenie/context.py)."""
+    from ..context import history_block
+
     q = question.replace("\n", " ")
     context = prefix[: prefix.rfind(q)].rstrip() if q in prefix else prefix
-    return f"{context}\n\nQuestion: {q}\nSQLite query:"
+    earlier = history_block(history)
+    ask = (ask or question).replace("\n", " ")
+    return f"{context}\n\n{earlier + chr(10) + chr(10) if earlier else ''}Question: {ask}\nSQLite query:"
 
 
 _FENCE = re.compile(r"```(?:sql|sqlite)?\s*(.*?)```", re.S | re.I)
@@ -87,20 +92,29 @@ class CandidateBackend:
         pass
 
     # ---- same interface as querygenie.model.CodesSFTBackend
-    def decide(self, db_path: str, question: str, db_comments: dict | None = None):
+    def _texts(self, question, history):
+        """(text the prompt is built from, question to ask) - see querygenie/context.py."""
+        from ..context import combined_question, linking_text
+        if not history:
+            return question, question
+        return (linking_text(history, question), question) if self.chat else (combined_question(history, question),) * 2
+
+    def decide(self, db_path: str, question: str, db_comments: dict | None = None, history: list | None = None):
+        built, ask = self._texts(question, history)
         key = (db_path, os.path.getmtime(db_path))
-        schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key),
+        schema, prefix = build_prefix(db_path, built, schema=self._schema_cache.get(key),
                                       db_comments={os.path.splitext(os.path.basename(db_path))[0]: db_comments}
                                       if db_comments else None)
         self._schema_cache[key] = schema
-        return self._decide(db_path, schema, prefix, question)
+        return self._decide(db_path, schema, prefix, built, ask, history)
 
-    def decide_connected(self, source, question: str):
-        schema, prefix = build_prefix_connected(source, question)
-        return self._decide(source, schema, prefix, question)
+    def decide_connected(self, source, question: str, history: list | None = None):
+        built, ask = self._texts(question, history)
+        schema, prefix = build_prefix_connected(source, built)
+        return self._decide(source, schema, prefix, built, ask, history)
 
-    def _decide(self, target, schema, prefix, question):
-        prompt = chat_prompt(prefix, question) if self.chat else prefix
+    def _decide(self, target, schema, prefix, question, ask=None, history=None):
+        prompt = chat_prompt(prefix, question, ask, history) if self.chat else prefix
         self.last_context = (target, schema, prompt)       # for the optional repair step
         texts = [extract_sql(t) if self.chat else t for t in self.raw_candidates(prompt)]
         texts = (texts + [""] * N_CANDIDATES)[:N_CANDIDATES]

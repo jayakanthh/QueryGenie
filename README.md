@@ -61,8 +61,12 @@ In the app:
 - **Databases** (left): a small academic database, the 20 Spider databases the 77.8% / 83.3% figures
   were measured on, any **SQLite file** you add, and live **PostgreSQL / MySQL** connections.
   Everything runs read-only.
-- **Chats** (middle): *New chat* (⌘N / Ctrl+N) starts a thread; keep asking in it. Each question is
-  answered on its own — the model does not see earlier questions.
+- **Chats** (middle): *New chat* (⌘N / Ctrl+N) starts a thread; keep asking in it. Follow-ups use the last
+  few questions as context (Settings → General; *New topic* starts fresh). Chat models get the earlier
+  questions and their SQL; CodeS, trained on single questions, gets the previous question and the follow-up
+  combined, and "what about IT?"-style follow-ups are rewritten as the earlier question with the value
+  swapped. On a six-question spot check CodeS-1B got 5 follow-ups right (0 without context) — illustrative,
+  not a measurement.
 - **Chat view**: every answer shows how many of the 4 candidate queries agree, the table, a chart,
   the SQL (editable) and all four candidates. When they disagree it asks *"I'm not sure which you
   mean"* and shows the readings instead of guessing.

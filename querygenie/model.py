@@ -78,10 +78,13 @@ class CodesSFTBackend:
             torch.cuda.empty_cache()
 
     def decide(self, db_path: str, question: str, db_comments: dict | None = None,
-               max_new_tokens: int = 256):
-        """The evaluated setting: a local SQLite file."""
+               max_new_tokens: int = 256, history: list | None = None):
+        """The evaluated setting: a local SQLite file. `history` (earlier questions of a chat) is an
+        application feature: CodeS then gets the combined question (querygenie/context.py)."""
+        from .context import combined_question
         from .pipeline import build_prefix
 
+        question = combined_question(history, question)
         key = (db_path, os.path.getmtime(db_path))
         schema, prefix = build_prefix(db_path, question, schema=self._schema_cache.get(key),
                                       db_comments={os.path.splitext(os.path.basename(db_path))[0]: db_comments}
@@ -89,11 +92,13 @@ class CodesSFTBackend:
         self._schema_cache[key] = schema
         return self._generate_and_decide(db_path, schema, prefix, max_new_tokens)
 
-    def decide_connected(self, source, question: str, max_new_tokens: int = 256):
+    def decide_connected(self, source, question: str, max_new_tokens: int = 256, history: list | None = None):
         """A connected database (connectors.SqlAlchemySource): same model, prompt shape and
         selection; SQL is translated to the target dialect and run read-only."""
+        from .context import combined_question
         from .pipeline import build_prefix_connected
 
+        question = combined_question(history, question)
         schema, prefix = build_prefix_connected(source, question)
         return self._generate_and_decide(source, schema, prefix, max_new_tokens)
 

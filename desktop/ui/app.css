@@ -601,3 +601,9 @@ dialog.wide { max-width: min(720px, 94vw); }
 .cand details.was { margin-top: 6px; font-size: var(--fs-xs); color: var(--ink-3); }
 .cand details.was summary { cursor: pointer; }
 .cand details.was pre { opacity: 0.75; text-decoration: line-through; text-decoration-color: var(--ink-3); }
+
+/* follow-up context strip above the question box */
+.ctx { display: flex; align-items: center; gap: 6px; max-width: 1100px; font-size: var(--fs-xs); color: var(--ink-3); }
+.ctx[hidden] { display: none; }
+.ctx .btn.link { font-size: var(--fs-xs); }
+.q-head .sub .followup { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }

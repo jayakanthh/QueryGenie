@@ -219,8 +219,9 @@ makes it jump.
   provider accepts), then models grouped by where they run, and "More models…" into Settings.
   CodeS models show no effort: they always get four candidates.
 - **Compose field:** docked at the bottom of the reading pane; Return asks, Shift+Return adds a line.
-  Under it, a standing note that each question is answered on its own (the model does not see earlier
-  turns) — the chat groups questions; it does not give the model memory.
+  Above it, in a chat, a one-line context strip ("Follow-ups use the last 3 questions in this chat" ·
+  *New topic*). A follow-up turn carries a "Follow-up" label listing its context and, for CodeS, the exact
+  text the model was asked.
 - **Verdict:** tinted panel with the large four-cell mark, the level in words and the agreement
   sentence, plus the level's icon. Other readings appear as small inline buttons beneath it.
 - **"Not sure" block:** critical-tinted header ("I'm not sure which you mean") above a row of reading
