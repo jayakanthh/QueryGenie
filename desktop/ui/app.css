@@ -661,3 +661,14 @@ dialog.wide { max-width: min(720px, 94vw); }
 .usage-menu button .mm-sub { font-size: var(--fs-xs); color: var(--ink-3); }
 .usage-menu button:hover .mm-sub { color: inherit; opacity: 0.8; }
 .note.warn-note .i { color: var(--confidence-warning, #fab219); }
+
+/* a wide result scrolls inside its table, never the whole thread sideways */
+.thread { overflow-x: hidden; }
+.turn { grid-template-columns: minmax(0, 1fr); }
+.bot-body, .bot-body > * { min-width: 0; max-width: 100%; }
+/* context on/off next to the model picker */
+.ctx-pill { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ink-3); font-size: var(--fs-xs); cursor: pointer; margin-right: 4px; }
+.ctx-pill:hover { background: var(--bg-hover); color: var(--ink-2); }
+.ctx-pill[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+.ctx-pill[aria-pressed="false"] span { text-decoration: line-through; }

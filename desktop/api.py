@@ -675,7 +675,7 @@ class Api:
                     # CodeS gets the previous question glued to this one; skip that when this one plainly
                     # starts a new topic, or its answer drifts back to the old question.
                     from querygenie.context import stands_alone
-                    standalone = stands_alone(question, self._named_tables(info, question))
+                    standalone = stands_alone(question, self._named_things(info, question))
                     if standalone:
                         history, model_history = [], None
                     else:
@@ -746,6 +746,19 @@ class Api:
         from querygenie.mentions import schema_mentions
         try:
             return schema_mentions(self._schema(info), question)["tables"]
+        except Exception:  # noqa: BLE001 - when in doubt, keep the context
+            return []
+
+    def _named_things(self, info, question):
+        """Tables, columns and stored values ("ford maverick") the question names by itself."""
+        from querygenie.mentions import schema_mentions
+        from querygenie.pipeline import matched_contents_for, matched_contents_from_index
+        try:
+            schema = self._schema(info)
+            values = (matched_contents_from_index(info.conn.build_index(), question) if info.conn is not None
+                      else matched_contents_for(info.path, schema, question))
+            m = schema_mentions(schema, question, values)
+            return m["tables"] + m["columns"] + list(m["values"])
         except Exception:  # noqa: BLE001 - when in doubt, keep the context
             return []
 

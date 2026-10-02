@@ -74,7 +74,7 @@ _BACKREF = re.compile(r"\b(those|these|them|their|theirs|they|it|its|this|same|a
 
 
 def stands_alone(question: str, named_tables) -> bool:
-    """A question that names a table itself and has no word pointing back ("those", "their", "only",
+    """A question that names a table, column or stored value itself and has no word pointing back ("those", "their", "only",
     "and ...") starts a new topic - "which student is the topper?" after a question about departments.
     Used for CodeS, which would otherwise get both questions glued together (combined_question)."""
     return (bool(named_tables) and len(question.split()) >= 3

@@ -259,6 +259,10 @@ function syncContextSettings() {
 }
 function renderContextBar() {
   const bar = $("#ctx"), n = contextTurns(), turns = S.chat ? S.chat.turns.length : 0;
+  const pill = $("#ctx-pill");
+  pill.setAttribute("aria-pressed", contextOn());
+  pill.title = contextOn() ? "Context on: follow-ups use this chat's earlier questions. Click to turn off."
+                           : "Context off: every question is answered on its own. Click to turn on.";
   if (!S.chat || !turns || S.view === "map") { bar.hidden = true; return; }
   if (!contextOn()) {
     bar.hidden = false;
@@ -817,6 +821,7 @@ function wireApp() {
   $("#toggle-sidebar").onclick = toggleSidebar;
   $("#model-pill").onclick = (e) => { e.preventDefault(); $("#usage-menu").hidden = true; openModelMenu(); };
   $("#usage-btn").onclick = (e) => { e.preventDefault(); toggleUsage(); };
+  $("#ctx-pill").onclick = (e) => { e.preventDefault(); setContextOn(!contextOn()); };
   $("#rename-chat").onclick = renameChat;
   $("#delete-chat").onclick = deleteChat;
   $("#schema-btn").onclick = () => setView("map");
