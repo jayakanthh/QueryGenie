@@ -7,6 +7,7 @@ Everything for the Review-III presentation, in one place.
 | `QueryGenie_Report.pdf` | The report for the spiral-bound hard copy (LaTeX, department thesis template). Topics as required: Abstract, Introduction (objectives), Literature Review, Proposed Methodology, Experimental Results, Limitations and Future Work, References. No code. | Any PDF viewer / print |
 | `QueryGenie_Review-III.pptx` | The presentation, built on the department's Review-III template (18 slides). | PowerPoint |
 | `QueryGenie_Poster.pptx` | The project poster, built on the department's poster template. | PowerPoint |
+| `Speaker_Script.docx` | Who presents which slides (Narendar 1–8, Praneeth 9–11, Jayakanth 12–18 + demo), what to say on each, and who answers which questions. Send to the team. | Word |
 | `Demo_Script.pdf` / `.md` | The live demo: 7 rehearsed questions with the answers to expect, questions to avoid, and answers for questions about the numbers. | Any PDF viewer / print |
 
 ## Printing
