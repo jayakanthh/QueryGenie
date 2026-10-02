@@ -7,7 +7,7 @@ requests at the model's own settings. The model list comes from the Models API, 
 
 from __future__ import annotations
 
-from .base import SYSTEM_PROMPT, CandidateBackend, ProviderError, parallel
+from .base import SYSTEM_PROMPT, CandidateBackend, ProviderError
 
 DEFAULT_MODEL = "claude-opus-5-5"
 MAX_TOKENS = 16000
@@ -58,7 +58,7 @@ class Claude(CandidateBackend):
         self.api_key = api_key
 
     def raw_candidates(self, prompt):
-        return parallel(lambda _i: self.complete_once(prompt))
+        return self.sample(prompt)
 
     def complete_once(self, prompt):
         anthropic, client = _client(self.api_key)
@@ -66,14 +66,19 @@ class Claude(CandidateBackend):
         extra = {"output_config": {"effort": self.effort}} if self.effort else {}
         try:
             if self.model in _FALLBACK_MODELS:
-                r = client.beta.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
+                raw = client.beta.messages.with_raw_response.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
                                                 messages=messages, betas=["server-side-fallback-2026-06-01"],
                                                 fallbacks=[{"model": "claude-opus-4-8"}], **extra)
             else:
-                r = client.messages.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
-                                           messages=messages, **extra)
+                raw = client.messages.with_raw_response.create(model=self.model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
+                                                               messages=messages, **extra)
+            r = raw.parse()
         except anthropic.AnthropicError as exc:
             raise ProviderError(_explain(anthropic, exc)) from exc
+        from .usage import anthropic_limits
+        u = r.usage
+        prompt = (u.input_tokens or 0) + (getattr(u, "cache_read_input_tokens", 0) or 0) + (getattr(u, "cache_creation_input_tokens", 0) or 0)
+        self.note(prompt, u.output_tokens, anthropic_limits(dict(raw.headers)))
         if r.stop_reason == "refusal":
             return ""                             # counts as a candidate that did not run
         return "".join(b.text for b in r.content if b.type == "text")

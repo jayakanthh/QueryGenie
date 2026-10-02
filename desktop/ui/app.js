@@ -294,7 +294,7 @@ async function submitQuestion(text) {
   } catch (e) {
     S.working = false; S.failed = { q, chat: chatId, msg: e.message || String(e) };
     if (S.db.id === db) { renderThread(); renderChats(); }
-  } finally { $("#ask-btn").disabled = false; }
+  } finally { $("#ask-btn").disabled = false; refreshUsage(); }
 }
 function workingHtml(q) {
   return `<div class="you"><div class="bubble">${esc(q)}</div></div><div class="bot">${botAvatar()}<div class="bot-body">
@@ -337,7 +337,9 @@ function turnHtml(it) {
   const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
       ? (it.context.how === "resolved" ? `Read as: “${esc(it.context.asked_as)}”` : `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`)
       : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
-  const repairNote = askedNote + (it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "");
+  const fr = it.failed_requests;
+  const failNote = fr ? `<p class="note warn-note">${icon("triangle-alert")}<span>${fr.count} of the 4 requests to ${esc(it.engine ? it.engine.label : "the service")} failed (${esc(fr.reason)}), so only ${4 - fr.count} answer${4 - fr.count === 1 ? "" : "s"} could agree. Asking again in a minute usually gets all four.</span></p>` : "";
+  const repairNote = failNote + askedNote + (it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "");
   const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
@@ -813,7 +815,8 @@ function wireApp() {
   $$("#layout-seg [data-layout]").forEach((b) => (b.onclick = () => { S.layout = b.dataset.layout; Object.values(S.T).forEach((x) => (x.tab = null)); api.settings_set({ layout: S.layout }); renderThread("keep"); }));
   $("#new-chat").onclick = () => { newChat(); setView("chat"); };
   $("#toggle-sidebar").onclick = toggleSidebar;
-  $("#model-pill").onclick = (e) => { e.preventDefault(); openModelMenu(); };
+  $("#model-pill").onclick = (e) => { e.preventDefault(); $("#usage-menu").hidden = true; openModelMenu(); };
+  $("#usage-btn").onclick = (e) => { e.preventDefault(); toggleUsage(); };
   $("#rename-chat").onclick = renameChat;
   $("#delete-chat").onclick = deleteChat;
   $("#schema-btn").onclick = () => setView("map");
@@ -824,12 +827,13 @@ function wireApp() {
   $("#m-server").onclick = () => { $("#add-menu").hidden = true; openConnect(); };
   $("#open-settings").onclick = openSettings;
   $$("dialog [data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
-  document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db") && !e.target.closest("#model-pill")) { $$(".menu").forEach((m) => (m.hidden = true)); $("#model-pill").setAttribute("aria-expanded", "false"); } });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#add-db") && !e.target.closest("#model-pill") && !e.target.closest("#usage-btn")) { $$(".menu").forEach((m) => (m.hidden = true)); $("#model-pill").setAttribute("aria-expanded", "false"); } });
   document.addEventListener("keydown", (e) => {
     const m = S.os === "mac" ? e.metaKey : e.ctrlKey;
     if (m && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); setView("chat"); }
     if (e.key.toLowerCase() === "s" && (S.os === "mac" ? e.metaKey && e.ctrlKey : e.ctrlKey && e.shiftKey)) { e.preventDefault(); toggleSidebar(); }
     if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu();
+    if (e.key === "Escape") $("#usage-menu").hidden = true;
     if (e.key === "Escape" && S.view === "map" && !$("#map-pop").hidden) closePop();
     if (m && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
     if (m && e.key === ",") { e.preventDefault(); openSettings(); }
@@ -918,7 +922,73 @@ const toggleSidebar = () => setSidebar(!document.documentElement.classList.conta
 // ------------------------------------------------------------------ model picker in the question box
 const EFFORT_NAME = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max", on: "Thinking on", off: "Thinking off" };
 function shortName(label) { const l = String(label || ""); const last = l.includes("/") ? l.split("/").pop() : l; return last.length > 30 ? last.slice(0, 29) + "…" : last; }
+// ------------------------------------------------------------------ usage meter (next to the model picker)
+// Only numbers the service reported: token counts from its responses and the rate limits in its headers.
+// Google reports no remaining quota, only what was exceeded when it refuses a request.
+const kfmt = (n) => (n == null ? "—" : n >= 1e6 ? +(n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1000 ? +(n / 1000).toFixed(n >= 1e5 ? 0 : 1) + "k" : String(n));
+const dur = (s) => (s == null ? "" : s < 60 ? `${Math.max(1, Math.round(s))} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`);
+const ACCESS = { works: ["ok", "Works"], no_quota: ["bad", "No quota"], daily_used: ["warn", "Daily quota used"], rate_limited: ["warn", "Rate limited"],
+                 bad_key: ["bad", "Key rejected"], no_access: ["bad", "No access"], not_found: ["bad", "Not found"], error: ["bad", "Error"] };
+async function refreshUsage() {
+  try { S.usage = await api.usage(); } catch (e) { S.usage = null; }
+  renderUsageRing();
+  if (!$("#usage-menu").hidden) renderUsageMenu();
+}
+function usageShare(u) { return u && u.window && u.last && u.last.prompt ? Math.min(1, u.last.prompt / u.window) : 0; }
+function renderUsageRing() {
+  const u = S.usage, f = usageShare(u), b = $("#usage-btn");
+  $(".arc", b).setAttribute("stroke-dasharray", `${(f * 100).toFixed(1)} 100`);
+  b.classList.toggle("high", f > 0.8);
+  b.title = u && u.last && u.last.prompt ? `Context: ${kfmt(u.last.prompt)} of ${u.window ? kfmt(u.window) : "?"} tokens` : "Context and usage";
+}
+function toggleUsage() {
+  const m = $("#usage-menu");
+  if (!m.hidden) { m.hidden = true; return; }
+  closeModelMenu(); m.hidden = false; renderUsageMenu(); refreshUsage();
+}
+function usageBar(f, cls = "") { return `<div class="ubar ${cls}"><i style="width:${Math.max(f > 0 ? 1.5 : 0, Math.min(100, f * 100)).toFixed(1)}%"></i></div>`; }
+function renderUsageMenu() {
+  const m = $("#usage-menu"), u = S.usage;
+  if (!u) { m.innerHTML = `<div class="sk" style="width:60%;margin:10px"></div>`; return placeUsage(); }
+  const last = u.last, f = usageShare(u);
+  let h = `<div class="u-sec"><div class="u-row"><span>Context window</span><span>${last && last.prompt ? `${last.estimated ? "≈ " : ""}${kfmt(last.prompt)}` : "—"} / ${u.window ? kfmt(u.window) : "?"}${u.window && last && last.prompt ? ` (${Math.round(f * 100)}%)` : ""}</span></div>
+    ${usageBar(f, f > 0.8 ? "high" : "")}
+    <p class="u-note">${!last ? "Ask a question to see how much of the model's context it uses." :
+      `The last question's prompt: the database description${S.chat && S.chat.turns.length > 1 ? ", earlier questions" : ""} and the question.${last.estimated ? " Estimated — this model doesn't report token counts." : ""}`}${u.window ? "" : " This service doesn't report the window size."}</p></div>`;
+  if (last && (last.requests || last.output)) h += `<div class="u-sec"><div class="u-row"><span>Last question</span><span>${last.requests ? `${last.requests} request${last.requests === 1 ? "" : "s"}${last.failed ? ` (+${last.failed} refused)` : ""}` : ""}${last.input ? ` · ${kfmt(last.input)} in` : ""}${last.output ? ` · ${kfmt(last.output)} out` : ""}</span></div></div>`;
+  const ses = u.session;
+  if (ses && ses.questions) h += `<div class="u-sec"><div class="u-row"><span>Since the app opened</span><span>${ses.questions} question${ses.questions === 1 ? "" : "s"}${ses.input ? ` · ${kfmt(ses.input)} in` : ""}${ses.output ? ` · ${kfmt(ses.output)} out` : ""}</span></div></div>`;
+  h += `<hr><div class="u-sec"><div class="u-row u-h"><span>Usage limits · ${esc(u.where)}</span></div>`;
+  if (u.local) h += `<p class="u-note">Runs on this computer — no usage limits.</p>`;
+  else if (u.limits) {
+    const age = (Date.now() / 1000 - u.limits.when);
+    h += Object.entries(u.limits.values).map(([name, v]) => {
+      const used = v.limit ? 1 - v.remaining / v.limit : 0;
+      const reset = v.reset != null ? Math.max(0, v.reset - age) : null;
+      return `<div class="u-row"><span>${esc(name[0].toUpperCase() + name.slice(1))}</span><span>${reset != null ? `Resets in ${dur(reset)} · ` : ""}${Math.round(used * 100)}% used</span></div>
+        ${usageBar(used, used > 0.8 ? "high" : "")}<p class="u-note">${kfmt(v.remaining)} of ${kfmt(v.limit)} left (per ${name === "requests" ? "minute" : "minute"} window, as reported with the last answer)</p>`;
+    }).join("");
+  } else if (u.kind === "gemini") h += `<p class="u-note">Google doesn't tell apps how much quota is left — see ai.dev/rate-limit. QueryGenie sends 4 requests per question.</p>`;
+  else h += `<p class="u-note">${last ? "This service didn't report rate limits." : "Shown after the first answer, if the service reports them."}</p>`;
+  if (u.refused) {
+    const r = u.refused.refusal || {};
+    const left = r.retry_s != null ? r.retry_s - (Date.now() / 1000 - u.refused.when) : null;
+    h += `<div class="u-refused">${icon("triangle-alert", "i sm")}<div><b>Last request was refused</b><span>${r.quotas ? `Exceeded: ${esc(r.quotas.join(", "))}${r.limit ? ` (limit ${r.limit})` : ""}${r.limit === 0 ? ` — this key's limit for ${esc(r.model || "this model")} is 0, so it can't use it at all` : ""}.` : esc(u.refused.message)}${left > 0 ? ` Try again in ${dur(left)}.` : ""}</span></div></div>`;
+  }
+  h += `</div>`;
+  if (!u.local) h += `<hr><button data-check-models>${icon("list-checks", "i sm")}<span class="mm-l"><span>Which models can this key use?</span><span class="mm-sub">Check each model on the provider's page</span></span></button>`;
+  m.innerHTML = h; placeUsage();
+  const c = $("[data-check-models]", m);
+  if (c) c.onclick = async () => { m.hidden = true; await openSettings(); $("[data-set=model]").click(); S.provider = u.kind; renderProvider(u.kind); };
+}
+function placeUsage() {
+  const m = $("#usage-menu"), r = $("#usage-btn").getBoundingClientRect();
+  m.style.left = Math.max(12, Math.min(window.innerWidth - m.offsetWidth - 12, r.right - m.offsetWidth + 40)) + "px";
+  m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + "px";
+}
+
 function renderModelPill() {
+  refreshUsage();
   const e = (S.boot && S.boot.engine) || {};
   $("#model-pill .mp-name").textContent = shortName(e.label);
   $("#model-pill .mp-effort").textContent = e.effort_levels ? (EFFORT_NAME[e.effort] || "Default") : "";
@@ -1037,9 +1107,11 @@ async function renderProvider(key) {
       <div class="pkey"><input class="input" type="password" autocomplete="off" placeholder="Optional" aria-label="API key"><button class="btn" data-key-save>Save</button>${d.key_saved ? `<button class="btn quiet" data-key-remove>Remove</button>` : ""}</div></div>`;
   }
   if (d.error) html += `<p class="form-msg bad">${esc(d.error)}</p>`;
+  const checkable = d.cloud || key === "compat";
   const rows = d.models.map((m, i) => `
     <div class="mrow${m.available ? "" : " off"}${m.current ? " cur" : ""}">
       <div class="mr-l"><b title="${esc(m.label)}">${esc(m.label)}</b>${m.note ? `<span>${esc(m.note)}</span>` : ""}</div>
+      ${checkable ? accessHtml(m, i) : ""}
       ${m.evaluated && !m.available ? `<button class="btn" data-dl="${m.evaluated}">${icon("download", "i sm")}Download${m.size_gb ? ` · ${m.size_gb} GB` : ""}</button>`
         : m.current ? `<span class="pt-badge cur">${icon("check", "i sm")}In use</span>`
         : `<button class="btn" data-use="${i}" ${m.available ? "" : "disabled"}>Use</button>`}
@@ -1047,12 +1119,34 @@ async function renderProvider(key) {
       ${m.custom ? `<button class="btn quiet icon" data-remove-model="${i}" title="Remove" aria-label="Remove ${esc(m.label)}">${icon("x", "i sm")}</button>` : ""}
     </div>`).join("");
   const empty = d.cloud && !d.key_saved ? "Add your API key to see this service's models." : key === "compat" && !d.base_url ? "Save the server's address to see its models." : "No models yet.";
-  html += `<div class="mlist"><div class="ml-head"><span>Model</span><span>In picker</span></div>${rows || `<p class="gnote" style="padding:10px 12px">${empty}</p>`}</div>`;
+  html += `${checkable && d.models.length ? `<div class="pcheck"><span>Find out which models this key can run: one tiny request per model (a few tokens each).</span>
+      <button class="btn" data-check-all>${icon("list-checks", "i sm")}Check all ${d.models.length}</button></div>` : ""}
+    <div class="mlist"><div class="ml-head"><span>Model</span><span>${checkable ? "Access · " : ""}In picker</span></div>${rows || `<p class="gnote" style="padding:10px 12px">${empty}</p>`}</div>`;
   if (d.can_add) html += `<div class="padd"><input class="input" id="p-add" placeholder="${key === "hf" ? "e.g. seeklhy/codes-7b-spider, or /path/to/model" : "Add a model by name"}" aria-label="Model name"><button class="btn" data-add>${icon("plus", "i sm")}Add</button></div>`;
   box.innerHTML = html;
   const msg = (text) => { let p = $(".form-msg.bad", box); if (!p) { p = document.createElement("p"); p.className = "form-msg bad"; $(".phead", box).after(p); } p.textContent = text; };
   $("[data-back]", box).onclick = () => { S.provider = null; renderModelPanel(); };
   $$("[data-use]", box).forEach((b) => (b.onclick = () => useEngine(d.models[+b.dataset.use], d)));
+  const checkOne = async (i) => {
+    const cell = $(`[data-access="${i}"]`, box); if (!cell) return null;
+    cell.innerHTML = `<span class="acc">${icon("loader-circle", "i sm spin")}Checking</span>`;
+    const r = await api.provider_check(key, d.models[i].id);
+    d.models[i].access = { status: r.status, note: r.note };
+    cell.outerHTML = accessHtml(d.models[i], i); wireAccess();
+    return r.status;
+  };
+  const wireAccess = () => $$("[data-check]", box).forEach((b) => (b.onclick = () => checkOne(+b.dataset.check)));
+  wireAccess();
+  const all = $("[data-check-all]", box);
+  if (all) all.onclick = async () => {
+    all.disabled = true;
+    for (let i = 0; i < d.models.length; i++) {
+      all.innerHTML = `${icon("loader-circle", "i sm spin")}Checking ${i + 1} of ${d.models.length}…`;
+      if (!box.isConnected) return;
+      await checkOne(i);
+    }
+    all.disabled = false; all.innerHTML = `${icon("list-checks", "i sm")}Check again`;
+  };
   $$("[data-toggle]", box).forEach((c) => (c.onchange = async () => { await api.provider_toggle(key, d.models[+c.dataset.toggle].id, c.checked); }));
   $$("[data-remove-model]", box).forEach((b) => (b.onclick = async () => { await api.provider_remove_model(key, d.models[+b.dataset.removeModel].id); renderProvider(key); }));
   $$("[data-dl]", box).forEach((b) => (b.onclick = async () => { await api.setup_start(b.dataset.dl, false); pollModel(); }));
@@ -1064,6 +1158,12 @@ async function renderProvider(key) {
     const r = await api.key_save(key, inp.value); inp.value = ""; if (r.error) return msg(r.error); renderProvider(key); };
   const rm = $("[data-key-remove]", box); if (rm) rm.onclick = async () => { await api.key_save(key, null); renderProvider(key); };
   const url = $("[data-url-save]", box); if (url) url.onclick = async () => { await api.provider_set_url(key, $("#p-url").value); renderProvider(key); };
+}
+function accessHtml(m, i) {
+  const a = m.access;
+  if (!a) return `<span data-access="${i}"><button class="btn quiet sm-btn" data-check="${i}">Check</button></span>`;
+  const [cls, word] = ACCESS[a.status] || ["bad", a.status];
+  return `<span data-access="${i}"><button class="acc ${cls}" data-check="${i}" title="${esc((a.note || word) + " — click to check again")}">${icon(cls === "ok" ? "circle-check" : cls === "warn" ? "circle-alert" : "circle-x", "i sm")}${word}</button></span>`;
 }
 async function useEngine(m, d) {
   if (d && d.cloud && !confirm(`Use ${m.label}?\n\nFor every question, the database's schema, a few example values and the question are sent to this service. Result rows stay on this computer.`)) return;

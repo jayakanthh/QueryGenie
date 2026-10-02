@@ -131,6 +131,8 @@
         </form>
         <div class="dock-row">
           <div class="dock-hint" id="dock-hint"></div>
+          <button class="usage-btn" type="button" id="usage-btn" aria-haspopup="dialog" title="Context and usage">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle class="track" cx="10" cy="10" r="7.5"/><circle class="arc" cx="10" cy="10" r="7.5" pathLength="100" stroke-dasharray="0 100"/></svg></button>
           <button class="model-pill" type="button" id="model-pill" aria-haspopup="menu" title="Choose the model"><span class="mp-name"></span><span class="mp-effort"></span><svg class="i sm"><use href="#i-chevron-down"/></svg></button>
         </div>
       </div>
@@ -194,6 +196,7 @@
   </dialog>
 
   <div class="menu model-menu" id="model-menu" hidden role="menu" aria-label="Model"></div>
+  <div class="menu usage-menu" id="usage-menu" hidden role="dialog" aria-label="Context and usage"></div>
   <div class="menu" id="add-menu" hidden role="menu">
     <button role="menuitem" id="m-file"><svg class="i sm"><use href="#i-folder-open"/></svg>Open SQLite file…</button>
     <button role="menuitem" id="m-server"><svg class="i sm"><use href="#i-plug-zap"/></svg>Connect to PostgreSQL or MySQL…</button>

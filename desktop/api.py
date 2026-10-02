@@ -14,6 +14,7 @@ import os
 import sqlite3
 import sys
 import threading
+import time
 import uuid
 
 import setup_tasks as st
@@ -112,6 +113,7 @@ class Api:
         self._backend_key = None
         self._lock = threading.Lock()
         self._decisions = {}           # history id -> Decision (this session), for "Did you mean…?"
+        self._usage = {}               # engine -> tokens and reported limits (this session), see usage()
         self._init_history()
 
     # ---------------------------------------------------------------- boot & settings
@@ -393,7 +395,7 @@ class Api:
             if size:
                 note = f"{size} GB" + (f" · {note}" if note else "")
             out.append({"id": mid, "label": mid, "spec": spec, "on": on, "current": self._is_current(s, spec),
-                        "available": True, "note": note, "custom": custom})
+                        "available": True, "note": note, "custom": custom, "access": conf.get("access", {}).get(mid)})
         return out
 
     def providers_overview(self):
@@ -436,6 +438,81 @@ class Api:
             tiles.append({"key": key, "name": meta["name"].split(" (")[0], "detail": meta["name"], "icon": key, "group": "cloud",
                           "status": status, "on": on, "current": cur == key})
         return {"tiles": tiles, "current": self._engine_info()}
+
+    # ---------------------------------------------------------------- access and usage
+    def _set_access(self, key, model, status, note=None):
+        conf = self._pconf(self.settings_get(), key)
+        conf.setdefault("access", {})[model] = {"status": status, "note": note, "when": time.time()}
+        self._save_pconf(key, conf)
+
+    def provider_check(self, key, model):
+        """Send one tiny request to see whether this key may use `model` (works / no quota / no access...)."""
+        from querygenie import providers
+        from querygenie.providers.usage import classify
+        spec = {"kind": key, "model": model, "label": model}
+        conf = self._pconf(self.settings_get(), key)
+        if key == "compat" and conf.get("base_url"):
+            spec["base_url"] = conf["base_url"]
+        try:
+            backend = providers.build(spec, self._legacy_paths())
+            backend.complete_once("Reply with the single word OK.")
+            status, note = "works", None
+        except providers.ProviderError as exc:
+            status, note = classify(str(exc), exc.refusal), str(exc)[:300]
+        self._set_access(key, model, status, note)
+        return {"status": status, "note": note}
+
+    def usage(self):
+        """For the meter next to the model picker: the context window and how much of it the last question
+        used, tokens this session, and the rate limits the service reported (only reported numbers)."""
+        from querygenie import providers
+        s = self.settings_get()
+        spec, eng = s.get("engine"), self._engine_info()
+        ek = json.dumps(spec, sort_keys=True) if spec else "evaluated:" + s["model"]
+        if not spec or spec.get("kind") == "hf":
+            from querygenie.pipeline import MAX_PROMPT_TOKENS
+            window, local = MAX_PROMPT_TOKENS + 256, True      # CodeS: 4,096 tokens (prompt + 256 for the query)
+        else:
+            window, local = providers.context_window(spec), not eng.get("cloud")
+        u = self._usage.get(ek, {})
+        return {"label": eng["label"], "where": eng.get("where") or "this computer", "local": local,
+                "cloud": bool(eng.get("cloud")), "kind": (spec or {}).get("kind", "evaluated"), "window": window,
+                "last": u.get("last"), "session": u.get("session"), "limits": u.get("limits"), "refused": u.get("refused")}
+
+    def _record_usage(self, backend, error=None):
+        s = self.settings_get()
+        spec = s.get("engine")
+        ek = json.dumps(spec, sort_keys=True) if spec else "evaluated:" + s["model"]
+        u = self._usage.setdefault(ek, {"session": {"questions": 0, "requests": 0, "input": 0, "output": 0}})
+        if error is not None:
+            u["refused"] = {"message": str(error)[:300], "refusal": getattr(error, "refusal", None), "when": time.time()}
+            if spec:
+                from querygenie.providers.usage import classify
+                self._set_access(self._provider_of(spec), spec["model"], classify(str(error), getattr(error, "refusal", None)), str(error)[:300])
+            return
+        calls = list(getattr(backend, "calls", []) or [])
+        prompts = [c["prompt"] for c in calls if c.get("prompt")]
+        outs = [c["output"] for c in calls if c.get("output")]
+        estimated = False
+        if not prompts:                                  # the service didn't say: estimate from the prompt text
+            from querygenie.context import estimate_tokens
+            ctx = getattr(backend, "last_context", None)
+            text = (ctx[2] if ctx else "") + " ".join(t["content"] for t in getattr(backend, "turns", []) or [])
+            prompts, estimated = ([estimate_tokens(text)] if text else []), True
+        u["last"] = {"prompt": max(prompts) if prompts else None, "requests": len(calls) or None,
+                     "failed": len(getattr(backend, "failures", []) or []),
+                     "input": sum(prompts) if not estimated else None, "output": sum(outs) or None,
+                     "estimated": estimated, "when": time.time()}
+        u["session"]["questions"] += 1
+        u["session"]["requests"] += len(calls)
+        u["session"]["input"] += sum(prompts) if not estimated else 0
+        u["session"]["output"] += sum(outs)
+        limits = next((c["limits"] for c in reversed(calls) if c.get("limits")), None)
+        if limits:
+            u["limits"] = {"values": limits, "when": time.time()}
+        u.pop("refused", None)
+        if spec:
+            self._set_access(self._provider_of(spec), spec["model"], "works")
 
     def provider_detail(self, key):
         """One provider's page. Cloud and server providers are asked for their live model list."""
@@ -631,13 +708,18 @@ class Api:
                 if self.settings_get().get("repair", True):
                     from querygenie.repair import self_correct
                     d, repairs = self_correct(backend, d)
+                self._record_usage(backend)
             except ProviderError as exc:
+                self._record_usage(None, exc)
                 raise RuntimeError(f"{self._engine_info()['label']}: {exc}") from exc
         run = ConfidentRun(question, d, mode)
         result = self._serialize(run, info)
         for i, r in repairs.items():
             result["candidates"][i]["repaired"] = r
         result["repaired"] = len(repairs)
+        failures = list(getattr(backend, "failures", []) or [])
+        if failures:            # refused or failed requests count as candidates that did not run
+            result["failed_requests"] = {"count": len(failures), "reason": str(failures[0]).split(":")[0][:160]}
         result["engine"] = self._engine_info()
         from querygenie.context import combined_question, linking_text
         result["unclear"] = self._unclear(info, linking_text(history, question))

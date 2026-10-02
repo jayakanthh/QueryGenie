@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from ..pipeline import build_prefix, build_prefix_connected, decide
@@ -58,7 +59,12 @@ def extract_sql(text: str) -> str:
 
 
 class ProviderError(RuntimeError):
-    """A failure the user can act on (no key, server not running, unknown model...)."""
+    """A failure the user can act on (no key, server not running, unknown model...). `refusal` holds what a
+    service said about an exceeded quota (providers/usage.google_refusal), when it said anything."""
+
+    def __init__(self, message, refusal=None):
+        super().__init__(message)
+        self.refusal = refusal
 
 
 class CandidateBackend:
@@ -74,6 +80,23 @@ class CandidateBackend:
         self.label = label or model
         self.effort = effort          # provider-specific reasoning effort, None = the model's default
         self._schema_cache = {}
+        self.calls = []               # what the service reported for each request of the last question
+        self.failures = []            # requests of the last question that the service refused or that failed
+        self._calls_lock = threading.Lock()
+
+    def note_failure(self, exc):
+        with self._calls_lock:
+            self.failures.append(exc)
+
+    def sample(self, prompt):
+        """The four candidates from a service that answers one sample per request: in parallel, retrying a
+        request the service refused for a short rate limit (free tiers allow only a few per minute)."""
+        return parallel(lambda _i: with_retry(lambda: self.complete_once(prompt)), on_error=self.note_failure)
+
+    def note(self, prompt_tokens=None, output_tokens=None, limits=None):
+        """Record one request's reported token counts and rate-limit headers (requests run in parallel)."""
+        with self._calls_lock:
+            self.calls.append({"prompt": prompt_tokens, "output": output_tokens, "limits": limits})
 
     # ---- to implement
     def raw_candidates(self, prompt: str) -> list[str]:
@@ -119,6 +142,7 @@ class CandidateBackend:
 
     def _decide(self, target, schema, prefix, question, ask=None, history=None):
         from ..context import FOLLOW_UP_NOTE, history_messages, last_result_text
+        self.calls, self.failures = [], []
         self.turns = history_messages(history, self.share_results) if self.chat else []
         prompt = chat_prompt(prefix, question, ask) if self.chat else prefix
         if self.chat and history:
@@ -131,7 +155,24 @@ class CandidateBackend:
         return decide(target, schema, texts, [0.0] * N_CANDIDATES)
 
 
-def parallel(fn, n: int = N_CANDIDATES) -> list[str]:
+def with_retry(fn, attempts: int = 3, max_wait_s: float = 65.0):
+    """Call fn; when the service refuses with a rate limit it says will clear soon, wait and try again."""
+    import random
+    import time
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except ProviderError as exc:
+            from .usage import classify
+            if attempt == attempts - 1 or classify(str(exc), exc.refusal) != "rate_limited":
+                raise
+            wait = (exc.refusal or {}).get("retry_s") or 4 * (attempt + 1)
+            if wait > max_wait_s:
+                raise
+            time.sleep(wait + random.uniform(0.2, 1.5))     # jitter: the four requests shouldn't retry together
+
+
+def parallel(fn, n: int = N_CANDIDATES, on_error=None) -> list[str]:
     """Run n independent requests at once (used for services that sample one answer per call)."""
     with ThreadPoolExecutor(max_workers=n) as pool:
         futures = [pool.submit(fn, i) for i in range(n)]
@@ -143,6 +184,10 @@ def parallel(fn, n: int = N_CANDIDATES) -> list[str]:
                 errors.append(exc)
             except Exception as exc:  # noqa: BLE001 - one failed sample shouldn't lose the rest
                 errors.append(ProviderError(str(exc)))
+    if on_error:
+        for e in errors:
+            on_error(e)
+
     if not out and errors:
         raise errors[0]
     return out

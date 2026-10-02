@@ -54,6 +54,7 @@ class CodesSFTBackend:
         self._model = None
         self.device = None
         self._schema_cache = {}
+        self.calls = []               # tokens of the last generation (see providers/usage.py)
 
     def load(self):
         if self._model is not None:
@@ -114,6 +115,7 @@ class CodesSFTBackend:
                                        max_new_tokens=max_new_tokens, num_beams=4,
                                        num_return_sequences=4, pad_token_id=self._tok.eos_token_id,
                                        return_dict_in_generate=True, output_scores=True)
+        self.calls = [{"prompt": int(ids.shape[1]), "output": int(gen.sequences.shape[1] - ids.shape[1]), "limits": None}]
         texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
                                        clean_up_tokenization_spaces=False)
         return decide(target, schema, texts, [float(x) for x in gen.sequences_scores])

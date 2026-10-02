@@ -259,3 +259,13 @@ makes it jump.
   with its evidence, and never imply the model remembers earlier questions.
 - **Don't** hide or soften the "not sure" state; it is the product's signature moment.
 - **Don't** use emoji or text glyphs as icons; use the bundled Lucide set.
+
+## Usage meter
+
+A small ring next to the model picker shows how much of the model's context window the last question used;
+clicking it opens a popover modelled on Claude's: context window bar, tokens for the last question and the
+session, then the service's usage limits. Only reported numbers appear — token counts from the responses,
+`x-ratelimit-*` / `anthropic-ratelimit-*` headers. Google reports no remaining quota, so for Gemini the
+popover says so and shows only what a refusal named (quota, limit, wait). Local models say "no usage
+limits". A provider's page shows an Access badge per model (Works, No quota, Daily quota used, Rate
+limited, No access) from real use or from an explicit Check (one tiny request).
