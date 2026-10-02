@@ -16,6 +16,7 @@ datas = [
     (os.path.join(ROOT, "LICENSE"), "."), (os.path.join(ROOT, "NOTICE"), "."),
 ]
 datas += collect_data_files("transformers", include_py_files=False)
+datas += collect_data_files("certifi")                 # cacert.pem for HTTPS to the cloud models
 for pkg in ["transformers", "tokenizers", "huggingface_hub", "safetensors", "torch", "tqdm", "regex",
             "requests", "packaging", "filelock", "numpy", "pyyaml", "sqlglot", "sqlalchemy",
             "anthropic", "keyring"]:                 # keyring finds the OS keychain via its metadata
@@ -27,7 +28,7 @@ for pkg in ["transformers", "tokenizers", "huggingface_hub", "safetensors", "tor
 # Only the core package (querygenie/) is bundled; legacy/ and research/ are never imported by the app.
 hiddenimports = ["api", "setup_tasks"] + collect_submodules("querygenie") + collect_submodules("sqlglot.dialects") + [
     "sqlalchemy.dialects.postgresql", "sqlalchemy.dialects.mysql", "sqlalchemy.dialects.sqlite",
-    "psycopg", "pymysql", "rapidfuzz", "func_timeout", "webview", "anthropic",
+    "psycopg", "pymysql", "rapidfuzz", "func_timeout", "webview", "anthropic", "certifi",
 ] + collect_submodules("keyring.backends")
 # MLX and llama.cpp (the earlier prototype's models) stay out of the bundle; the app lists those
 # models and says they need a from-source install (requirements-apple.txt).

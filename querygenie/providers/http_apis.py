@@ -13,6 +13,7 @@ its default sampling settings; the four answers are the candidates.
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.error
 import urllib.request
 
@@ -23,12 +24,25 @@ LOCAL_TIMEOUT_S = 600      # a large local model can take minutes to load on fir
 OLLAMA_URL = "http://localhost:11434"
 
 
+def _ssl_context():
+    """Mozilla's CA bundle from certifi: the python.org macOS Python (and the packaged app built from it)
+    has no system certificates, so HTTPS fails with CERTIFICATE_VERIFY_FAILED without this."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
+_SSL = _ssl_context()
+
+
 def _request(method, url, headers=None, body=None, timeout=TIMEOUT_S):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method,
                                  headers={"Content-Type": "application/json", **(headers or {})})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")[:400]

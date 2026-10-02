@@ -36,3 +36,4 @@ pyinstaller>=6
 # services need no extra package.
 anthropic>=1.0
 keyring>=25
+certifi                  # CA certificates for HTTPS (python.org macOS Python has none)
