@@ -130,6 +130,11 @@ for shp in s.shapes:
         for r in p0.runs[1:]:
             r.text = ""
         p0.runs[0].text = "M Parameswar"
+        paras = shp.text_frame.paragraphs
+        if len(paras) > 1 and paras[1].runs:                 # "<Associate/Assistant Professor>"
+            for r in paras[1].runs[1:]:
+                r.text = ""
+            paras[1].runs[0].text = "Associate Professor"
 
 # ---------------------------------------------------------------- 2 outline (kept as the department wrote it)
 footer(S[1])
