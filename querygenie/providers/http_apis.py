@@ -45,14 +45,18 @@ def _request(method, url, headers=None, body=None, timeout=TIMEOUT_S):
         with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")[:400]
-        try:
+        detail = exc.read().decode(errors="replace")
+        try:                                   # parse the whole body first: cutting it breaks the JSON
             j = json.loads(detail)
             detail = (j.get("error") or {}).get("message") if isinstance(j.get("error"), dict) else j.get("error") or detail
         except ValueError:
             pass
+        detail = str(detail).split("\n")[0].strip()[:300]
         hint = {401: "the API key was rejected", 403: "the key has no access to this model",
                 404: "unknown model or address", 429: "rate limit or quota reached"}.get(exc.code, "")
+        if exc.code == 429 and "quota" in detail.lower():
+            hint += (" - this key has no quota left for this model (on free plans the larger models often"
+                     " have none; try a smaller one, e.g. a Flash model)")
         raise ProviderError(f"{exc.code} {hint + ': ' if hint else ''}{detail}".strip()) from exc
     except urllib.error.URLError as exc:
         raise ProviderError(f"Couldn't reach {url.split('/')[2]}: {exc.reason}") from exc
