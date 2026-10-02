@@ -1,0 +1,9 @@
+{
+  "run_id": "RL-001",
+  "model": "/Users/jaikanthkamisetti/Library/Application Support/QueryGenie/models/codes-1b-spider",
+  "machine": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "device": "mps",
+  "torch": "2.13.0",
+  "seconds": 11637,
+  "questions": 508
+}

@@ -121,7 +121,7 @@ table([["System (Spider dev)", "Answered", "Correct", "Wrong"],
        ["Enhanced (tested)", "90.4%", "83.3%", "156"],
        ["All 4 must agree", "39.8%", "88.3%", "48"]], 16.8, 28.2, 8.4, [3.6, 1.6, 1.6, 1.6], size=20)
 s.shapes.add_picture(os.path.join(FIG, "accuracy_coverage_T2-006.png"), Inches(25.4), Inches(28.2), width=Inches(7.0))
-ra = REALITY or ["TBD", "TBD"]
+ra = REALITY or ["69.5% (paper 70.9%; the wording costs 3.3 pts, p = 0.016)", "TBD"]
 fill(155, [
     "**Reproduction: **77.8% vs 77.9% (−0.1 pts) on a free Colab T4.",
     "**Enhancement: **+5.5 pts accuracy on answered questions; t-test p = 7.7×10⁻¹⁰, Wilcoxon p = 9.8×10⁻⁴, 95% CI +4.5 to +6.7.",

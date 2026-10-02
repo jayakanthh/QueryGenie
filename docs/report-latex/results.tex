@@ -94,5 +94,26 @@ Keeping the T2-006 candidates fixed, every failed candidate (377 queries in 211 
 
 \section{Benchmark-to-reality gap}
 
-%REALITY-RESULTS%
-Both evaluations run the evaluated CodeS-1B pipeline unchanged, with the abstention threshold calibrated on Spider. On Spider-Realistic every question is paired with its original Spider wording and both are run on the same machine, so the difference measures the wording alone; it is tested with an exact McNemar test and a bootstrap interval. The results are TBD: the runs (RL-001, BD-001) were in progress when this draft was written.
+The evaluated CodeS-1B pipeline was run unchanged, with the abstention threshold calibrated on Spider. On Spider-Realistic every question is paired with its original Spider wording and both were run on the same machine (run RL-001, Apple M4), so the difference measures the wording alone (Table~\ref{tab:real}).
+
+\begin{table}[!t]
+	\centering
+	\caption{The same 508 questions in their original and their realistic wording (run RL-001).}
+	\label{tab:real}
+	\singlespacing
+	\begin{tabular}{|l|r|r|}
+		\hline
+		 & \textbf{Original wording} & \textbf{Realistic wording} \\ \hline
+		Execution Accuracy, answering everything & 72.8\% (370) & 69.5\% (353) \\ \hline
+		Paper, SFT CodeS-1B (Table 7 of \cite{li2024codes}) & --- & 70.9\% \\ \hline
+		Balanced setting: questions answered & 88.6\% & 86.2\% \\ \hline
+		Balanced setting: accuracy on answered & 79.3\% & 76.7\% \\ \hline
+		Wrong answers: answering everything $\rightarrow$ balanced & 138 $\rightarrow$ 93 & 155 $\rightarrow$ 102 \\ \hline
+	\end{tabular}
+\end{table}
+
+\textbf{A second reproduction point.} On Spider-Realistic we obtain 69.5\% against the paper's 70.9\% for SFT CodeS-1B, a difference of 1.4 points, inside the tolerance. As a hardware check, on the 508 original-wording questions this run chose the same query as the Colab run T2-006 for 485 questions, with 72.8\% against 73.2\% accuracy.
+
+\textbf{The wording gap.} Removing the column names costs 3.3 points (bootstrap 95\% CI $[0.8, 5.9]$): 31 questions are right only in the original wording and 14 only in the realistic one (exact McNemar $p = 0.016$), so the drop is real but small. Abstention keeps working on the realistic wording without recalibration: accuracy still rises with agreement (47.1\% at 1 of 4, 86.9\% at 4 of 4), and the balanced setting removes a third of the wrong answers (155 to 102) at 86.2\% coverage.
+
+\textbf{Real-world databases.} The BIRD Mini-Dev evaluation (run BD-001) was in progress when this report was printed; its result is TBD.

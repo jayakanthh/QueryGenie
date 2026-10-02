@@ -305,8 +305,8 @@ table(s2, [["", "Without", "With repair"], ["EX", "77.76%", "77.85%"], ["Failed 
 lab2 = s2.shapes.add_textbox(Inches(7.2), Inches(4.3), Inches(5.7), Inches(0.4))
 lab2.text_frame.text = "Benchmark-to-reality gap (CodeS-1B, unchanged)"
 lab2.text_frame.paragraphs[0].runs[0].font.size = Pt(15); lab2.text_frame.paragraphs[0].runs[0].font.bold = True
-rows = REALITY or [["Set", "EX", "Answered / correct"], ["Spider dev", "77.8%", "90.4% / 83.3%"],
-                   ["Spider-Realistic", "TBD", "TBD"], ["BIRD Mini-Dev", "TBD", "TBD"]]
+rows = REALITY or [["Set", "EX (paper)", "Answered / correct"], ["Spider dev", "77.8% (77.9%)", "90.4% / 83.3%"],
+                   ["Spider-Realistic", "69.5% (70.9%)", "86.2% / 76.7%"], ["BIRD Mini-Dev", "TBD", "TBD"]]
 table(s2, rows, 7.2, 4.75, 5.7, col_w=[2.2, 1.2, 2.3], size=12)
 footer(s2)
 

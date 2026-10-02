@@ -10,8 +10,8 @@ Everything for the Review-III presentation, in one place.
 
 ## Still to fill in
 
-- **Benchmark-to-reality numbers** (Spider-Realistic, BIRD Mini-Dev) — TBD in all three until runs
-  RL-001 and BD-001 finish.
+- **BIRD Mini-Dev result** — TBD in all three until run BD-001 finishes. Spider-Realistic is done
+  (RL-001: 69.5% vs the paper's 70.9%).
 
 ## Where the sources are
 
