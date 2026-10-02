@@ -1,0 +1,233 @@
+[
+  {
+    "db": "academic (students & results)",
+    "question": "List the subjects and the average marks for each subject.",
+    "shows": "confident answer + bar chart",
+    "ok": true,
+    "verdict": "correct",
+    "agree": 4,
+    "answered": true,
+    "unclear": false,
+    "chart": "bar",
+    "sql": "SELECT subject ,  avg(marks) FROM RESULT GROUP BY subject",
+    "rows": [
+      [
+        "CN",
+        55.5
+      ],
+      [
+        "DBMS",
+        48.166666666666664
+      ],
+      [
+        "OS",
+        48.0
+      ]
+    ],
+    "seconds": 9.3
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "What are the names of the students in the CSE department?",
+    "shows": "finds the stored value 'CSE'",
+    "ok": true,
+    "verdict": "correct",
+    "agree": 4,
+    "answered": true,
+    "unclear": false,
+    "chart": null,
+    "sql": "SELECT name FROM student WHERE department  =  'CSE'",
+    "rows": [
+      [
+        "Asha"
+      ],
+      [
+        "Ravi"
+      ],
+      [
+        "Sana"
+      ]
+    ],
+    "seconds": 2.0
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "Which student scored the highest marks in DBMS?",
+    "shows": "join across two tables",
+    "ok": true,
+    "verdict": "correct",
+    "agree": 4,
+    "answered": true,
+    "unclear": false,
+    "chart": null,
+    "sql": "SELECT student.name FROM student JOIN RESULT ON student.student_id  =  RESULT.student_id WHERE RESULT.subject  =  \"DBMS\" ORDER BY RESULT.marks DESC LIMIT 1",
+    "rows": [
+      [
+        "Sana"
+      ]
+    ],
+    "seconds": 5.3
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "Show the name and average marks of every student.",
+    "shows": "join + group by + chart",
+    "ok": true,
+    "verdict": "correct",
+    "agree": 4,
+    "answered": true,
+    "unclear": false,
+    "chart": "bar",
+    "sql": "SELECT student.name, AVG(result.marks) FROM student JOIN result ON result.student_id = student.student_id GROUP BY student.name",
+    "rows": [
+      [
+        "Asha",
+        45.666666666666664
+      ],
+      [
+        "Divya",
+        38.666666666666664
+      ],
+      [
+        "Karthik",
+        55.0
+      ],
+      [
+        "Meera",
+        27.666666666666668
+      ],
+      [
+        "Ravi",
+        54.666666666666664
+      ],
+      [
+        "Sana",
+        81.66666666666667
+      ]
+    ],
+    "seconds": 4.7
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "How many students are there in each department?",
+    "shows": "3 of 4 agree + chart",
+    "ok": true,
+    "verdict": "correct",
+    "agree": 3,
+    "answered": true,
+    "unclear": false,
+    "chart": "bar",
+    "sql": "SELECT count(*) ,  department FROM student GROUP BY department",
+    "rows": [
+      [
+        3,
+        "CSE"
+      ],
+      [
+        1,
+        "ECE"
+      ],
+      [
+        2,
+        "IT"
+      ]
+    ],
+    "seconds": 2.2
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "Who topped each subject?",
+    "shows": "the enhancement: queries disagree, it asks",
+    "ok": true,
+    "verdict": "asks (correct behaviour)",
+    "agree": 1,
+    "answered": false,
+    "unclear": false,
+    "chart": "bar",
+    "sql": "SELECT subject ,  max(marks) ,  student.name FROM student JOIN RESULT ON student.student_id  =  RESULT.student_id GROUP BY student.name",
+    "rows": [
+      [
+        "CN",
+        72,
+        "Asha"
+      ],
+      [
+        "CN",
+        44,
+        "Divya"
+      ],
+      [
+        "DBMS",
+        66,
+        "Karthik"
+      ],
+      [
+        "CN",
+        38,
+        "Meera"
+      ],
+      [
+        "OS",
+        61,
+        "Ravi"
+      ],
+      [
+        "CN",
+        90,
+        "Sana"
+      ]
+    ],
+    "seconds": 4.4
+  },
+  {
+    "db": "academic (students & results)",
+    "question": "show me all",
+    "shows": "vague: asks 'All of what?'",
+    "ok": true,
+    "verdict": "asks (correct behaviour)",
+    "agree": 2,
+    "answered": true,
+    "unclear": true,
+    "chart": "bar",
+    "sql": "SELECT * FROM student",
+    "rows": [
+      [
+        1,
+        "Asha",
+        "CSE",
+        3
+      ],
+      [
+        2,
+        "Ravi",
+        "CSE",
+        3
+      ],
+      [
+        3,
+        "Meera",
+        "IT",
+        2
+      ],
+      [
+        4,
+        "Karthik",
+        "ECE",
+        3
+      ],
+      [
+        5,
+        "Divya",
+        "IT",
+        2
+      ],
+      [
+        6,
+        "Sana",
+        "CSE",
+        1
+      ]
+    ],
+    "seconds": 1.0
+  }
+]
