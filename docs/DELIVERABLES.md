@@ -42,7 +42,7 @@ repository, and its status. Update the status column as each item is completed a
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; **needs guide approval + signature** |
+| 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; signature collected at the end with the other documents (no separate approval step, per Jaikanth 2026-10-02) |
 | 9 | Weekly report | `docs/weekly-reports/Week 9/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 10 | Fresh baseline on our hardware | `results/reproduction_log.csv` (T2-006), `results/week11_abstention.md` | ✅ T2-006 (28 Sep): official EX 804/1034 = 77.76%, identical to T2-005; full candidate dump saved |
 | 10 | Weekly report | `docs/weekly-reports/Week 10/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |

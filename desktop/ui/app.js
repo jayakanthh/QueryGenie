@@ -249,11 +249,12 @@ function renderThread(scroll = "end") {
 }
 
 // ------------------------------------------------------------------ follow-up context
-const contextOn = () => !(S.boot && S.boot.settings.context_on === false);
+const engineChats = () => !!(S.boot && S.boot.engine && S.boot.engine.chat);    // CodeS answers each question alone
+const contextOn = () => engineChats() && !(S.boot && S.boot.settings.context_on === false);
 const contextTurns = () => { if (!contextOn()) return 0; const v = S.boot && S.boot.settings.context_turns; return v === undefined || +v === 0 ? 3 : +v; };
 async function setContextOn(on) { await api.settings_set({ context_on: on }); S.boot = await api.boot(); renderContextBar(); syncContextSettings(); }
 function syncContextSettings() {
-  const on = contextOn(), box = $("#ctxon-opt"); if (!box) return;
+  const on = !(S.boot && S.boot.settings.context_on === false), box = $("#ctxon-opt"); if (!box) return;
   box.checked = on;
   $$(".ctx-dep").forEach((f) => { f.classList.toggle("off", !on); $$("select", f).forEach((x) => (x.disabled = !on)); });
 }
@@ -261,9 +262,16 @@ function renderContextBar() {
   const bar = $("#ctx"), n = contextTurns(), turns = S.chat ? S.chat.turns.length : 0;
   const pill = $("#ctx-pill");
   pill.setAttribute("aria-pressed", contextOn());
-  pill.title = contextOn() ? "Context on: follow-ups use this chat's earlier questions. Click to turn off."
-                           : "Context off: every question is answered on its own. Click to turn on.";
+  pill.disabled = !engineChats();
+  pill.title = !engineChats() ? "CodeS answers every question on its own — it was trained on single questions. Choose a chat model (Ollama or a cloud service) for follow-ups."
+    : contextOn() ? "Context on: follow-ups use this chat's earlier questions. Click to turn off."
+    : "Context off: every question is answered on its own. Click to turn on.";
   if (!S.chat || !turns || S.view === "map") { bar.hidden = true; return; }
+  if (!engineChats()) {
+    bar.hidden = false;
+    bar.innerHTML = `${icon("info", "i sm")}<span>${esc(shortName(S.boot.engine.label))} answers each question on its own, so name what you mean in every question. Chat models can follow up.</span>`;
+    return;
+  }
   if (!contextOn()) {
     bar.hidden = false;
     bar.innerHTML = `${icon("history", "i sm")}<span>Context is off — every question is answered on its own.</span><button class="btn quiet link" data-ctx-on>Turn on</button>`;
@@ -340,7 +348,7 @@ function turnHtml(it) {
   if (it.unclear && !showGuess) return head + bot(clarifyHtml(it));
   const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
       ? (it.context.how === "resolved" ? `Read as: “${esc(it.context.asked_as)}”` : `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`)
-      : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
+      : `Asked as: “${esc(it.context.asked_as)}”`}</span></p>` : "";
   const fr = it.failed_requests;
   const failNote = fr ? `<p class="note warn-note">${icon("triangle-alert")}<span>${fr.count} of the 4 requests to ${esc(it.engine ? it.engine.label : "the service")} failed (${esc(fr.reason)}), so only ${4 - fr.count} answer${4 - fr.count === 1 ? "" : "s"} could agree. Asking again in a minute usually gets all four.</span></p>` : "";
   const errFixed = (it.repaired || 0) - (it.repaired_empty || 0);
@@ -997,7 +1005,7 @@ function placeUsage() {
 }
 
 function renderModelPill() {
-  refreshUsage();
+  refreshUsage(); renderContextBar();
   const e = (S.boot && S.boot.engine) || {};
   $("#model-pill .mp-name").textContent = shortName(e.label);
   $("#model-pill .mp-effort").textContent = e.effort_levels ? (EFFORT_NAME[e.effort] || "Default") : "";

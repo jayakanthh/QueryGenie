@@ -3,9 +3,8 @@ Follow-up questions in a chat ("only from CSE", "and the average?").
 
 Chat models (Ollama, cloud, OpenAI-compatible servers) get real context: the earlier questions of the
 chat and the SQL that answered them go into the prompt. CodeS models were fine-tuned on single
-questions and have no notion of a conversation, so for them the previous question and the follow-up
-are sent as one combined question - a best effort, not measured - and the application shows the text
-it asked. With no history the evaluated pipeline runs exactly as measured.
+questions; the application gives them no context (gluing or rewriting follow-ups made CodeS answer the
+wrong question), so the evaluated pipeline always runs exactly as measured.
 """
 from __future__ import annotations
 
@@ -65,64 +64,6 @@ def substitute(history: list[dict] | None, question: str, match, values_of=None)
                 if new.lower() != old.lower() and re.search(re.escape(old), prev, re.I) and not re.search(rf"\b{re.escape(new)}\b", prev, re.I):
                     return re.sub(re.escape(old), new, prev, count=1, flags=re.I)
     return None
-
-
-# Words that point back at earlier questions. "that", "more" and "less" are left out: they are just as
-# common in a standalone question ("students that failed more than two subjects").
-_BACKREF = re.compile(r"\b(those|these|them|their|theirs|they|it|its|this|same|also|too|instead|only|among|above|"
-                      r"previous|earlier|again|else|other|others|ones?|which of)\b", re.I)
-
-
-def stands_alone(question: str, named_tables) -> bool:
-    """A question that names a table, column or stored value itself and has no word pointing back ("those", "their", "only",
-    "and ...") starts a new topic - "which student is the topper?" after a question about departments.
-    Used for CodeS, which would otherwise get both questions glued together (combined_question)."""
-    return (bool(named_tables) and len(question.split()) >= 3
-            and not _BACKREF.search(question) and not _SWAP.match(question))
-
-
-_LEAD = re.compile(r"^\s*(how many|what is the (?:total )?number of|what are(?: all)?(?: the)?|which|who are(?: the)?|"
-                   r"list(?: all)?(?: the)?|show(?: me)?(?: all)?(?: the)?|find(?: all)?(?: the)?|give me(?: all)?(?: the)?|"
-                   r"count(?: the)?|get(?: all)?(?: the)?)\s+", re.I)
-_TAIL = re.compile(r"\s+(do we have|are there|there are|exist|we have|in total|are listed)\s*$", re.I)
-_LINK = re.compile(r"\b(?:who|that|which)?\s*(?:are|is)\s+(in|from|with|of|at|on|under|over|older|younger|born|enrolled|working)\b", re.I)
-_PRONOUN = re.compile(r"\b(?:among|of|from|for)\s+(them|those|these)\b|\b(their)\s+(\w+)|\b(they|them|those|these)\b", re.I)
-
-
-def referent(previous: str) -> str | None:
-    """What a pronoun in the next question points at: "How many singers do we have?" -> "singers",
-    "How many students are in CSE?" -> "students in CSE". None if the previous question isn't of that shape."""
-    q = previous.strip().rstrip("?.! ")
-    m = _LEAD.match(q)
-    if not m:
-        return None
-    ref = _TAIL.sub("", q[m.end():])
-    ref = re.sub(r"\s+", " ", _LINK.sub(lambda x: " " + x.group(1), ref)).strip()
-    return ref if 0 < len(ref.split()) <= 8 else None
-
-
-def resolve_reference(history: list[dict] | None, question: str, previous_tables) -> str | None:
-    """For CodeS: "who is the youngest among them" after "How many singers do we have?" becomes
-    "who is the youngest among the singers" - one plain question, instead of the previous question glued
-    on, which pulls the model back to counting. Only when the previous question named a table, wasn't a
-    follow-up itself, and the new one has a pronoun to replace; otherwise None (glue as before)."""
-    if not history or not previous_tables:
-        return None
-    prev = history[-1]["question"]
-    if _BACKREF.search(prev) or _SWAP.match(prev):
-        return None
-    ref = referent(prev)
-    if not ref or not _PRONOUN.search(question):
-        return None
-
-    def swap(m):
-        if m.group(1):                                     # "among them" -> "among the singers"
-            return m.group(0)[: m.start(1) - m.start(0)] + f"the {ref}"
-        if m.group(2):                                     # "their marks" -> "the marks of the students"
-            return f"the {m.group(3)} of the {ref}"
-        return f"the {ref}"                                # "they" / "those" -> "the singers"
-
-    return _PRONOUN.sub(swap, question, count=1)
 
 
 FOLLOW_UP_NOTE = ("This question continues the conversation above. Words like \"those\", \"them\", \"their\" or "

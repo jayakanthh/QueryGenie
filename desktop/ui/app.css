@@ -672,3 +672,5 @@ dialog.wide { max-width: min(720px, 94vw); }
 .ctx-pill:hover { background: var(--bg-hover); color: var(--ink-2); }
 .ctx-pill[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
 .ctx-pill[aria-pressed="false"] span { text-decoration: line-through; }
+.ctx-pill:disabled { opacity: 0.45; cursor: default; background: transparent; color: var(--ink-3); border-color: var(--line); }
+.ctx-pill:disabled span { text-decoration: line-through; }

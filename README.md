@@ -65,10 +65,9 @@ In the app:
   few questions as context (Settings → General: up to 10, or *all that fit* the model's context window, which
   is asked from Ollama, Claude and Gemini; *New topic* starts fresh). Chat models get the earlier questions as
   real conversation turns with the SQL that answered them, and — for models on this computer, or if you allow
-  it for cloud services — the first rows each returned; CodeS, trained on single questions, gets the previous question and the follow-up
-  combined, and "what about IT?"-style follow-ups are rewritten as the earlier question with the value
-  swapped. On a six-question spot check CodeS-1B got 5 follow-ups right (0 without context) — illustrative,
-  not a measurement.
+  it for cloud services — the first rows each returned. CodeS models get no context: they were trained on single questions,
+  and gluing or rewriting follow-ups made them answer the wrong question, so with CodeS every question is
+  answered on its own (the *Context* switch beside the model picker is off) and the pipeline runs as measured.
 - **Chat view**: every answer shows how many of the 4 candidate queries agree, the table, a chart,
   the SQL (editable) and all four candidates. When they disagree it asks *"I'm not sure which you
   mean"* and shows the readings instead of guessing.

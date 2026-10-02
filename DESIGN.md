@@ -220,8 +220,9 @@ makes it jump.
   CodeS models show no effort: they always get four candidates.
 - **Compose field:** docked at the bottom of the reading pane; Return asks, Shift+Return adds a line.
   Above it, in a chat, a one-line context strip ("Follow-ups use the last 3 questions in this chat" ·
-  *New topic*). A follow-up turn carries a "Follow-up" label listing its context and, for CodeS, the exact
-  text the model was asked.
+  *New topic*). A follow-up turn carries a "Follow-up" label listing its context. With a CodeS model the
+  strip instead says it answers each question on its own, and the *Context* pill beside the model picker
+  is disabled.
 - **Verdict:** tinted panel with the large four-cell mark, the level in words and the agreement
   sentence, plus the level's icon. Other readings appear as small inline buttons beneath it.
 - **"Not sure" block:** critical-tinted header ("I'm not sure which you mean") above a row of reading

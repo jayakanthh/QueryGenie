@@ -251,13 +251,20 @@ class Api:
                     break
         return found
 
+    CODES_KINDS = ("evaluated", "hf", "mlx", "gguf")      # completion models trained on single questions
+
+    def _engine_chat(self, spec=None):
+        """Does the current model hold a conversation (Ollama, cloud, OpenAI-style servers)? CodeS doesn't."""
+        spec = spec if spec is not None else self.settings_get().get("engine")
+        return bool(spec) and spec.get("kind") not in self.CODES_KINDS
+
     def _engine_info(self, spec=None):
         """What answers questions now: label, and whether its confidence was calibrated."""
         s = self.settings_get()
         spec = spec if spec is not None else s.get("engine")
         if not spec:
             key = s["model"]
-            return {"kind": "evaluated", "model": key, "label": st.MODELS[key][1],
+            return {"kind": "evaluated", "model": key, "label": st.MODELS[key][1], "chat": False,
                     "calibrated": key == "codes-1b-spider", "cloud": False, "effort": None, "effort_levels": None}
         from querygenie.providers import CLOUD, effort_levels
         kind = spec["kind"]
@@ -266,6 +273,7 @@ class Api:
         where = CLOUD[kind]["name"] if kind in CLOUD else {"ollama": "Ollama", "compat": "OpenAI-compatible server",
                                                            "hf": "this computer", "mlx": "MLX", "gguf": "llama.cpp"}[kind]
         return {"kind": kind, "model": spec.get("model"), "label": spec.get("label") or spec.get("model"),
+                "chat": self._engine_chat(spec),
                 "where": where, "calibrated": False, "cloud": cloud, "base_url": spec.get("base_url"),
                 "effort": spec.get("effort"), "effort_levels": effort_levels(kind)}
 
@@ -662,7 +670,9 @@ class Api:
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
         s_ = self.settings_get()
-        turns = int(s_.get("context_turns", 3)) if s_.get("context_on", True) else 0
+        # Context is for chat models only: CodeS was trained on single questions, and glued or rewritten
+        # follow-ups made it answer the wrong question, so CodeS models answer every question on its own.
+        turns = int(s_.get("context_turns", 3)) if s_.get("context_on", True) and self._engine_chat() else 0
         history = [] if fresh else self._context(chat_id, 1000 if turns < 0 else turns)
         rewritten = self._swap_followup(info, history, question) if history else None
         model_question, model_history = (rewritten, None) if rewritten else (question, history)
@@ -670,32 +680,14 @@ class Api:
         with self._lock:                                   # one generation at a time
             try:
                 backend = self._get_backend()
-                standalone, how = False, "swap" if rewritten else None
-                if history and not rewritten and not getattr(backend, "chat", False):
-                    # CodeS gets the previous question glued to this one; skip that when this one plainly
-                    # starts a new topic, or its answer drifts back to the old question.
-                    from querygenie.context import stands_alone
-                    standalone = stands_alone(question, self._named_things(info, question))
-                    if standalone:
-                        history, model_history = [], None
-                    else:
-                        from querygenie.context import resolve_reference
-                        resolved = resolve_reference(history, question, self._named_tables(info, history[-1]["question"]))
-                        if resolved:
-                            rewritten, how = resolved, "resolved"
-                            model_question, model_history = resolved, None
-                if history and turns < 0 and getattr(backend, "chat", False):
+                how = "swap" if rewritten else None
+                if history and turns < 0:
                     # "All that fit": keep the latest turns within about half the model's window,
                     # leaving the rest for the database description and the answer.
                     from querygenie import providers
                     from querygenie.context import fit_history
                     window = providers.context_window(self.settings_get().get("engine") or {})
                     history = fit_history(history, window // 2 if window else None, max_turns=200 if window else 20)
-                    if not rewritten:
-                        model_history = history
-                elif history and turns < 0:
-                    from querygenie.context import fit_history
-                    history = fit_history(history, None, max_turns=5)       # CodeS uses only the latest
                     if not rewritten:
                         model_history = history
                 share = self.settings_get().get("context_results", "local")
@@ -735,14 +727,13 @@ class Api:
         if failures:            # refused or failed requests count as candidates that did not run
             result["failed_requests"] = {"count": len(failures), "reason": str(failures[0]).split(":")[0][:160]}
         result["engine"] = self._engine_info()
-        from querygenie.context import combined_question, linking_text
+        from querygenie.context import linking_text
         result["unclear"] = self._unclear(info, linking_text(history, question))
         result["context_break"] = bool(fresh)
-        result["standalone"] = standalone
         if history:
             result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten), "how": how,
                                  "with_results": bool(getattr(backend, "share_results", False) and getattr(backend, "chat", False)),
-                                 "asked_as": rewritten or (None if getattr(backend, "chat", False) else combined_question(history, question))}
+                                 "asked_as": rewritten}
         chat_id = chat_id or self._new_chat(db_id, question)
         hid = self._save_history(db_id, question, result, chat_id)
         self._decisions[hid] = (d, info)
@@ -756,13 +747,6 @@ class Api:
         db_id = os.path.splitext(os.path.basename(info.path))[0]
         return get_db_schema(info.path, {db_id: info.comments} if info.comments else {}, db_id)
 
-    def _named_tables(self, info, question):
-        from querygenie.mentions import schema_mentions
-        try:
-            return schema_mentions(self._schema(info), question)["tables"]
-        except Exception:  # noqa: BLE001 - when in doubt, keep the context
-            return []
-
     def _matched_values(self, info, text):
         """The value retriever's matches ({"table.column": [values]}) for a question."""
         from querygenie.pipeline import matched_contents_for, matched_contents_from_index
@@ -772,19 +756,6 @@ class Api:
             return matched_contents_for(info.path, self._schema(info), text)
         except Exception:  # noqa: BLE001
             return {}
-
-    def _named_things(self, info, question):
-        """Tables, columns and stored values ("ford maverick") the question names by itself."""
-        from querygenie.mentions import schema_mentions
-        from querygenie.pipeline import matched_contents_for, matched_contents_from_index
-        try:
-            schema = self._schema(info)
-            values = (matched_contents_from_index(info.conn.build_index(), question) if info.conn is not None
-                      else matched_contents_for(info.path, schema, question))
-            m = schema_mentions(schema, question, values)
-            return m["tables"] + m["columns"] + list(m["values"])
-        except Exception:  # noqa: BLE001 - when in doubt, keep the context
-            return []
 
     def _unclear(self, info, question):
         """None if the question names a table, column or stored value; otherwise the database's tables,

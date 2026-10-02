@@ -85,28 +85,3 @@ def test_value_swap_follow_ups():
     assert substitute(prev, "what about the students who failed more than two subjects in IT?", match, values) is None  # too long
     assert substitute([], "what about IT?", match, values) is None
 
-
-def test_standalone_questions_start_a_new_topic():
-    from querygenie.context import stands_alone
-    assert stands_alone("which student is the topper", ["student"])          # names its own table
-    assert not stands_alone("which of those is the oldest", ["student"])     # points back
-    assert not stands_alone("what are their marks", ["marks"])
-    assert not stands_alone("only from CSE", [])
-    assert not stands_alone("and the average marks?", ["marks"])
-    assert not stands_alone("show me the youngest one", [])                  # names no table
-    assert stands_alone("students that failed more than two subjects", ["student", "subject"])
-
-
-def test_pronouns_are_replaced_by_what_they_point_at():
-    from querygenie.context import referent, resolve_reference
-    h = lambda q: [{"question": q}]
-    assert referent("How many singers do we have?") == "singers"
-    assert referent("How many students are in CSE?") == "students in CSE"
-    assert resolve_reference(h("How many singers do we have?"), "who is the youngest among them", ["singer"]) \
-        == "who is the youngest among the singers"
-    assert resolve_reference(h("Which students are in CSE?"), "what are their marks", ["student"]) \
-        == "what are the marks of the students in CSE"
-    assert resolve_reference(h("List all singers"), "how old are they", ["singer"]) == "how old are the singers"
-    assert resolve_reference(h("How many singers do we have?"), "only from France", ["singer"]) is None   # no pronoun
-    assert resolve_reference(h("which of those is oldest"), "what are their names", ["singer"]) is None  # chained follow-up
-    assert resolve_reference(h("What is the average age?"), "who is the oldest among them", []) is None   # no table named

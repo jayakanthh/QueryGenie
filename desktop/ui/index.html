@@ -174,7 +174,7 @@
         <div data-setpanel="general" class="stack">
           <div class="field"><label>When should QueryGenie decline to answer?</label><div id="mode-opts" class="stack" style="gap:6px"></div></div>
           <label class="opt"><input type="checkbox" id="ctxon-opt"><div><b>Use follow-up context</b>
-            <span>Earlier questions in a chat are context for the next one ("only from CSE", "what are their marks?"). Off: every question is answered on its own.</span></div></label>
+            <span>Earlier questions in a chat are context for the next one ("only from CSE", "what are their marks?"). Off: every question is answered on its own. Chat models only (Ollama, cloud services): CodeS was trained on single questions, so it always answers each question on its own.</span></div></label>
           <div class="field ctx-dep"><label for="ctx-opt">How much of the chat</label>
             <div class="row-in"><select class="input" id="ctx-opt" style="max-width:260px">
               <option value="1">The last question</option>
