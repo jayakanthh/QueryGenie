@@ -222,7 +222,7 @@ function renderThread(scroll = "end") {
   $("#layout-seg").hidden = !c;
   $$("#layout-seg [data-layout]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.layout === S.layout));
   renderContextBar();
-  $("#dock-hint").innerHTML = c ? (contextTurns() ? `Return to ask · Shift+Return for a new line` : `${icon("info", "i sm")}Each question is answered on its own — turn on follow-up context in Settings → General.`)
+  $("#dock-hint").innerHTML = c ? `Return to ask · Shift+Return for a new line`
                                 : `Return to ask · Shift+Return for a new line`;
   let html;
   if (!c && !working) {
@@ -244,10 +244,23 @@ function renderThread(scroll = "end") {
 }
 
 // ------------------------------------------------------------------ follow-up context
-const contextTurns = () => { const v = S.boot && S.boot.settings.context_turns; return v === undefined ? 3 : +v; };
+const contextOn = () => !(S.boot && S.boot.settings.context_on === false);
+const contextTurns = () => { if (!contextOn()) return 0; const v = S.boot && S.boot.settings.context_turns; return v === undefined || +v === 0 ? 3 : +v; };
+async function setContextOn(on) { await api.settings_set({ context_on: on }); S.boot = await api.boot(); renderContextBar(); syncContextSettings(); }
+function syncContextSettings() {
+  const on = contextOn(), box = $("#ctxon-opt"); if (!box) return;
+  box.checked = on;
+  $$(".ctx-dep").forEach((f) => { f.classList.toggle("off", !on); $$("select", f).forEach((x) => (x.disabled = !on)); });
+}
 function renderContextBar() {
   const bar = $("#ctx"), n = contextTurns(), turns = S.chat ? S.chat.turns.length : 0;
-  if (!S.chat || !turns || !n || S.view === "map") { bar.hidden = true; return; }
+  if (!S.chat || !turns || S.view === "map") { bar.hidden = true; return; }
+  if (!contextOn()) {
+    bar.hidden = false;
+    bar.innerHTML = `${icon("history", "i sm")}<span>Context is off — every question is answered on its own.</span><button class="btn quiet link" data-ctx-on>Turn on</button>`;
+    $("[data-ctx-on]", bar).onclick = () => setContextOn(true);
+    return;
+  }
   bar.hidden = false;
   bar.innerHTML = S.fresh
     ? `${icon("message-square-plus", "i sm")}<span>The next question starts a new topic — earlier questions won't be used.</span><button class="btn quiet link" data-ctx-undo>Undo</button>`
@@ -279,12 +292,12 @@ async function submitQuestion(text) {
   } finally { $("#ask-btn").disabled = false; }
 }
 function workingHtml(q) {
-  return `<div class="q-head"><h1>${esc(q)}</h1></div>
+  return `<div class="you"><div class="bubble">${esc(q)}</div></div><div class="bot">${botAvatar()}<div class="bot-body">
     <div class="working"><div class="w-line">${icon("loader-circle", "i spin")}<span id="w-msg">Writing four candidate queries…</span><span class="mono" id="w-t" style="margin-left:auto;color:var(--ink-3)"></span></div>
-    <div class="sk" style="width:62%"></div><div class="sk" style="width:88%"></div><div class="sk" style="width:74%"></div></div>`;
+    <div class="sk" style="width:62%"></div><div class="sk" style="width:88%"></div><div class="sk" style="width:74%"></div></div></div></div>`;
 }
 function failedHtml(f) {
-  return `<div class="q-head"><h1>${esc(f.q)}</h1></div><div class="error-box">${icon("triangle-alert")}<div><b>Something went wrong</b><div>${esc(f.msg)}</div></div></div>`;
+  return `<div class="you"><div class="bubble">${esc(f.q)}</div></div><div class="bot">${botAvatar()}<div class="bot-body"><div class="error-box">${icon("triangle-alert")}<div><b>Something went wrong</b><div>${esc(f.msg)}</div></div></div></div></div>`;
 }
 function startTicker() {
   clearInterval(S.tick);
@@ -299,20 +312,23 @@ function startTicker() {
 // ------------------------------------------------------------------ one turn of a chat
 function turnHtml(it) {
   const t = turnState(it.id);
-  const head = `<div class="q-head"><div class="q-line"><h1 class="selectable">${esc(it.question)}</h1>
-      <span class="turn-tools">
+  // Chat layout: the question as a bubble on the right, the answer on the left.
+  const you = `<div class="you"><div class="bubble selectable">${esc(it.question)}</div>
+    <div class="you-meta"><span class="turn-tools">
         <button class="btn quiet icon" data-act="copy" title="Copy SQL">${icon("copy", "i sm")}</button>
         <button class="btn quiet icon" data-act="reask" title="Ask again in this chat">${icon("refresh-cw", "i sm")}</button>
-        <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button>
-      </span></div>
-    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → ") + (it.context.with_results ? " (with their first rows)" : ""))}">${icon("history", "i sm")}Follow-up${it.context.questions.length > 1 ? ` · ${it.context.questions.length} earlier` : ""}</span>` : it.context_break ? `<span>New topic</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
+        <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button></span>
+      ${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → ") + (it.context.with_results ? " (with their first rows)" : ""))}">${icon("history", "i sm")}Follow-up${it.context.questions.length > 1 ? ` · ${it.context.questions.length} earlier` : ""}</span>` : it.context_break ? `<span>New topic</span>` : ""}
+      ${it.created ? `<span>${when(it.created)}</span>` : ""}</div></div>`;
+  const meta = `<div class="bot-meta">${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}<span>${modeName(it.mode)}</span></div>`;
+  const head = you, bot = (inner) => `<div class="bot">${botAvatar()}<div class="bot-body">${meta}${inner}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
     ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
   // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
   // on one reading, in which case show it, saying that it is the model's reading.
   const unanimous = it.ran && it.agree === 4;
   const showGuess = t.guess ?? unanimous;
-  if (it.unclear && !showGuess) return head + clarifyHtml(it);
+  if (it.unclear && !showGuess) return head + bot(clarifyHtml(it));
   const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
       ? `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`
       : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
@@ -325,8 +341,9 @@ function turnHtml(it) {
   else if (S.layout === "split") body = `<div class="split"><div>${tabsHtml(it, t, ["table", "chart"])}</div><div class="stack">${sqlHtml(it, t)}${candidatesHtml(it)}</div></div>`;
   else body = tabsHtml(it, t, ["table", "chart", "sql", "candidates"]);
   const live = it.live ? `<p class="note">${icon("info")}Connected to ${esc(it.backend)}: the query was translated and run in a read-only transaction. The confidence percentages were measured on SQLite and are not yet calibrated for ${esc(it.backend)}.</p>` : "";
-  return head + top + body + live;
+  return head + bot(top + body + live);
 }
+const botAvatar = () => `<span class="bot-avatar" aria-hidden="true"><img src="brand/mark.png" alt=""></span>`;
 // "Show me all": the question names no table, column or value, so ask which one instead of
 // presenting the model's guess (see querygenie/mentions.py).
 function clarifyHtml(it) {
@@ -843,7 +860,9 @@ async function openSettings() {
     return `<label class="opt"><input type="radio" name="mode" value="${k}" ${S.mode === k ? "checked" : ""}><div><b>${label}</b>
       <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
   $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
-  $("#ctx-opt").value = String(contextTurns());
+  syncContextSettings();
+  $("#ctxon-opt").onchange = (e) => setContextOn(e.target.checked);
+  $("#ctx-opt").value = String((S.boot.settings.context_turns && +S.boot.settings.context_turns) || 3);
   $("#ctxres-opt").value = S.boot.settings.context_results || "local";
   $("#ctxres-opt").onchange = async (e) => {
     if (e.target.value === "all" && !confirm("Send the first rows of earlier answers to cloud services as context?\n\nThis shares data from your database with the provider.")) { e.target.value = S.boot.settings.context_results || "local"; return; }

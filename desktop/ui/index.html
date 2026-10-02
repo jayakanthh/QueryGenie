@@ -165,13 +165,15 @@
         <div class="set-tabs seg" role="tablist"><button data-set="general" aria-pressed="true">General</button><button data-set="model">Model</button><button data-set="storage">Storage</button></div>
         <div data-setpanel="general" class="stack">
           <div class="field"><label>When should QueryGenie decline to answer?</label><div id="mode-opts" class="stack" style="gap:6px"></div></div>
-          <div class="field"><label for="ctx-opt">Follow-up context</label>
+          <label class="opt"><input type="checkbox" id="ctxon-opt"><div><b>Use follow-up context</b>
+            <span>Earlier questions in a chat are context for the next one ("only from CSE", "what are their marks?"). Off: every question is answered on its own.</span></div></label>
+          <div class="field ctx-dep"><label for="ctx-opt">How much of the chat</label>
             <div class="row-in"><select class="input" id="ctx-opt" style="max-width:260px">
-              <option value="0">Off — every question on its own</option><option value="1">The last question</option>
+              <option value="1">The last question</option>
               <option value="3">The last 3 questions</option><option value="5">The last 5 questions</option>
               <option value="10">The last 10 questions</option><option value="-1">All that fit the model's window</option></select></div>
             <span class="gnote" style="margin:0">Chat models get the earlier questions as conversation turns, with the SQL that answered them. "All that fit" uses as much of the chat as fits in about half the model's context window (asked from Ollama, Claude and Gemini; 20 questions otherwise). CodeS was trained on single questions, so it gets the previous question and the follow-up combined — not measured.</span></div>
-          <div class="field"><label for="ctxres-opt">Earlier results in the context</label>
+          <div class="field ctx-dep"><label for="ctxres-opt">Earlier results in the context</label>
             <div class="row-in"><select class="input" id="ctxres-opt" style="max-width:260px">
               <option value="local">Models on this computer only</option><option value="all">Also cloud services</option><option value="none">Never</option></select></div>
             <span class="gnote" style="margin:0">The first 5 rows of each earlier answer, so a follow-up like "which of those is the oldest?" can refer to them. Sending them to a cloud service shares your data with it.</span></div>

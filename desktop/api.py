@@ -23,7 +23,8 @@ SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
                     "engine": None,          # None = the evaluated CodeS model in "model"
                     "repair": True,          # send failed candidate queries back once with their error
-                    "context_turns": 3,      # earlier questions of a chat used as context (-1 = all that fit)
+                    "context_on": True,      # use earlier questions of a chat as context for follow-ups
+                    "context_turns": 3,      # how many (-1 = all that fit the model's window)
                     "context_results": "local",   # earlier result rows in the context: local / all / none
                     "recent_engines": []}    # last few models chosen (for the quick picker)
 
@@ -583,7 +584,8 @@ class Api:
         from querygenie.confidence import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
-        turns = int(self.settings_get().get("context_turns", 3))
+        s_ = self.settings_get()
+        turns = int(s_.get("context_turns", 3)) if s_.get("context_on", True) else 0
         history = [] if fresh else self._context(chat_id, 1000 if turns < 0 else turns)
         rewritten = self._swap_followup(info, history, question) if history else None
         model_question, model_history = (rewritten, None) if rewritten else (question, history)

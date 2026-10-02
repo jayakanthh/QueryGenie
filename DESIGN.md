@@ -255,7 +255,7 @@ makes it jump.
 - **Do** keep the SQL one click away, and editable.
 - **Do** follow the host OS for button order, shortcuts (⌘ vs Ctrl), selection and dialogs.
 - **Don't** use the confidence colours for anything other than confidence.
-- **Don't** style the thread as chat bubbles or an assistant persona; each turn stays a ledger entry
+- **Do** lay a chat out like a chat: the user's question is a right-aligned bubble (subtle surface, hairline border, time and follow-up tag under it, copy / ask again / remove on hover); the answer sits on the left beside the QueryGenie mark, headed by the model and strictness, and keeps the full evidence (confidence, tabs, all four queries). **Don't** give the answer a bubble or a persona voice; it stays an evidence block.
   with its evidence, and never imply the model remembers earlier questions.
 - **Don't** hide or soften the "not sure" state; it is the product's signature moment.
 - **Don't** use emoji or text glyphs as icons; use the bundled Lucide set.
