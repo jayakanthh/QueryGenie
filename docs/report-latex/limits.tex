@@ -15,10 +15,19 @@ CodeS-1B was reproduced to within 0.1 points of its published Spider result, on 
 
 \section{Future work}
 
+\textbf{Research.}
 \begin{enumerate}
-	\item \textbf{Test-suite accuracy}, from the saved predictions, to report the paper's stricter metric (72.2\%).
+	\item \textbf{Test-suite accuracy} from the saved predictions, to report the paper's stricter metric (72.2\%).
 	\item \textbf{Larger models}: evaluate CodeS-3B (paper: 83.4\%) and calibrate its own threshold.
-	\item \textbf{A learned reranker} to close part of the gap between the 77.8\% selected and the 83.1\% of questions with a correct candidate.
-	\item \textbf{A combined signal} of agreement and beam probability, tuned on calibration data only.
+	\item \textbf{A learned reranker} to close part of the gap between the 77.8\% selected and the 83.1\% of questions with a correct candidate, and a combined agreement--probability signal.
 	\item \textbf{Calibration beyond Spider}: tune the threshold on realistic and real-world data, and measure the other models the application offers.
+\end{enumerate}
+
+\textbf{From application to platform.} The longer-term plan is a system that organisations plug into their own databases, keeping the local, open-weight design so that no schema or data leaves the organisation:
+\begin{enumerate}
+	\setcounter{enumi}{4}
+	\item \textbf{Any database}: connectors for SQL Server, Snowflake and Apache Spark alongside the existing SQLite, PostgreSQL and MySQL, with the model's SQL translated to each dialect and checked by the repair loop; document stores such as MongoDB through a SQL gateway that exposes collections as tables.
+	\item \textbf{Per-database adaptation}: a value index built once per database (the authors' BM25 approach) for large tables, and optional one-time fine-tuning on synthetic question--SQL pairs for a specific database, as in the bi-directional data augmentation of the CodeS paper.
+	\item \textbf{Access control}: users and roles that limit which databases, tables and columns each person may query, with an audit log of every question and query.
+	\item \textbf{Serving at scale}: weight quantisation to run larger CodeS models on ordinary laptops, and a shared server for many concurrent users.
 \end{enumerate}

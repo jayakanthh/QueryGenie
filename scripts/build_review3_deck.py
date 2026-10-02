@@ -36,6 +36,17 @@ def dup(slide, after):
     return new
 
 
+def new_after(layout, after):
+    """A fresh slide with `layout`, placed right after `after`."""
+    new = prs.slides.add_slide(layout)
+    ids = prs.slides._sldIdLst
+    el = ids[-1]
+    ids.remove(el)
+    pos = [s.slide_id for s in prs.slides].index(after.slide_id)
+    ids.insert(pos + 1, el)
+    return new
+
+
 def ph(slide, idx):
     for p in slide.placeholders:
         if p.placeholder_format.idx == idx:
@@ -220,6 +231,25 @@ bullets(tb, [
 ], size=15, sub=13)
 footer(s)
 
+# ---------------------------------------------------------------- the application (new slide after the architecture)
+app = new_after(S[7].slide_layout, S[7])
+ph(app, 0).text_frame.text = "Proposed Methodology — the QueryGenie app"
+b = ph(app, 1)
+b._element.getparent().remove(b._element)
+for k, (img, cap) in enumerate([("app_answer.png", "Confident answer: 4 of 4 queries agree → table, chart, SQL"),
+                                ("app_not_sure.png", "Abstention: queries disagree → it asks which reading you meant")]):
+    x = 0.8 + k * 6.05
+    picture(app, f"{FIG}/{img}", x, 1.75, width=5.85)
+    c = app.shapes.add_textbox(Inches(x), Inches(1.75 + 5.85 * 1600 / 2560 + 0.08), Inches(5.85), Inches(0.5))
+    c.text_frame.word_wrap = True
+    c.text_frame.text = cap
+    c.text_frame.paragraphs[0].runs[0].font.size = Pt(13)
+note = app.shapes.add_textbox(Inches(0.8), Inches(6.05), Inches(11.9), Inches(0.8))
+note.text_frame.word_wrap = True
+bullets(note, ["Desktop app (macOS, Windows) · runs locally on open weights · chats, schema map, charts, self-correction · "
+               "SQLite, PostgreSQL, MySQL · optional Ollama / cloud models"], size=13)
+footer(app)
+
 # ---------------------------------------------------------------- results (two slides)
 s = S[8]
 ph(s, 0).text_frame.text = "Experimental Results"
@@ -290,11 +320,13 @@ bullets(ph(S[10], 1), [
     "**Reproduced **CodeS-1B: 77.8% vs 77.9% (−0.1 pts) on a free Colab T4, after auditing our own evaluation.",
     "**Enhanced **with confidence-aware abstention: 83.3% correct when answering, 32% fewer wrong answers, statistically significant.",
     "**Delivered **QueryGenie, a desktop app that runs locally and asks when it isn't sure.",
-    "**Future work:**",
-    ("Test-suite accuracy from the saved predictions; CodeS-3B", 1),
-    ("A learned reranker: a correct query is among the 4 for 83.1% of questions", 1),
-    ("Calibrate the threshold on realistic and real-world data", 1),
-], size=17, sub=15)
+    "**Future work — research:** test-suite accuracy; CodeS-3B; a learned reranker (a correct query is among the 4 for 83.1% of questions); calibration on real-world data.",
+    "**Future work — from app to platform** (local, so no data leaves the company):",
+    ("Any database: SQL Server, Snowflake, Apache Spark; MongoDB and other NoSQL through a SQL gateway", 1),
+    ("Per-database adaptation: value index per database; optional one-time fine-tuning (CodeS data augmentation)", 1),
+    ("Access control: users and roles per database / table / column, with an audit log", 1),
+    ("Serving at scale: quantised larger models on laptops; a shared server for many users", 1),
+], size=16, sub=14)
 footer(S[10])
 
 # ---------------------------------------------------------------- references (APA, 8 pt)

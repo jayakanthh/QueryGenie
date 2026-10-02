@@ -126,6 +126,7 @@ fill(155, [
     "**Reproduction: **77.8% vs 77.9% (−0.1 pts) on a free Colab T4.",
     "**Enhancement: **+5.5 pts accuracy on answered questions; t-test p = 7.7×10⁻¹⁰, Wilcoxon p = 9.8×10⁻⁴, 95% CI +4.5 to +6.7.",
     f"**Beyond Spider: **Spider-Realistic EX {ra[0]}; BIRD Mini-Dev EX {ra[1]}.",
+    "**Next: **a platform companies plug into any database (Spark, Snowflake, NoSQL via a SQL gateway), with access control and per-database adaptation.",
 ], size=30, top=32.6, height=7.2)
 
 # ---- team
