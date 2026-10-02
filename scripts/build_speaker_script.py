@@ -18,7 +18,7 @@ NAREN, PRAN, JAI = "Boddupally Narendar", "M Praneeth Reddy", "Jayakanth Kamiset
 PARTS = [
     (JAI, 'Part 1 · Opening — slides 1–3 · about 1.5 minutes', [
         ('1 · Title', None,
-         'Good morning. I am Jayakanth Kamisetti, team lead of Team 21, with my teammates Boddupally Narendar and Praneeth Reddy. Our supervisor is M Parameswar, Associate Professor. Our project is QueryGenie: a self-correcting natural-language-to-SQL interface.'),
+         'Good morning. I am Jayakanth Kamisetti, team lead of Team 18, with my teammates Boddupally Narendar and Praneeth Reddy. Our supervisor is M Parameswar, Associate Professor. Our project is QueryGenie: a self-correcting natural-language-to-SQL interface.'),
         ('2 · Outline', None,
          'We will cover the problem, the research we built on, the gap we found, our method and data, the results — including a live demo — then the limitations and our plans.'),
         ('3 · Problem Statement', None,
@@ -80,7 +80,7 @@ st.font.name = "Calibri"
 st.font.size = Pt(11)
 
 t = doc.add_heading("QueryGenie — Review-III speaker script", 0)
-doc.add_paragraph("Team 21 · Supervisor: M Parameswar, Associate Professor · Deck: QueryGenie_Review-III.pptx (18 slides)")
+doc.add_paragraph("Team 18 · Supervisor: M Parameswar, Associate Professor · Deck: QueryGenie_Review-III.pptx (18 slides)")
 
 doc.add_heading("Who presents what", 1)
 tbl = doc.add_table(rows=1, cols=3)
@@ -142,7 +142,7 @@ def build_pdf():
             (NAREN, "4–8 related papers, research gap · 14–15 limitations, future work", "≈ 4 min"),
             (PRAN, "9–11 datasets, architecture, the app", "≈ 2 min")]
     h = ["<h1>QueryGenie — Review-III speaker script</h1>",
-         "<p class=sub>Team 21 · Supervisor: M Parameswar, Associate Professor · Deck: QueryGenie_Review-III.pptx (18 slides)</p>",
+         "<p class=sub>Team 18 · Supervisor: M Parameswar, Associate Professor · Deck: QueryGenie_Review-III.pptx (18 slides)</p>",
          "<h2>Who presents what</h2><table><tr><th>Speaker</th><th>Slides</th><th>Time</th></tr>" +
          "".join(f"<tr><td>{e(a)}</td><td>{e(b)}</td><td>{e(c)}</td></tr>" for a, b, c in rows) + "</table>",
          "<p><b>Order:</b> Jayakanth → Narendar → Praneeth → Jayakanth (results, demo) → Narendar → Jayakanth (close).</p>",

@@ -131,7 +131,7 @@ fill(155, [
 
 # ---- team
 fill(30, [
-    "M Parameswar, Associate Professor",
+    "Team 18 · Supervisor: M Parameswar, Associate Professor",
     "2320090050 – N V V S S Jayakanth Kamisetti",
     "2320090009 – Boddupally Narendar",
     "2320090018 – M Praneeth Reddy",

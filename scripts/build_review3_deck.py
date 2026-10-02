@@ -117,7 +117,7 @@ for shp in s.shapes:
             for r in p.runs:
                 r.font.size = Pt(34)
     elif t.startswith("Presented by"):
-        lines = ["Presented by", "2320090050 : N V V S S Jayakanth Kamisetti", "2320090009 : Boddupally Narendar",
+        lines = ["Presented by — Team 18", "2320090050 : N V V S S Jayakanth Kamisetti", "2320090009 : Boddupally Narendar",
                  "2320090018 : M Praneeth Reddy"]
         paras = shp.text_frame.paragraphs
         for p, line in zip(paras, lines):

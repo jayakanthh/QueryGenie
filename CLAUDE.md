@@ -9,7 +9,7 @@ Information Technology, Koneru Lakshmaiah Education Foundation (KL University).
 
 **Title:** QueryGenie: A Self-Correcting Natural Language to SQL Interface
 **Domain:** AI/ML — Computation and Language (with a Databases crossover)
-**Team 21**
+**Team 18** (renumbered from Team 21 on 2026-10-02; documents submitted before that keep "Team 21")
 - 2320090050 — N V V S S Jayakanth Kamisetti (primary user you are talking to; goes by Jaikanth)
 - 2320090009 — Boddupally Narendar (handles documentation) — spelling confirmed by Jaikanth 2026-09-29
 - 2320090018 — M Praneeth Reddy (team member; listed on all project records)

@@ -1,4 +1,4 @@
-# Review-III — Team 21, QueryGenie
+# Review-III — Team 18, QueryGenie
 
 Everything for the Review-III presentation, in one place.
 

@@ -50,7 +50,7 @@ knows when it doesn't know. Its confidence settings are backed by measured numbe
   confidence message.
 - First run happens on the user's machine with no prior setup; model weights (~4.5 GB for CodeS-1B)
   download then.
-- Also presented at university project reviews (Team 21, KL University capstone).
+- Also presented at university project reviews (Team 18, KL University capstone).
 
 ## Capabilities and Constraints
 

@@ -14,7 +14,7 @@ leaves the machine. Unlike most text-to-SQL systems, it measures its own confide
 queries disagree, it asks *“Did you mean…?”* instead of returning a confident wrong answer.
 
 Engineering Capstone Project (Phase I), Department of Computer Science & Information Technology,
-Koneru Lakshmaiah Education Foundation (KL University). Team 21 — supervisor M Parameswar.
+Koneru Lakshmaiah Education Foundation (KL University). Team 18 — supervisor M Parameswar, Associate Professor.
 
 ![Pipeline](docs/final_pipeline.png)
 
