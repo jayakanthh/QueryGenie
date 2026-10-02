@@ -117,7 +117,7 @@ stronger type and sharper confidence states than a stock control.
 **Key Characteristics:**
 - Three panes: sources · chats · the open chat. The layout inside the answer is the user's choice
   (answer first, confidence first, or side by side) and is remembered.
-- Confidence is a four-cell mark — one cell per candidate query — always paired with an icon and words.
+- Confidence is a four-cell mark — one cell per candidate query — always paired with an icon and words. The words state the measurement ("3 of 4 queries agree"), not a "high/low confidence" label.
 - "I'm not sure which you mean" is a designed outcome with its own block, never an error.
 - Montserrat for the interface, IBM Plex Mono for SQL and data; both self-hosted.
 

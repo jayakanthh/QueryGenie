@@ -31,10 +31,12 @@ function cells(n, ran = true, lg = false) {
   const lvl = ran ? n : 0;
   return `<span class="cells lvl-${lvl}${lg ? " lg" : ""}" role="img" aria-label="${ran ? n : 0} of 4 candidate queries agree">${[0, 1, 2, 3].map((i) => `<i class="${i < lvl ? "on" : ""}"></i>`).join("")}</span>`;
 }
-const LEVEL = { 4: ["good", "circle-check", "High confidence"], 3: ["warning", "circle-alert", "Medium confidence"],
-                2: ["serious", "triangle-alert", "Low confidence"], 1: ["critical", "circle-x", "Very low confidence"],
-                0: ["critical", "circle-x", "No candidate query ran"] };
-const SHORT = { 4: "High", 3: "Medium", 2: "Low", 1: "Very low", 0: "Failed" };
+// The verdict says what was measured (how many of the four queries agree), not an abstract "confidence".
+const LEVEL = { 4: ["good", "circle-check", "4 of 4 queries agree", "All four candidate queries return this answer."],
+                3: ["warning", "circle-alert", "3 of 4 queries agree", "One candidate query returns something else."],
+                2: ["serious", "triangle-alert", "2 of 4 queries agree", "Only half of the candidate queries return this answer — check it."],
+                1: ["critical", "circle-x", "No two queries agree", "Each candidate query returns a different answer — treat this one with care."],
+                0: ["critical", "circle-x", "No query ran", "None of the candidate queries could run."] };
 const isNum = (v) => typeof v === "number";
 const fmt = (v) => (v === null || v === undefined ? "—" : isNum(v) ? (Number.isInteger(v) ? v.toLocaleString() : (+v.toFixed(2)).toLocaleString()) : String(v));
 const mod = () => (S.os === "mac" ? "⌘" : "Ctrl+");
@@ -323,7 +325,7 @@ function turnHtml(it) {
   const meta = `<div class="bot-meta">${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}<span>${modeName(it.mode)}</span></div>`;
   const head = you, bot = (inner) => `<div class="bot">${botAvatar()}<div class="bot-body">${meta}${inner}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
-    ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
+    ? `<p class="note engine-note">${icon("info")}<span>Agreement here is how many of ${esc(it.engine.label)}'s four answers match. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
   // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
   // on one reading, in which case show it, saying that it is the model's reading.
   const unanimous = it.ran && it.agree === 4;
@@ -363,10 +365,10 @@ function modeName(m) {
   return { answer_all: "Answers everything", balanced: "Balanced", strict: "Strict (3 of 4 agree)", very_strict: "Very strict (all 4 agree)" }[m] || m;
 }
 function verdictHtml(it) {
-  const [lvl, ic, word] = LEVEL[it.ran ? it.agree : 0];
+  const [lvl, ic, word, line] = LEVEL[it.ran ? it.agree : 0];
   const alt = it.interpretations.length > 1 ? `<div class="note" style="margin-top:-6px">${icon("info")}<span>Other readings give different results: ${it.interpretations.filter((r) => r.index !== it.selected).map((r) => `<button class="btn quiet" style="height:20px;padding:0 5px" data-reading="${r.index}">Reading ${r.letter} · ${r.support} of 4</button>`).join(" ")}</span></div>` : "";
   return `<div class="verdict ${lvl}">${cells(it.agree, it.ran, true)}<div class="v-text"><strong>${word}</strong>
-    <span>${it.ran ? `${it.agree} of 4 candidate queries return this answer.` : "None of the candidate queries could run."}</span></div>
+    <span>${line}</span></div>
     <span style="flex:1"></span>${icon(ic, "i v-icon")}</div>${alt}`;
 }
 function unsureHtml(it, t) {
