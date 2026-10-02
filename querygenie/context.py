@@ -81,6 +81,50 @@ def stands_alone(question: str, named_tables) -> bool:
             and not _BACKREF.search(question) and not _SWAP.match(question))
 
 
+_LEAD = re.compile(r"^\s*(how many|what is the (?:total )?number of|what are(?: all)?(?: the)?|which|who are(?: the)?|"
+                   r"list(?: all)?(?: the)?|show(?: me)?(?: all)?(?: the)?|find(?: all)?(?: the)?|give me(?: all)?(?: the)?|"
+                   r"count(?: the)?|get(?: all)?(?: the)?)\s+", re.I)
+_TAIL = re.compile(r"\s+(do we have|are there|there are|exist|we have|in total|are listed)\s*$", re.I)
+_LINK = re.compile(r"\b(?:who|that|which)?\s*(?:are|is)\s+(in|from|with|of|at|on|under|over|older|younger|born|enrolled|working)\b", re.I)
+_PRONOUN = re.compile(r"\b(?:among|of|from|for)\s+(them|those|these)\b|\b(their)\s+(\w+)|\b(they|them|those|these)\b", re.I)
+
+
+def referent(previous: str) -> str | None:
+    """What a pronoun in the next question points at: "How many singers do we have?" -> "singers",
+    "How many students are in CSE?" -> "students in CSE". None if the previous question isn't of that shape."""
+    q = previous.strip().rstrip("?.! ")
+    m = _LEAD.match(q)
+    if not m:
+        return None
+    ref = _TAIL.sub("", q[m.end():])
+    ref = re.sub(r"\s+", " ", _LINK.sub(lambda x: " " + x.group(1), ref)).strip()
+    return ref if 0 < len(ref.split()) <= 8 else None
+
+
+def resolve_reference(history: list[dict] | None, question: str, previous_tables) -> str | None:
+    """For CodeS: "who is the youngest among them" after "How many singers do we have?" becomes
+    "who is the youngest among the singers" - one plain question, instead of the previous question glued
+    on, which pulls the model back to counting. Only when the previous question named a table, wasn't a
+    follow-up itself, and the new one has a pronoun to replace; otherwise None (glue as before)."""
+    if not history or not previous_tables:
+        return None
+    prev = history[-1]["question"]
+    if _BACKREF.search(prev) or _SWAP.match(prev):
+        return None
+    ref = referent(prev)
+    if not ref or not _PRONOUN.search(question):
+        return None
+
+    def swap(m):
+        if m.group(1):                                     # "among them" -> "among the singers"
+            return m.group(0)[: m.start(1) - m.start(0)] + f"the {ref}"
+        if m.group(2):                                     # "their marks" -> "the marks of the students"
+            return f"the {m.group(3)} of the {ref}"
+        return f"the {ref}"                                # "they" / "those" -> "the singers"
+
+    return _PRONOUN.sub(swap, question, count=1)
+
+
 FOLLOW_UP_NOTE = ("This question continues the conversation above. Words like \"those\", \"them\", \"their\" or "
                   "\"it\" refer to the earlier questions: keep their conditions unless the new question changes them.")
 

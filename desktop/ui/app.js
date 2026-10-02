@@ -335,7 +335,7 @@ function turnHtml(it) {
   const showGuess = t.guess ?? unanimous;
   if (it.unclear && !showGuess) return head + bot(clarifyHtml(it));
   const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
-      ? `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`
+      ? (it.context.how === "resolved" ? `Read as: “${esc(it.context.asked_as)}”` : `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`)
       : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
   const repairNote = askedNote + (it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "");
   const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")

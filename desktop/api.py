@@ -593,7 +593,7 @@ class Api:
         with self._lock:                                   # one generation at a time
             try:
                 backend = self._get_backend()
-                standalone = False
+                standalone, how = False, "swap" if rewritten else None
                 if history and not rewritten and not getattr(backend, "chat", False):
                     # CodeS gets the previous question glued to this one; skip that when this one plainly
                     # starts a new topic, or its answer drifts back to the old question.
@@ -601,6 +601,12 @@ class Api:
                     standalone = stands_alone(question, self._named_tables(info, question))
                     if standalone:
                         history, model_history = [], None
+                    else:
+                        from querygenie.context import resolve_reference
+                        resolved = resolve_reference(history, question, self._named_tables(info, history[-1]["question"]))
+                        if resolved:
+                            rewritten, how = resolved, "resolved"
+                            model_question, model_history = resolved, None
                 if history and turns < 0 and getattr(backend, "chat", False):
                     # "All that fit": keep the latest turns within about half the model's window,
                     # leaving the rest for the database description and the answer.
@@ -638,7 +644,7 @@ class Api:
         result["context_break"] = bool(fresh)
         result["standalone"] = standalone
         if history:
-            result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten),
+            result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten), "how": how,
                                  "with_results": bool(getattr(backend, "share_results", False) and getattr(backend, "chat", False)),
                                  "asked_as": rewritten or (None if getattr(backend, "chat", False) else combined_question(history, question))}
         chat_id = chat_id or self._new_chat(db_id, question)
