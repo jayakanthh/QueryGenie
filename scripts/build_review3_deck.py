@@ -1,4 +1,7 @@
-"""Fill the department's Review-III template in place (letterhead, theme and layouts kept)."""
+"""Fill the department's Review-III template in place (letterhead, theme and layouts kept).
+
+    python scripts/build_review3_deck.py
+"""
 import copy
 import sys
 
@@ -6,9 +9,10 @@ from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
-ROOT = "/Users/jaikanthkamisetti/Documents/Projects/QueryGenie"
-TEMPLATE = f"{ROOT}/Review-III-Project-Phase-I.pptx"
-OUT = sys.argv[1] if len(sys.argv) > 1 else f"{ROOT}/docs/reviews/Review-III_QueryGenie.pptx"
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE = f"{ROOT}/docs/Templates/Review-III-Project-Phase-I.pptx"
+OUT = sys.argv[1] if len(sys.argv) > 1 else f"{ROOT}/docs/Review-III/QueryGenie_Review-III.pptx"
 FIG = f"{ROOT}/docs/report-latex/images/figures"
 DATE = "10/3/26"
 REALITY = None          # filled in when RL-001 / BD-001 finish: list of rows for the reality table
