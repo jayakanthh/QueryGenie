@@ -16,7 +16,7 @@ OUT = os.path.join(ROOT, "docs", "Review-III", "Speaker_Script.docx")
 NAREN, PRAN, JAI = "Boddupally Narendar", "M Praneeth Reddy", "Jayakanth Kamisetti"
 
 PARTS = [
-    (NAREN, "Slides 1–8 · opening, problem, related work, research gap · about 2 minutes", [
+    (NAREN, "Slides 1–8 · opening, problem, related work, research gap · about 3 minutes", [
         ("1 · Title", None,
          "Good morning. We are Team 21. I am Boddupally Narendar, with Jayakanth Kamisetti and Praneeth Reddy, "
          "and our supervisor is M Parameswar, Associate Professor. Our project is QueryGenie: a self-correcting "
@@ -49,7 +49,7 @@ PARTS = [
          "question. If they agree, answer; if they disagree, ask the user. Praneeth will now explain our data "
          "and how the system works."),
     ]),
-    (PRAN, "Slides 9–11 · data, architecture, the application · about 3 minutes", [
+    (PRAN, "Slides 9–11 · data, architecture, the application · about 2 minutes", [
         ("9 · Proposed Methodology — datasets", None,
          "All our data comes from Hugging Face, which is on the department's approved list — no Kaggle. Our "
          "main benchmark is the Spider development set: 1,034 questions on 20 databases the model has never "
