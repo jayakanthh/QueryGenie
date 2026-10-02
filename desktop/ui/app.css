@@ -625,3 +625,4 @@ dialog.wide { max-width: min(720px, 94vw); }
 .bot-body > .verdict, .bot-body > .unsure { margin-top: 8px; }
 .bot-body .working { margin-top: 8px; }
 .bot-body .engine-note { margin-top: 8px; }
+.reading .r-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

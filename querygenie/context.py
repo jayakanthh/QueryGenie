@@ -67,6 +67,20 @@ def substitute(history: list[dict] | None, question: str, match, values_of=None)
     return None
 
 
+# Words that point back at earlier questions. "that", "more" and "less" are left out: they are just as
+# common in a standalone question ("students that failed more than two subjects").
+_BACKREF = re.compile(r"\b(those|these|them|their|theirs|they|it|its|this|same|also|too|instead|only|among|above|"
+                      r"previous|earlier|again|else|other|others|ones?|which of)\b", re.I)
+
+
+def stands_alone(question: str, named_tables) -> bool:
+    """A question that names a table itself and has no word pointing back ("those", "their", "only",
+    "and ...") starts a new topic - "which student is the topper?" after a question about departments.
+    Used for CodeS, which would otherwise get both questions glued together (combined_question)."""
+    return (bool(named_tables) and len(question.split()) >= 3
+            and not _BACKREF.search(question) and not _SWAP.match(question))
+
+
 FOLLOW_UP_NOTE = ("This question continues the conversation above. Words like \"those\", \"them\", \"their\" or "
                   "\"it\" refer to the earlier questions: keep their conditions unless the new question changes them.")
 

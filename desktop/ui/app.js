@@ -237,12 +237,15 @@ function renderThread(scroll = "end") {
     if (working) html += `<article class="turn" id="pending">${workingHtml(S.working.q)}</article>`;
     if (S.failed && S.failed.chat === (c ? c.id : null)) html += `<article class="turn">${failedHtml(S.failed)}</article>`;
   }
+  const th0 = $("#thread"), anchor = scroll === "keep" && [...th0.querySelectorAll(".turn[data-hid]")].find((x) => x.getBoundingClientRect().bottom > th0.getBoundingClientRect().top);
+  const anchorId = anchor && anchor.dataset.hid, anchorTop = anchor && anchor.getBoundingClientRect().top;
   $("#thread").innerHTML = html;
   $$("#thread [data-ex]").forEach((b) => (b.onclick = () => submitQuestion(b.dataset.ex)));
   $$("#thread .turn[data-hid]").forEach((el) => wireTurn(el));
   if (working) startTicker();
   const th = $("#thread");
   if (scroll === "end") th.scrollTop = th.scrollHeight;
+  else if (anchorId) { const a = th.querySelector(`.turn[data-hid="${anchorId}"]`); if (a) th.scrollTop += a.getBoundingClientRect().top - anchorTop; }
 }
 
 // ------------------------------------------------------------------ follow-up context
@@ -320,7 +323,7 @@ function turnHtml(it) {
         <button class="btn quiet icon" data-act="copy" title="Copy SQL">${icon("copy", "i sm")}</button>
         <button class="btn quiet icon" data-act="reask" title="Ask again in this chat">${icon("refresh-cw", "i sm")}</button>
         <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button></span>
-      ${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → ") + (it.context.with_results ? " (with their first rows)" : ""))}">${icon("history", "i sm")}Follow-up${it.context.questions.length > 1 ? ` · ${it.context.questions.length} earlier` : ""}</span>` : it.context_break ? `<span>New topic</span>` : ""}
+      ${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → ") + (it.context.with_results ? " (with their first rows)" : ""))}">${icon("history", "i sm")}Follow-up${it.context.questions.length > 1 ? ` · ${it.context.questions.length} earlier` : ""}</span>` : it.context_break ? `<span>New topic</span>` : it.standalone ? `<span title="This question names its own table and doesn't refer back, so it was asked on its own.">New topic</span>` : ""}
       ${it.created ? `<span>${when(it.created)}</span>` : ""}</div></div>`;
   const meta = `<div class="bot-meta">${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}<span>${modeName(it.mode)}</span></div>`;
   const head = you, bot = (inner) => `<div class="bot">${botAvatar()}<div class="bot-body">${meta}${inner}</div></div>`;
@@ -380,15 +383,28 @@ function unsureHtml(it, t) {
   const why = ran < 4
     ? `Only ${ran} of the 4 candidate queries ran${ran === 1 && onlyEmpty ? ", and it found no rows" : ""} — the others had errors (see All 4 queries).
        ${ran === 1 ? "That's too little to trust" : it.interpretations.length > 1 ? "The ones that ran don't agree" : `The ones that ran agree, but that's only ${it.agree} of 4`}. Try naming what you want in a full question, e.g. "What is … of …?"`
-    : `The four candidate queries disagree — the most common answer has only ${it.agree} of 4 behind it. Choose the reading you meant; I won't guess.`;
+    : disagreeText(it);
   return `<div class="unsure"><div class="unsure-head">${icon("circle-help")}<div><h2>${ran === 1 ? "I couldn't answer this reliably" : "I'm not sure which you mean"}</h2>
     <p>${why}</p></div></div>
     <div class="readings">${it.interpretations.map((r) => `
       <button class="reading" data-reading="${r.index}" aria-pressed="${t.reading === r.index}">
-        <span class="r-top"><span class="letter">${r.letter}</span>Reading ${r.letter}<span style="margin-left:auto">${cells(r.support)}</span></span>
-        <span class="r-sub">${r.support} of 4 queries · ${r.rows_total} row${r.rows_total === 1 ? "" : "s"}</span>
+        <span class="r-top"><span class="letter">${r.letter}</span><span class="r-name">${esc(readingName(r))}</span><span style="margin-left:auto">${cells(r.support)}</span></span>
+        <span class="r-sub">${r.support === 1 ? "1 query" : `${r.support} queries`}${r.index === it.selected ? " · the model's first choice" : ""} · ${r.rows_total} row${r.rows_total === 1 ? "" : "s"}</span>
         <span class="r-prev">${r.preview.map((row) => esc(row.map(fmt).join(", "))).join("<br>") || "no rows"}${r.rows_total > 3 ? "<br>…" : ""}</span>
       </button>`).join("")}</div></div>`;
+}
+// A reading is named by what it returns ("name", "department, avg(marks)"), not "Reading A".
+function readingName(r) {
+  const cols = (r.columns || []).map((c) => String(c).replace(/^T\d+\./i, ""));
+  if (!cols.length) return `Reading ${r.letter}`;
+  return cols.length > 3 ? cols.slice(0, 3).join(", ") + ", …" : cols.join(", ");
+}
+function disagreeText(it) {
+  const top = it.interpretations.reduce((a, r) => (r.support > a.support ? r : a), it.interpretations[0]);
+  const first = it.interpretations.find((r) => r.index === it.selected);
+  if (first && top.support > first.support)
+    return `The model's first-choice query (${first.letter}) ${first.support === 1 ? "is the only one with its answer" : `has only ${first.support} of 4 behind it`}, while ${top.support} of the 4 return ${top.letter}. They answer different things, so pick the one you meant.`;
+  return `The four candidate queries return different answers, and none has more than ${top.support} of 4 behind it. Pick the one you meant.`;
 }
 function currentTable(it, t) {
   if (t.edited) return t.edited;
@@ -720,10 +736,16 @@ function svgFrame(W, H, L, T, w, h, lo, hi, ink3, line, inner, spec) {
 
 // ------------------------------------------------------------------ turn wiring
 const turnItem = (el) => S.chat.turns.find((x) => x.id === el.dataset.hid);
-function rerenderTurn(el) { const it = turnItem(el); el.innerHTML = turnHtml(it); wireTurn(el); }
+// WebKit has no scroll anchoring, so replacing a turn's content can jump the thread. Keep the turn where it was.
+function keepPlace(el, fn) {
+  const th = $("#thread"), top = el.getBoundingClientRect().top;
+  fn();
+  th.scrollTop += el.getBoundingClientRect().top - top;
+}
+function rerenderTurn(el) { const it = turnItem(el); keepPlace(el, () => { el.innerHTML = turnHtml(it); wireTurn(el); }); }
 function wireTurn(el) {
   const it = turnItem(el), t = turnState(it.id);
-  $$("[data-tab]", el).forEach((b) => (b.onclick = () => { t.tab = b.dataset.tab; $$("[data-tab]", el).forEach((x) => x.setAttribute("aria-selected", x === b)); $(".tab-body", el).innerHTML = tabBody(it, t, t.tab); wireTab(el, it, t); }));
+  $$("[data-tab]", el).forEach((b) => (b.onclick = () => keepPlace(el, () => { t.tab = b.dataset.tab; $$("[data-tab]", el).forEach((x) => x.setAttribute("aria-selected", x === b)); $(".tab-body", el).innerHTML = tabBody(it, t, t.tab); wireTab(el, it, t); })));
   $$("[data-reading]", el).forEach((b) => (b.onclick = async () => {
     t.reading = +b.dataset.reading; t.edited = null;
     t.readingData = await api.interpretation(it.id, t.reading);

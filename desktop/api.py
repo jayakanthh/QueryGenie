@@ -593,6 +593,14 @@ class Api:
         with self._lock:                                   # one generation at a time
             try:
                 backend = self._get_backend()
+                standalone = False
+                if history and not rewritten and not getattr(backend, "chat", False):
+                    # CodeS gets the previous question glued to this one; skip that when this one plainly
+                    # starts a new topic, or its answer drifts back to the old question.
+                    from querygenie.context import stands_alone
+                    standalone = stands_alone(question, self._named_tables(info, question))
+                    if standalone:
+                        history, model_history = [], None
                 if history and turns < 0 and getattr(backend, "chat", False):
                     # "All that fit": keep the latest turns within about half the model's window,
                     # leaving the rest for the database description and the answer.
@@ -628,6 +636,7 @@ class Api:
         from querygenie.context import combined_question, linking_text
         result["unclear"] = self._unclear(info, linking_text(history, question))
         result["context_break"] = bool(fresh)
+        result["standalone"] = standalone
         if history:
             result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten),
                                  "with_results": bool(getattr(backend, "share_results", False) and getattr(backend, "chat", False)),
@@ -637,6 +646,20 @@ class Api:
         self._decisions[hid] = (d, info)
         result["id"], result["chat_id"] = hid, chat_id
         return result
+
+    def _schema(self, info):
+        if info.conn is not None:
+            return info.conn.introspect()
+        from querygenie.vendor.codes_db_utils import get_db_schema
+        db_id = os.path.splitext(os.path.basename(info.path))[0]
+        return get_db_schema(info.path, {db_id: info.comments} if info.comments else {}, db_id)
+
+    def _named_tables(self, info, question):
+        from querygenie.mentions import schema_mentions
+        try:
+            return schema_mentions(self._schema(info), question)["tables"]
+        except Exception:  # noqa: BLE001 - when in doubt, keep the context
+            return []
 
     def _unclear(self, info, question):
         """None if the question names a table, column or stored value; otherwise the database's tables,

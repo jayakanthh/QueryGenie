@@ -84,3 +84,14 @@ def test_value_swap_follow_ups():
     assert substitute(prev, "and what about it?", match, values) is None           # the word "it", not the value
     assert substitute(prev, "what about the students who failed more than two subjects in IT?", match, values) is None  # too long
     assert substitute([], "what about IT?", match, values) is None
+
+
+def test_standalone_questions_start_a_new_topic():
+    from querygenie.context import stands_alone
+    assert stands_alone("which student is the topper", ["student"])          # names its own table
+    assert not stands_alone("which of those is the oldest", ["student"])     # points back
+    assert not stands_alone("what are their marks", ["marks"])
+    assert not stands_alone("only from CSE", [])
+    assert not stands_alone("and the average marks?", ["marks"])
+    assert not stands_alone("show me the youngest one", [])                  # names no table
+    assert stands_alone("students that failed more than two subjects", ["student", "subject"])
