@@ -168,8 +168,13 @@
           <div class="field"><label for="ctx-opt">Follow-up context</label>
             <div class="row-in"><select class="input" id="ctx-opt" style="max-width:260px">
               <option value="0">Off — every question on its own</option><option value="1">The last question</option>
-              <option value="3">The last 3 questions</option><option value="5">The last 5 questions</option></select></div>
-            <span class="gnote" style="margin:0">Chat models get the earlier questions and their SQL. CodeS was trained on single questions, so it gets the previous question and the follow-up combined — not measured.</span></div>
+              <option value="3">The last 3 questions</option><option value="5">The last 5 questions</option>
+              <option value="10">The last 10 questions</option><option value="-1">All that fit the model's window</option></select></div>
+            <span class="gnote" style="margin:0">Chat models get the earlier questions as conversation turns, with the SQL that answered them. "All that fit" uses as much of the chat as fits in about half the model's context window (asked from Ollama, Claude and Gemini; 20 questions otherwise). CodeS was trained on single questions, so it gets the previous question and the follow-up combined — not measured.</span></div>
+          <div class="field"><label for="ctxres-opt">Earlier results in the context</label>
+            <div class="row-in"><select class="input" id="ctxres-opt" style="max-width:260px">
+              <option value="local">Models on this computer only</option><option value="all">Also cloud services</option><option value="none">Never</option></select></div>
+            <span class="gnote" style="margin:0">The first 5 rows of each earlier answer, so a follow-up like "which of those is the oldest?" can refer to them. Sending them to a cloud service shares your data with it.</span></div>
           <label class="opt"><input type="checkbox" id="repair-opt"><div><b>Repair failed queries</b>
             <span>When a candidate query fails, send it back to the model once with the error and use the repaired query (self-correction, as in DIN-SQL). Measured on Spider with CodeS-1B it changes little — 61 of 377 failed queries ran after repair and one more answer was right — because CodeS was not trained to read errors; chat models (Ollama, cloud) are likely to gain more, though that is not measured. The percentages above are without repair.</span></div></label>
           <p class="note" style="margin:0"><svg class="i"><use href="#i-info"/></svg>Percentages were measured on the Spider benchmark's 1,034 questions with CodeS-1B on SQLite. Other models use the same agreement rules, but their accuracy is not measured; nor is PostgreSQL or MySQL.</p>

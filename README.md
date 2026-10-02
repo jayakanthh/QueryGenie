@@ -62,8 +62,10 @@ In the app:
   were measured on, any **SQLite file** you add, and live **PostgreSQL / MySQL** connections.
   Everything runs read-only.
 - **Chats** (middle): *New chat* (⌘N / Ctrl+N) starts a thread; keep asking in it. Follow-ups use the last
-  few questions as context (Settings → General; *New topic* starts fresh). Chat models get the earlier
-  questions and their SQL; CodeS, trained on single questions, gets the previous question and the follow-up
+  few questions as context (Settings → General: up to 10, or *all that fit* the model's context window, which
+  is asked from Ollama, Claude and Gemini; *New topic* starts fresh). Chat models get the earlier questions as
+  real conversation turns with the SQL that answered them, and — for models on this computer, or if you allow
+  it for cloud services — the first rows each returned; CodeS, trained on single questions, gets the previous question and the follow-up
   combined, and "what about IT?"-style follow-ups are rewritten as the earlier question with the value
   swapped. On a six-question spot check CodeS-1B got 5 follow-ups right (0 without context) — illustrative,
   not a measurement.

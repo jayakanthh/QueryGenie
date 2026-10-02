@@ -28,6 +28,7 @@ def test_extract_sql_from_chat_replies():
     assert extract_sql("Here is the query:\nSELECT name FROM item") == "SELECT name FROM item"
     assert extract_sql("<think>maybe count?</think>SELECT count(*) FROM item") == "SELECT count(*) FROM item"
     assert extract_sql("WITH t AS (SELECT 1) SELECT * FROM t") == "WITH t AS (SELECT 1) SELECT * FROM t"
+    assert extract_sql("SELECT marks FROM result -- result: marks 35") == "SELECT marks FROM result"
 
 
 def test_chat_prompt_keeps_schema_and_question():

@@ -23,7 +23,8 @@ SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
                     "engine": None,          # None = the evaluated CodeS model in "model"
                     "repair": True,          # send failed candidate queries back once with their error
-                    "context_turns": 3,      # earlier questions of a chat used as context for follow-ups
+                    "context_turns": 3,      # earlier questions of a chat used as context (-1 = all that fit)
+                    "context_results": "local",   # earlier result rows in the context: local / all / none
                     "recent_engines": []}    # last few models chosen (for the quick picker)
 
 # Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
@@ -545,7 +546,9 @@ class Api:
         for q, res in rows:
             r = json.loads(res)
             sel = (r.get("candidates") or [{}])[r.get("selected", 0)] if r.get("candidates") else {}
-            out.append({"question": q, "sql": sel.get("sql") if r.get("ran") else None})
+            out.append({"question": q, "sql": sel.get("sql") if r.get("ran") else None,
+                        "columns": r.get("columns") or [], "rows": (r.get("rows") or [])[:5],
+                        "rows_total": r.get("rows_total", 0)})
             if len(out) >= k or r.get("context_break"):
                 break
         return out[::-1]
@@ -580,13 +583,30 @@ class Api:
         from querygenie.confidence import ConfidentRun
         info = self._catalog()[db_id]
         mode = mode or self.settings_get()["mode"]
-        history = [] if fresh else self._context(chat_id, int(self.settings_get().get("context_turns", 3)))
+        turns = int(self.settings_get().get("context_turns", 3))
+        history = [] if fresh else self._context(chat_id, 1000 if turns < 0 else turns)
         rewritten = self._swap_followup(info, history, question) if history else None
         model_question, model_history = (rewritten, None) if rewritten else (question, history)
         from querygenie.providers import ProviderError
         with self._lock:                                   # one generation at a time
             try:
                 backend = self._get_backend()
+                if history and turns < 0 and getattr(backend, "chat", False):
+                    # "All that fit": keep the latest turns within about half the model's window,
+                    # leaving the rest for the database description and the answer.
+                    from querygenie import providers
+                    from querygenie.context import fit_history
+                    window = providers.context_window(self.settings_get().get("engine") or {})
+                    history = fit_history(history, window // 2 if window else None, max_turns=200 if window else 20)
+                    if not rewritten:
+                        model_history = history
+                elif history and turns < 0:
+                    from querygenie.context import fit_history
+                    history = fit_history(history, None, max_turns=5)       # CodeS uses only the latest
+                    if not rewritten:
+                        model_history = history
+                share = self.settings_get().get("context_results", "local")
+                backend.share_results = share == "all" or (share == "local" and not getattr(backend, "cloud", False))
                 if info.conn is not None:
                     d = backend.decide_connected(info.conn, model_question, history=model_history or None)
                 else:
@@ -608,6 +628,7 @@ class Api:
         result["context_break"] = bool(fresh)
         if history:
             result["context"] = {"questions": [h["question"] for h in history], "rewritten": bool(rewritten),
+                                 "with_results": bool(getattr(backend, "share_results", False) and getattr(backend, "chat", False)),
                                  "asked_as": rewritten or (None if getattr(backend, "chat", False) else combined_question(history, question))}
         chat_id = chat_id or self._new_chat(db_id, question)
         hid = self._save_history(db_id, question, result, chat_id)

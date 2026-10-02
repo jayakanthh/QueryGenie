@@ -62,7 +62,7 @@ class Claude(CandidateBackend):
 
     def complete_once(self, prompt):
         anthropic, client = _client(self.api_key)
-        messages = [{"role": "user", "content": prompt}]
+        messages = [*getattr(self, "turns", []), {"role": "user", "content": prompt}]
         extra = {"output_config": {"effort": self.effort}} if self.effort else {}
         try:
             if self.model in _FALLBACK_MODELS:

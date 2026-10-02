@@ -19,6 +19,7 @@ import urllib.request
 from .base import SYSTEM_PROMPT, CandidateBackend, ProviderError, parallel
 
 TIMEOUT_S = 120
+LOCAL_TIMEOUT_S = 600      # a large local model can take minutes to load on first use
 OLLAMA_URL = "http://localhost:11434"
 
 
@@ -73,11 +74,12 @@ class Ollama(CandidateBackend):
 
     def _once(self, prompt, temperature):
         body = {"model": self.model, "stream": False,
-                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *getattr(self, "turns", []),
+                             {"role": "user", "content": prompt}],
                 "options": {"temperature": temperature}}
         if self.effort in ("on", "off"):                      # thinking models only
             body["think"] = self.effort == "on"
-        r = _request("POST", self.base_url + "/api/chat", body=body)
+        r = _request("POST", self.base_url + "/api/chat", body=body, timeout=LOCAL_TIMEOUT_S)
         return (r.get("message") or {}).get("content", "")
 
 
@@ -97,7 +99,8 @@ class OpenAICompatible(CandidateBackend):
 
     def complete_once(self, prompt):
         body = {"model": self.model,
-                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]}
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *getattr(self, "turns", []),
+                             {"role": "user", "content": prompt}]}
         if self.effort:                                       # reasoning models only; others reject it
             body["reasoning_effort"] = self.effort
         r = _request("POST", self.base_url + "/chat/completions", headers=self._headers(), body=body)
@@ -129,7 +132,9 @@ class Gemini(CandidateBackend):
         name = self.model if self.model.startswith("models/") else "models/" + self.model
         r = _request("POST", f"{GEMINI_URL}/{name}:generateContent", headers={"x-goog-api-key": self.api_key},
                      body={"systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                           "contents": [{"role": "user", "parts": [{"text": prompt}]}]})
+                           "contents": [*({"role": "model" if t["role"] == "assistant" else "user", "parts": [{"text": t["content"]}]}
+                                          for t in getattr(self, "turns", [])),
+                                        {"role": "user", "parts": [{"text": prompt}]}]})
         parts = ((r.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
         return "".join(p.get("text", "") for p in parts if not p.get("thought"))
 

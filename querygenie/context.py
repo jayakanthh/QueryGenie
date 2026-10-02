@@ -65,3 +65,48 @@ def substitute(history: list[dict] | None, question: str, match, values_of=None)
                 if new.lower() != old.lower() and re.search(re.escape(old), prev, re.I) and not re.search(rf"\b{re.escape(new)}\b", prev, re.I):
                     return re.sub(re.escape(old), new, prev, count=1, flags=re.I)
     return None
+
+
+FOLLOW_UP_NOTE = ("This question continues the conversation above. Words like \"those\", \"them\", \"their\" or "
+                  "\"it\" refer to the earlier questions: keep their conditions unless the new question changes them.")
+
+
+def _result_text(h: dict) -> str:
+    rows = "\n".join(" | ".join("" if v is None else str(v) for v in r) for r in h.get("rows", []))
+    more = f"\n({h['rows_total']} rows in total)" if h.get("rows_total", 0) > len(h.get("rows", [])) else ""
+    return f"The previous query returned:\n{' | '.join(map(str, h['columns']))}\n{rows}{more}".rstrip()
+
+
+def history_messages(history: list[dict] | None, with_results: bool = False) -> list[dict]:
+    """For chat models: the conversation as real turns - each earlier question as a user message and the
+    SQL that answered it as the assistant's reply. If allowed, the first rows each query returned open the
+    *next* user message ("The previous query returned: ..."), so the replies stay plain SQL for the model
+    to imitate. The last result is returned separately via `last_result_text`."""
+    msgs, carry = [], ""
+    for h in history or []:
+        msgs.append({"role": "user", "content": (carry + "\n\n" if carry else "") + h["question"]})
+        msgs.append({"role": "assistant", "content": h.get("sql") or "-- no query ran for this question"})
+        carry = _result_text(h) if with_results and h.get("columns") else ""
+    return msgs
+
+
+def last_result_text(history: list[dict] | None, with_results: bool = False) -> str:
+    """The rows of the most recent answer, to open the new question's message."""
+    h = (history or [None])[-1]
+    return _result_text(h) if h and with_results and h.get("columns") else ""
+
+
+def estimate_tokens(text: str) -> int:
+    """A rough size for budgeting the context window (about four characters per token); not exact."""
+    return len(text) // 4 + 1
+
+
+def fit_history(history: list[dict], budget_tokens: int | None, max_turns: int = 20) -> list[dict]:
+    """Keep the most recent turns that fit the budget (the oldest are dropped first)."""
+    kept, used = [], 0
+    for h in reversed(history):
+        size = estimate_tokens(h["question"] + (h.get("sql") or "") + repr(h.get("rows", "")))
+        if len(kept) >= max_turns or (budget_tokens is not None and used + size > budget_tokens):
+            break
+        kept.append(h); used += size
+    return kept[::-1]

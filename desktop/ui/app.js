@@ -251,7 +251,7 @@ function renderContextBar() {
   bar.hidden = false;
   bar.innerHTML = S.fresh
     ? `${icon("message-square-plus", "i sm")}<span>The next question starts a new topic — earlier questions won't be used.</span><button class="btn quiet link" data-ctx-undo>Undo</button>`
-    : `${icon("history", "i sm")}<span>Follow-ups use the last ${Math.min(n, turns) === 1 ? "question" : Math.min(n, turns) + " questions"} in this chat as context.</span><button class="btn quiet link" data-ctx-new>New topic</button>`;
+    : `${icon("history", "i sm")}<span>${n < 0 ? "Follow-ups use this chat's earlier questions — as many as fit the model's window." : `Follow-ups use the last ${Math.min(n, turns) === 1 ? "question" : Math.min(n, turns) + " questions"} in this chat as context.`}</span><button class="btn quiet link" data-ctx-new>New topic</button>`;
   const nw = $("[data-ctx-new]", bar); if (nw) nw.onclick = () => { S.fresh = true; renderContextBar(); $("#question").focus(); };
   const un = $("[data-ctx-undo]", bar); if (un) un.onclick = () => { S.fresh = false; renderContextBar(); };
 }
@@ -305,7 +305,7 @@ function turnHtml(it) {
         <button class="btn quiet icon" data-act="reask" title="Ask again in this chat">${icon("refresh-cw", "i sm")}</button>
         <button class="btn quiet icon" data-act="delete" title="Remove this question">${icon("trash-2", "i sm")}</button>
       </span></div>
-    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → "))}">${icon("history", "i sm")}Follow-up</span>` : it.context_break ? `<span>New topic</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
+    <div class="sub">${it.created ? `<span>${when(it.created)}</span>` : ""}${it.context ? `<span class="followup" title="${esc("Context: " + it.context.questions.join(" → ") + (it.context.with_results ? " (with their first rows)" : ""))}">${icon("history", "i sm")}Follow-up${it.context.questions.length > 1 ? ` · ${it.context.questions.length} earlier` : ""}</span>` : it.context_break ? `<span>New topic</span>` : ""}<span>${modeName(it.mode)}</span>${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
     ? `<p class="note engine-note">${icon("info")}<span>Confidence here is how many of ${esc(it.engine.label)}'s four answers agree. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
   // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
@@ -844,6 +844,11 @@ async function openSettings() {
       <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
   $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
   $("#ctx-opt").value = String(contextTurns());
+  $("#ctxres-opt").value = S.boot.settings.context_results || "local";
+  $("#ctxres-opt").onchange = async (e) => {
+    if (e.target.value === "all" && !confirm("Send the first rows of earlier answers to cloud services as context?\n\nThis shares data from your database with the provider.")) { e.target.value = S.boot.settings.context_results || "local"; return; }
+    await api.settings_set({ context_results: e.target.value }); S.boot = await api.boot();
+  };
   $("#ctx-opt").onchange = async (e) => { await api.settings_set({ context_turns: +e.target.value }); S.boot = await api.boot(); renderContextBar(); };
   $("#repair-opt").checked = S.boot.settings.repair !== false;
   $("#repair-opt").onchange = async (e) => { await api.settings_set({ repair: e.target.checked }); S.boot = await api.boot(); };

@@ -135,3 +135,36 @@ def build(spec: dict, legacy_paths: dict):
     if kind in CLOUD:
         return http_apis.OpenAICompatible(model, label, CLOUD[kind]["base_url"], _need_key(kind), effort=effort)
     raise ProviderError(f"unknown model type {kind}")
+
+
+# ---------------------------------------------------------------- context window size
+_WINDOWS: dict = {}
+
+
+def context_window(spec: dict) -> int | None:
+    """The model's context window in tokens, asked from the service where it says (Ollama, Claude,
+    Gemini); None when unknown. Cached per model."""
+    from . import http_apis
+
+    key = (spec.get("kind"), spec.get("model"), spec.get("base_url"))
+    if key in _WINDOWS:
+        return _WINDOWS[key]
+    size = None
+    try:
+        kind, model = spec["kind"], spec["model"]
+        if kind == "ollama":
+            info = http_apis._request("POST", (spec.get("base_url") or http_apis.OLLAMA_URL).rstrip("/") + "/api/show",
+                                      body={"model": model}, timeout=5).get("model_info", {})
+            size = next((int(v) for k, v in info.items() if k.endswith(".context_length")), None)
+        elif kind == "anthropic":
+            from .anthropic_api import _client
+            _anthropic, client = _client(_need_key("anthropic"))
+            size = getattr(client.models.retrieve(model), "max_input_tokens", None)
+        elif kind == "gemini":
+            name = model if model.startswith("models/") else "models/" + model
+            size = http_apis._request("GET", f"{http_apis.GEMINI_URL}/{name}", headers={"x-goog-api-key": _need_key("gemini")},
+                                      timeout=10).get("inputTokenLimit")
+    except Exception:  # noqa: BLE001 - unknown size: the caller falls back to a fixed number of turns
+        size = None
+    _WINDOWS[key] = size
+    return size

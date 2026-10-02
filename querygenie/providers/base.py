@@ -43,6 +43,7 @@ def chat_prompt(prefix: str, question: str, ask: str | None = None, history: lis
 _FENCE = re.compile(r"```(?:sql|sqlite)?\s*(.*?)```", re.S | re.I)
 _THINK = re.compile(r"<think>.*?</think>", re.S | re.I)
 _START = re.compile(r"\b(SELECT|WITH)\b", re.I)
+_COMMENT = re.compile(r"--[^\n]*|/\*.*?\*/", re.S)
 
 
 def extract_sql(text: str) -> str:
@@ -52,7 +53,8 @@ def extract_sql(text: str) -> str:
     if m:
         text = m.group(1)
     m = _START.search(text)
-    return text[m.start():].strip() if m else text.strip()
+    text = text[m.start():] if m else text
+    return _COMMENT.sub(" ", text).strip()
 
 
 class ProviderError(RuntimeError):
@@ -113,8 +115,15 @@ class CandidateBackend:
         schema, prefix = build_prefix_connected(source, built)
         return self._decide(source, schema, prefix, built, ask, history)
 
+    share_results = False      # may earlier result rows go into the context? (set by the application)
+
     def _decide(self, target, schema, prefix, question, ask=None, history=None):
-        prompt = chat_prompt(prefix, question, ask, history) if self.chat else prefix
+        from ..context import FOLLOW_UP_NOTE, history_messages, last_result_text
+        self.turns = history_messages(history, self.share_results) if self.chat else []
+        prompt = chat_prompt(prefix, question, ask) if self.chat else prefix
+        if self.chat and history:
+            last = last_result_text(history, self.share_results)
+            prompt = (last + "\n\n" if last else "") + FOLLOW_UP_NOTE + "\n\n" + prompt
         self.last_context = (target, schema, prompt)       # for the optional repair step
         texts = [extract_sql(t) if self.chat else t for t in self.raw_candidates(prompt)]
         texts = (texts + [""] * N_CANDIDATES)[:N_CANDIDATES]

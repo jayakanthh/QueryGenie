@@ -37,10 +37,26 @@ class Echo(CandidateBackend):
 
 def test_chat_models_see_the_conversation(tmp_path):
     be, path = Echo("echo"), _db(tmp_path)
-    be.decide(path, "only from CSE", history=HIST)
-    assert "Earlier in this conversation" in be.prompt and "Question: only from CSE" in be.prompt
-    be.decide(path, "How many students?")                               # no history: nothing extra
-    assert "Earlier in this conversation" not in be.prompt
+    hist = [{**HIST[0], "columns": ["name"], "rows": [["Asha"]], "rows_total": 1}]
+    be.decide(path, "only from CSE", history=hist)
+    assert [t["role"] for t in be.turns] == ["user", "assistant"]          # real conversation turns
+    assert be.turns[0]["content"] == HIST[0]["question"] and be.turns[1]["content"].startswith("SELECT name")
+    assert "Asha" not in be.turns[1]["content"]                            # results only when allowed
+    assert "Question: only from CSE" in be.prompt
+    be.share_results = True
+    be.decide(path, "only from CSE", history=hist)
+    assert "Asha" not in be.turns[1]["content"]                            # replies stay plain SQL
+    assert be.prompt.startswith("The previous query returned:\nname\nAsha") and "keep their conditions" in be.prompt
+    be.decide(path, "How many students?")                                  # no history: nothing extra
+    assert be.turns == []
+
+
+def test_fit_history_drops_the_oldest():
+    from querygenie.context import fit_history
+    hist = [{"question": f"question {i} " + "x" * 400, "sql": "SELECT 1"} for i in range(10)]
+    assert [h["question"][:10] for h in fit_history(hist, None, max_turns=3)] == ["question 7", "question 8", "question 9"]
+    kept = fit_history(hist, budget_tokens=250)
+    assert 0 < len(kept) < 10 and kept[-1] is hist[-1]
 
 
 def test_context_window_stops_at_a_new_topic(tmp_path, monkeypatch):
