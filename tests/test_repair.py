@@ -65,3 +65,48 @@ def test_dates_draw_line_charts():
     assert chart_spec(["year", "n"], [[2016, 2], [2014, 5]])["kind"] == "line"
     assert chart_spec(["dept", "n"], [["CSE", 3], ["IT", 2]])["kind"] == "bar"
     assert chart_spec(["id", "n"], [[1, 2], [3, 4]])["kind"] == "scatter"      # an id is not a year
+
+
+def test_empty_answers_are_repaired_with_the_stored_values(tmp_path):
+    from querygenie.repair import repair_empty, unused_values
+    p = str(tmp_path / "cars.sqlite")
+    con = sqlite3.connect(p)
+    con.executescript("CREATE TABLE car_names (id INTEGER PRIMARY KEY, model TEXT, make TEXT);"
+                      "INSERT INTO car_names VALUES (1,'ford','ford maverick'),(2,'amc','amc hornet');")
+    con.commit(); con.close()
+    schema, prefix = build_prefix(p, "details on ford maverick")
+    wrong = 'SELECT * FROM car_names WHERE make = "ford" AND model = "maverick"'
+    d = decide(p, schema, [wrong] * 4, [0.0] * 4)
+    assert d.n_agree == 4 and not d.candidates[d.selected].rows           # unanimous and empty
+    matched = {"car_names.make": ["ford maverick"]}
+    assert unused_values(wrong, matched) == [("car_names.make", "ford maverick")]
+
+    class Model:
+        last_context = (p, schema, prefix)
+        def fix_sql(self, sql, error):
+            assert 'car_names.make = "ford maverick"' in error
+            return 'SELECT * FROM car_names WHERE make = "ford maverick"'
+    d2, repairs = repair_empty(Model(), d, matched)
+    assert d2.candidates[d2.selected].rows == [(1, "ford", "ford maverick")]
+    assert set(repairs) == {0, 1, 2, 3} and repairs[0]["kind"] == "empty"
+
+    class Useless:
+        last_context = (p, schema, prefix)
+        def fix_sql(self, sql, error):
+            return 'SELECT * FROM car_names WHERE make = "nothing"'
+    d3, repairs = repair_empty(Useless(), d, matched)
+    assert d3 is d and repairs == {}                                      # a repair that finds nothing is dropped
+
+
+def test_a_column_from_another_table_is_joined_by_rule(tmp_path):
+    from querygenie.repair import add_missing_join
+    p = str(tmp_path / "c.sqlite")
+    con = sqlite3.connect(p)
+    con.executescript("CREATE TABLE car_names (makeid INTEGER PRIMARY KEY, make TEXT);"
+                      "CREATE TABLE cars_data (id INTEGER PRIMARY KEY REFERENCES car_names(makeid), horsepower REAL);"
+                      "INSERT INTO car_names VALUES (1,'a'),(2,'b'); INSERT INTO cars_data VALUES (1,90),(2,150);")
+    con.commit(); con.close()
+    schema, _ = build_prefix(p, "which car has the most horsepower")
+    sql = add_missing_join("SELECT make FROM car_names ORDER BY horsepower DESC LIMIT 1", "no such column: horsepower", schema)
+    assert sqlite3.connect(p).execute(sql).fetchall() == [("b",)]
+    assert add_missing_join("SELECT make FROM car_names", "near FROM: syntax error", schema) is None

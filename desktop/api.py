@@ -706,8 +706,14 @@ class Api:
                     d = backend.decide(info.path, model_question, info.comments, history=model_history or None)
                 repairs = {}
                 if self.settings_get().get("repair", True):
-                    from querygenie.repair import self_correct
+                    from querygenie.repair import repair_empty, self_correct
                     d, repairs = self_correct(backend, d)
+                    chosen = d.candidates[d.selected]
+                    if chosen.runs and not chosen.rows:          # no rows: did it miss a stored value?
+                        from querygenie.context import linking_text
+                        matched = self._matched_values(info, linking_text(history, question))
+                        d, more = repair_empty(backend, d, matched)
+                        repairs.update(more)
                 self._record_usage(backend)
             except ProviderError as exc:
                 self._record_usage(None, exc)
@@ -717,6 +723,14 @@ class Api:
         for i, r in repairs.items():
             result["candidates"][i]["repaired"] = r
         result["repaired"] = len(repairs)
+        result["repaired_empty"] = sum(1 for r in repairs.values() if r.get("kind") == "empty")
+        chosen = d.candidates[d.selected]
+        if chosen.runs and not chosen.rows:                # still nothing: say which stored values it didn't use
+            from querygenie.context import linking_text
+            from querygenie.repair import unused_values
+            hints = unused_values(chosen.sql, self._matched_values(info, linking_text(history, question)), 3)
+            if hints:
+                result["empty_hint"] = [{"column": c, "value": v} for c, v in hints]
         failures = list(getattr(backend, "failures", []) or [])
         if failures:            # refused or failed requests count as candidates that did not run
             result["failed_requests"] = {"count": len(failures), "reason": str(failures[0]).split(":")[0][:160]}
@@ -748,6 +762,16 @@ class Api:
             return schema_mentions(self._schema(info), question)["tables"]
         except Exception:  # noqa: BLE001 - when in doubt, keep the context
             return []
+
+    def _matched_values(self, info, text):
+        """The value retriever's matches ({"table.column": [values]}) for a question."""
+        from querygenie.pipeline import matched_contents_for, matched_contents_from_index
+        try:
+            if info.conn is not None:
+                return matched_contents_from_index(info.conn.build_index(), text)
+            return matched_contents_for(info.path, self._schema(info), text)
+        except Exception:  # noqa: BLE001
+            return {}
 
     def _named_things(self, info, question):
         """Tables, columns and stored values ("ford maverick") the question names by itself."""

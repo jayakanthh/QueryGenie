@@ -343,7 +343,11 @@ function turnHtml(it) {
       : `CodeS has no conversation memory, so it was asked: “${esc(it.context.asked_as)}”`}</span></p>` : "";
   const fr = it.failed_requests;
   const failNote = fr ? `<p class="note warn-note">${icon("triangle-alert")}<span>${fr.count} of the 4 requests to ${esc(it.engine ? it.engine.label : "the service")} failed (${esc(fr.reason)}), so only ${4 - fr.count} answer${4 - fr.count === 1 ? "" : "s"} could agree. Asking again in a minute usually gets all four.</span></p>` : "";
-  const repairNote = failNote + askedNote + (it.repaired ? `<p class="note">${icon("refresh-cw")}<span>${it.repaired} candidate quer${it.repaired === 1 ? "y" : "ies"} failed and ${it.repaired === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "");
+  const errFixed = (it.repaired || 0) - (it.repaired_empty || 0);
+  const repairNote = failNote + askedNote
+    + (errFixed > 0 ? `<p class="note">${icon("refresh-cw")}<span>${errFixed} candidate quer${errFixed === 1 ? "y" : "ies"} failed and ${errFixed === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "")
+    + (it.repaired_empty ? `<p class="note">${icon("refresh-cw")}<span>The first answer found no rows, though the question names values stored in the database, so ${it.repaired_empty === 1 ? "that query was" : "those queries were"} sent back to the model with the values (see All 4 queries).</span></p>` : "")
+    + (it.empty_hint ? `<p class="note warn-note">${icon("triangle-alert")}<span>No rows found — but the database does contain ${it.empty_hint.map((h) => `“${esc(h.value)}” in ${esc(h.column)}`).join(", ")}, which the query doesn't use. Try asking with those words.</span></p>` : "");
   const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
@@ -452,7 +456,7 @@ function candidatesHtml(it) {
   return `<div class="cands">${it.candidates.map((c, i) => {
     const st = !c.runs ? `<span class="state bad">${icon("circle-x", "i sm")}Did not run</span>` : c.agrees ? `<span class="state ok">${icon("circle-check", "i sm")}Agrees</span>` : `<span class="state diff">${icon("circle-alert", "i sm")}Different result</span>`;
     const rep = c.repaired ? `<span class="kbd rep" title="This query failed and was repaired">${icon("refresh-cw", "i sm")}repaired</span>` : "";
-    const was = c.repaired ? `<details class="was"><summary>The original query failed: ${esc(c.repaired.error)}</summary><pre class="selectable">${esc(c.repaired.from)}</pre></details>` : "";
+    const was = c.repaired ? `<details class="was"><summary>${c.repaired.kind === "empty" ? "The original query found no rows" : `The original query failed: ${esc(c.repaired.error)}`}</summary><pre class="selectable">${esc(c.repaired.from)}</pre></details>` : "";
     return `<div class="cand"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${rep}${st}</div>
       <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}${was}</div>`;
   }).join("")}</div>`;
