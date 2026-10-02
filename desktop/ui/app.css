@@ -624,3 +624,4 @@ dialog.wide { max-width: min(720px, 94vw); }
 .bot-meta { display: flex; gap: 10px; font-size: var(--fs-xs); color: var(--ink-3); margin: 6px 0 2px; }
 .bot-body > .verdict, .bot-body > .unsure { margin-top: 8px; }
 .bot-body .working { margin-top: 8px; }
+.bot-body .engine-note { margin-top: 8px; }

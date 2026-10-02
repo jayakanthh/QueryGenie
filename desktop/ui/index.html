@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QueryGenie</title>
-  <link rel="stylesheet" href="app.css">
+  <script>
+    // Cache-busting: WebKit caches app.css/app.js on disk (the local server sends no cache headers), which
+    // can pair new code with old styles after an update. desktop/main.py passes ?v=<newest UI file time>.
+    window.QG_V = new URLSearchParams(location.search).get("v") || String(Date.now());
+    document.write('<link rel="stylesheet" href="app.css?v=' + QG_V + '">');
+  </script>
 </head>
 <body>
   <div id="sprite" aria-hidden="true"></div>
@@ -195,6 +200,6 @@
   </div>
 
   <script src="devmode.js"></script>  <!-- exists only under desktop/devserver.py -->
-  <script src="app.js"></script>
+  <script>document.write('<script src="app.js?v=' + QG_V + '"><\/script>');</script>
 </body>
 </html>

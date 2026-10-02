@@ -41,6 +41,11 @@ os.environ.setdefault("QG_OPERATING_POINTS", os.path.join(HERE, "results", "abst
 PREFERRED_PORT = 42017   # a fixed port keeps the window's own storage (last database, chat, view) between launches
 
 
+def ui_version():
+    """Newest modification time of the UI files, so the web view never reuses a stale app.css/app.js."""
+    return int(max(os.path.getmtime(os.path.join(r, f)) for r, _, fs in os.walk(UI) for f in fs))
+
+
 def ui_port() -> int:
     """pywebview serves the UI on a fixed local port when storage is kept (42001 by default), so a
     second copy of the app, or any other pywebview app, used to stop it from starting. Use our own
@@ -89,7 +94,7 @@ def main():
     webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True   # drag the bar itself, not its buttons
     api = Api()
     window = webview.create_window(
-        "QueryGenie", url=os.path.join(UI, "index.html"), js_api=api,
+        "QueryGenie", url=os.path.join(UI, "index.html") + f"?v={ui_version()}", js_api=api,
         width=1280, height=820, min_size=(980, 640), background_color="#f5f5f7", text_select=True,
         frameless=MAC, easy_drag=False)
     api._window = window                                   # private: not exposed to the page
