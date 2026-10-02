@@ -1,0 +1,24 @@
+\section{Limitations}
+
+\begin{itemize}
+	\item \textbf{Abstention does not raise overall accuracy.} The system is right more often when it answers, by declining about 10\% of questions; Execution Accuracy over all questions stays at the reproduced 77.8\%.
+	\item \textbf{Agreement is not proof.} 11.7\% of the answers on which all four candidates agree are still wrong, and below about 74\% coverage the beam probability is the better abstention signal.
+	\item \textbf{One model, one calibration.} The threshold was calibrated on Spider with CodeS-1B. Other models in the application get the same agreement check, but their accuracy was not measured.
+	\item \textbf{Optimistic split statistics.} The 10 calibration/test splits reuse the same questions, so their p-values are optimistic; the question-level bootstrap is the check that does not depend on this.
+	\item \textbf{Single questions.} CodeS was trained on single questions, so with CodeS the application answers each question on its own; follow-up questions need a chat model, whose accuracy is not measured.
+	\item \textbf{Reproduction scope.} Only inference was reproduced, on smaller GPUs and newer libraries than the authors', without their schema classifier and Lucene index; test-suite accuracy is TBD.
+\end{itemize}
+
+\section{Conclusion}
+
+CodeS-1B was reproduced to within 0.1 points of its published Spider result, on hardware far smaller than the authors', after an audit that traced most of an apparent 4--13 point gap to our own evaluation rather than to the model. On top of it, confidence-aware abstention uses the agreement between the four candidates CodeS already produces: at the tested setting it answers 90.4\% of questions and is correct on 83.3\% of them, against 77.8\%, removing a third of the wrong answers, with a significant and calibrated gain. QueryGenie delivers this as a local desktop application that shows how sure it is and asks when it is not.
+
+\section{Future work}
+
+\begin{enumerate}
+	\item \textbf{Test-suite accuracy}, from the saved predictions, to report the paper's stricter metric (72.2\%).
+	\item \textbf{Larger models}: evaluate CodeS-3B (paper: 83.4\%) and calibrate its own threshold.
+	\item \textbf{A learned reranker} to close part of the gap between the 77.8\% selected and the 83.1\% of questions with a correct candidate.
+	\item \textbf{A combined signal} of agreement and beam probability, tuned on calibration data only.
+	\item \textbf{Calibration beyond Spider}: tune the threshold on realistic and real-world data, and measure the other models the application offers.
+\end{enumerate}
