@@ -114,11 +114,11 @@ def selftest() -> int:
     api = Api()
     if os.environ.get("QG_SELFTEST") == "models":          # the model catalogue only; loads no model
         from querygenie import providers
-        c = api.models_catalog()
-        print(json.dumps({"ok": True, "current": c["current"]["label"],
-                          "legacy_available": [m["label"] for m in c["legacy"] if m["available"]],
-                          "ollama_running": c["ollama"]["running"], "ollama_models": len(c["ollama"]["models"]),
-                          "cloud_providers": len(c["cloud"]),
+        o = api.providers_overview()
+        q = api.models_quick()
+        print(json.dumps({"ok": True, "current": o["current"]["label"],
+                          "providers": {t["key"]: t["status"] for t in o["tiles"]},
+                          "in_picker": {g["name"]: len(g["models"]) for g in q["groups"]},
                           "keyring": type(providers._keyring().get_keyring()).__name__}))
         return 0
     boot = api.boot()
