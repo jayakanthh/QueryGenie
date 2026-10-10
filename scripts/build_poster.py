@@ -171,9 +171,9 @@ for k, (ic, title, desc) in enumerate(INNOV):
 
 bar(L, 28.5, W, "The Application")
 shot_w = 11.6
-pic(os.path.join(FIG, "app_not_sure.png"), L + (W - shot_w) / 2, 29.5, w=shot_w)
+pic(os.path.join(FIG, "app_answer.png"), L + (W - shot_w) / 2, 29.5, w=shot_w)
 text(L, 29.5 + shot_w * 1600 / 2560 + 0.1, W, 0.6,
-     [("The four candidate queries disagree, so QueryGenie asks which reading was meant instead of guessing.", {"italic": True, "size": 21, "colour": MUTED})],
+     [("A confident answer: all four candidate queries agree, so QueryGenie shows the table and a chart.", {"italic": True, "size": 21, "colour": MUTED})],
      align=PP_ALIGN.CENTER)
 
 header(27, L, 37.75)
