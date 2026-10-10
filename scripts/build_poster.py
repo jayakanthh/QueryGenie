@@ -251,22 +251,14 @@ Y = 32.6
 RW, FW, TW = 19.0, 7.25, 5.05
 header(154, L, Y, RW, "Experimental Results")
 hide(155)
-cwid, chh = 6.9, 6.9 * 4.8 / 7.6
+cwid, chh = 8.6, 8.6 * 4.8 / 7.6                    # four charts, 2 x 2, across the whole results width
+off = (RW - (2 * cwid + 0.15)) / 2
 for k, name in enumerate(["chart_reproduction", "chart_enhancement", "chart_wrong", "chart_calibration"]):
-    pic(os.path.join(ASSETS, name + ".png"), L + (k % 2) * (cwid + 0.15), Y + 0.95 + (k // 2) * (chh + 0.1), w=cwid)
-kx = L + 2 * cwid + 0.35
-kw = RW - (kx - L)
-card(kx, Y + 0.95, kw, 2 * chh + 0.1, fill="FFF7E6", line=YELLOW, radius=0.04, width=2)
-STATS = [("77.8%", "Spider EX (paper 77.9%)"), ("69.5%", "Spider-Realistic (paper 70.9%)"),
-         ("83.3%", "correct when it answers (vs 77.8%)"), ("−32%", "wrong answers (230 → 156)"), ("p < 10⁻⁹", "paired t-test")]
-for k, (big, small) in enumerate(STATS):
-    yy = Y + 1.05 + k * (2 * chh + 0.1 - 0.2) / 5
-    text(kx + 0.1, yy, kw - 0.2, 1.6, [(big, {"size": 40, "bold": True, "colour": BLUE}), (small, {"size": 18, "colour": INK})],
-         align=PP_ALIGN.CENTER, spacing=0.0)
-ry = Y + 0.95 + 2 * chh + 0.25
+    pic(os.path.join(ASSETS, name + ".png"), L + off + (k % 2) * (cwid + 0.15), Y + 0.95 + (k // 2) * (chh + 0.1), w=cwid)
+ry = Y + 0.95 + 2 * chh + 0.15
 text(L, ry, RW, 45.75 - ry, [
     [("Significant: ", {"bold": True}), ("paired t-test p = 7.7×10⁻¹⁰, Wilcoxon p = 9.8×10⁻⁴, bootstrap 95% CI +4.5 to +6.7 points.", {})],
-    [("Robust: ", {"bold": True}), ("counting each different query only once, accuracy at 90% coverage is still 83.5%.", {})]], size=25, spacing=0.15)
+    [("Robust: ", {"bold": True}), ("counting each different query only once, accuracy at 90% coverage is still 83.5%.", {})]], size=22, spacing=0.08)
 
 FX = L + RW + 0.2
 header(27, FX, Y, FW, "References")
