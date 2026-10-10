@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import math
 import os
+import re
 import sqlite3
 from dataclasses import dataclass, field
 
@@ -64,6 +65,14 @@ def post_process(sql, schema_items):
     while "``" in sql:
         sql = sql.replace("``", "`")
     return sql
+
+
+def normalise_sql(sql):
+    """The same query written with different spacing or capitals maps to one string, so duplicate
+    beam candidates (e.g. "ORDER BY age DESC" twice, spaced differently) can be recognised."""
+    s = re.sub(r"\s+", " ", (sql or "").lower())
+    s = re.sub(r"\s*([(),=<>+\-*/])\s*", r"\1", s)
+    return s.strip().rstrip(";").strip()
 
 
 def clean_sql(text):

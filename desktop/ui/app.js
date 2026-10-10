@@ -460,13 +460,25 @@ function sqlHtml(it, t) {
       <button class="btn quiet" data-sql="copy">${icon("copy", "i sm")}Copy</button><button class="btn" data-sql="run" disabled title="Run your edited query (read-only)">${icon("play", "i sm")}Run edit</button></div>
     <textarea class="sql" data-sql="edit" spellcheck="false">${esc(c.sql)}</textarea></div>${sent}<div class="form-msg bad" data-sql="msg"></div>`;
 }
+function candResult(c) {
+  if (!c.runs) return "";
+  if (!c.preview) return `<p class="cand-res">${c.rows_total} row${c.rows_total === 1 ? "" : "s"}</p>`;      // saved before results were kept
+  if (!c.rows_total) return `<p class="cand-res">Ran — no rows.</p>`;
+  const head = (c.columns || []).map((h) => `<th>${esc(h)}</th>`).join("");
+  const body = c.preview.map((r) => `<tr>${r.map((v) => `<td>${esc(fmt(v))}</td>`).join("")}</tr>`).join("");
+  return `<div class="cand-res"><table class="mini">${head ? `<tr>${head}</tr>` : ""}${body}</table>${c.rows_total > c.preview.length ? `<span>… ${c.rows_total} rows in total</span>` : `<span>${c.rows_total} row${c.rows_total === 1 ? "" : "s"}</span>`}</div>`;
+}
 function candidatesHtml(it) {
-  return `<div class="cands">${it.candidates.map((c, i) => {
+  const n = it.candidates.length, ran = it.candidates.filter((c) => c.runs).length;
+  const distinct = it.distinct_queries ?? new Set(it.candidates.map((c) => (c.sql || "").toLowerCase().replace(/\s+/g, ""))).size;
+  const sum = `<p class="cands-sum">${n} queries generated · ${distinct} different${distinct < n ? ` (${n - distinct} repeat${n - distinct === 1 ? "s" : ""} an earlier query)` : ""} · all ${n} run on the database, ${ran} without errors</p>`;
+  return sum + `<div class="cands">${it.candidates.map((c, i) => {
     const st = !c.runs ? `<span class="state bad">${icon("circle-x", "i sm")}Did not run</span>` : c.agrees ? `<span class="state ok">${icon("circle-check", "i sm")}Agrees</span>` : `<span class="state diff">${icon("circle-alert", "i sm")}Different result</span>`;
     const rep = c.repaired ? `<span class="kbd rep" title="This query failed and was repaired">${icon("refresh-cw", "i sm")}repaired</span>` : "";
     const was = c.repaired ? `<details class="was"><summary>${c.repaired.kind === "empty" ? "The original query found no rows" : `The original query failed: ${esc(c.repaired.error)}`}</summary><pre class="selectable">${esc(c.repaired.from)}</pre></details>` : "";
-    return `<div class="cand"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${rep}${st}</div>
-      <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}${was}</div>`;
+    const dup = c.same_as != null ? `<span class="kbd dup" title="The same query as Query ${c.same_as + 1}, written with different spacing or capitals">same as Query ${c.same_as + 1}</span>` : "";
+    return `<div class="cand${c.same_as != null ? " is-dup" : ""}"><div class="cand-top">Query ${i + 1}${i === it.selected ? ' <span class="kbd">selected</span>' : ""}${dup}${rep}${st}</div>
+      <pre class="selectable">${esc(c.sql)}</pre>${!c.runs && c.error ? `<pre style="color:var(--critical)">${esc(c.error)}</pre>` : ""}${candResult(c)}${was}</div>`;
   }).join("")}</div>`;
 }
 

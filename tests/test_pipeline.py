@@ -141,3 +141,12 @@ def test_translate_sqlite_semantics_for_postgres(pg_like):
     assert "MAX(name)" in t("SELECT name, COUNT(*) FROM student GROUP BY year")     # bare column wrapped
     # SQLite's "row holding the max" idiom is left alone (it would fail -> lower agreement)
     assert "MAX(name)" not in t("SELECT name, MAX(year) FROM student GROUP BY year")
+
+
+def test_duplicate_candidates_are_recognised():
+    from querygenie.pipeline import normalise_sql
+    a = "SELECT name ,  country ,  age FROM singer ORDER BY age DESC"
+    b = "SELECT name , country ,  age FROM singer ORDER BY age DESC"
+    assert normalise_sql(a) == normalise_sql(b)
+    assert normalise_sql("SELECT COUNT (DISTINCT name) FROM singer") == normalise_sql("SELECT count(DISTINCT name) FROM singer")
+    assert normalise_sql("SELECT count(*) FROM singer") != normalise_sql("SELECT count(DISTINCT name) FROM singer")

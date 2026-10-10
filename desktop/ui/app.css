@@ -674,3 +674,12 @@ dialog.wide { max-width: min(720px, 94vw); }
 .ctx-pill[aria-pressed="false"] span { text-decoration: line-through; }
 .ctx-pill:disabled { opacity: 0.45; cursor: default; background: transparent; color: var(--ink-3); border-color: var(--line); }
 .ctx-pill:disabled span { text-decoration: line-through; }
+
+/* All 4 queries: each candidate's own result, and repeats marked */
+.cands-sum { margin: 2px 0 8px; font-size: var(--fs-xs); color: var(--ink-3); }
+.cand-res { margin-top: 6px; font-size: var(--fs-xs); color: var(--ink-3); overflow-x: auto; }
+.cand-res table.mini { border-collapse: collapse; margin-bottom: 3px; font-family: "IBM Plex Mono", monospace; }
+.cand-res table.mini th, .cand-res table.mini td { border: 1px solid var(--line); padding: 2px 7px; text-align: left; color: var(--ink-2); white-space: nowrap; }
+.cand-res table.mini th { background: var(--bg-subtle); font-weight: 600; }
+.kbd.dup { color: var(--ink-3); }
+.cand.is-dup pre { opacity: 0.7; }

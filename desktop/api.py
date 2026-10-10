@@ -789,9 +789,13 @@ class Api:
             c = d.candidates[i]
             interp.append({"letter": "ABC"[k], "index": i, "support": n, "rows_total": len(c.rows),
                            "preview": _rows(c.rows[:3]), "columns": list(c.columns)})
-        cands = []
+        from querygenie.pipeline import normalise_sql
+        cands, first_of = [], {}
         for i, c in enumerate(d.candidates):
+            key = normalise_sql(c.sql)
             item = {"sql": c.sql, "runs": c.runs, "error": c.error, "rows_total": len(c.rows),
+                    "columns": list(c.columns), "preview": _rows(c.rows[:5]),
+                    "same_as": first_of.get(key) if key else None,      # duplicate of an earlier candidate
                     "agrees": c.runs and c.result_hash == d.candidates[d.selected].result_hash and
                     d.candidates[d.selected].runs}
             if info.conn is not None:
@@ -799,6 +803,7 @@ class Api:
                     item["sent_sql"] = info.conn.translate(c.sql)
                 except Exception:  # noqa: BLE001
                     item["sent_sql"] = None
+            first_of.setdefault(key, i)
             cands.append(item)
         chosen = d.candidates[d.selected]
         return {"question": run.question, "mode": run.mode, "answered": bool(run.answered),
@@ -807,6 +812,7 @@ class Api:
                 "selected": d.selected, "columns": list(chosen.columns), "rows": _rows(chosen.rows),
                 "rows_total": len(chosen.rows), "chart": chart_spec(list(chosen.columns), chosen.rows),
                 "interpretations": interp, "candidates": cands, "live": info.conn is not None,
+                "distinct_queries": len({normalise_sql(c.sql) for c in d.candidates if c.sql}),
                 "backend": getattr(info.conn, "backend", "sqlite")}
 
     def interpretation(self, hid, index):
