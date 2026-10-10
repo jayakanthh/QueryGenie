@@ -62,3 +62,6 @@ docs/report-latex/*.out
 docs/report-latex/*.xdv
 docs/report-latex/*.idx
 docs/report-latex/*.synctex.gz
+
+# other teams' posters, kept locally as style references only
+docs/Templates/poster_examples/
