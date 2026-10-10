@@ -133,9 +133,8 @@ def node(x, y, w, h, title, lines, icon, fill, line, icon_colour="blue", title_c
 
 # ------------------------------------------------------------------ title
 text(6.6, 1.1, 21.4, 3.4, [("QueryGenie", {"size": 96, "bold": True, "colour": NAVY}),
-                           ("A Self-Correcting, Confidence-Aware Natural Language to SQL Interface", {"size": 40, "colour": NAVY}),
-                           ("Ask a database in plain English — and be told when the answer can't be trusted", {"size": 27, "colour": MUTED, "italic": True})],
-     align=PP_ALIGN.CENTER, shape=P[153], spacing=0.04)
+                           ("A Self-Correcting, Confidence-Aware Natural Language to SQL Interface", {"size": 40, "colour": NAVY})],
+     align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, shape=P[153], spacing=0.04)
 pic(BRAND, 29.0, 1.25, h=3.0)
 for shp in s.shapes:                                    # the template's STUDENTS / INNOVATION / ... labels: same sans font
     if shp.has_text_frame and shp.text_frame.text.strip() in ("STUDENTS", "INNOVATION", "RESEARCH", "IMPACT"):
