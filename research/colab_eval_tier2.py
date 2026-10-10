@@ -542,6 +542,13 @@ RUN_ID=os.environ.get("QG_RUN_ID","T2-003")
 #                                     no_select  = keep beam 0 instead of first executable candidate
 #                                     no_fk      = drop the foreign-keys block
 ABLATE=set(a.strip() for a in os.environ.get("QG_ABLATE","").split(",") if a.strip())
+# Review-III follow-up: how many candidates, and how they are generated.
+#   QG_N       number of candidates (default 4, the paper's setting): beam search with N beams, N returned
+#   QG_SAMPLE  a temperature (e.g. 0.8): N independent samples instead of beam search, ranked by their
+#              log-probability so "first that runs" still means "most likely that runs"; seeded per question
+N_CAND=int(os.environ.get("QG_N","4"))
+SAMPLE_T=float(os.environ["QG_SAMPLE"]) if os.environ.get("QG_SAMPLE") else None
+print("candidates:",N_CAND,"| generation:", f"sampling T={SAMPLE_T}" if SAMPLE_T else "beam search")
 print("ablations:",sorted(ABLATE) or "none")
 print("model:",MODEL,"| run:",RUN_ID)
 dev=json.load(open(os.path.join(SPIDER,"dev.json")))
@@ -578,10 +585,21 @@ for i,ex in enumerate(dev):
     if len(ids)>4096-256: ids=[tok.bos_token_id]+ids[-(4096-256-1):]   # load_sft_dataset.prepare_inputs
     input_ids=torch.tensor([ids],device=device); attn=torch.ones_like(input_ids)
     with torch.no_grad():
-        gen=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=4,num_return_sequences=4,
-                           pad_token_id=tok.eos_token_id,return_dict_in_generate=True,output_scores=True)
-    out=gen.sequences   # identical to the plain generate() output; scores are only recorded
-    beam_scores=[round(float(x),5) for x in gen.sequences_scores]
+        if SAMPLE_T is None:
+            gen=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,num_beams=N_CAND,num_return_sequences=N_CAND,
+                               pad_token_id=tok.eos_token_id,return_dict_in_generate=True,output_scores=True)
+            out=gen.sequences   # identical to the plain generate() output; scores are only recorded
+            beam_scores=[round(float(x),5) for x in gen.sequences_scores]
+        else:
+            torch.manual_seed(42+i)
+            gen=model.generate(input_ids=input_ids,attention_mask=attn,max_new_tokens=256,do_sample=True,temperature=SAMPLE_T,
+                               top_p=1.0,num_return_sequences=N_CAND,pad_token_id=tok.eos_token_id,return_dict_in_generate=True,output_scores=True)
+            tr=model.compute_transition_scores(gen.sequences,gen.scores,normalize_logits=True)
+            mask=(gen.sequences[:,input_ids.shape[1]:]!=tok.eos_token_id)
+            tr=torch.where(mask,torch.nan_to_num(tr,nan=0.0,neginf=-1e4),torch.zeros_like(tr))   # padding after EOS scores 0, not -inf*0=nan
+            lp=tr.sum(1)/mask.sum(1).clamp(min=1)                 # mean log-prob per token, like beam scores
+            order=torch.argsort(lp,descending=True)
+            out=gen.sequences[order]; beam_scores=[round(float(lp[k]),5) for k in order]
     # Authors' text2sql_zero_shot.py: decode all 4 beams, post-process, keep the FIRST
     # candidate that passes EXPLAIN QUERY PLAN; fall back to beam 0.
     cands=[clean_sql(post_process(c,sch["schema_items"])) for c in
