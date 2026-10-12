@@ -9,6 +9,7 @@ Sans-serif throughout. Every number is a measured result (results/).
 import os
 
 from lxml import etree
+from pptx.oxml.ns import qn
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.dml import MSO_LINE_DASH_STYLE
@@ -30,7 +31,8 @@ INK, MUTED, LINE, CARD = "1F2937", "4B5563", "C9D3E0", "FFFFFF"
 BL_F, BL_L = "E8F1FB", "2F6FB5"
 AM_F, AM_L = "FFF4DC", "C98A00"
 GR_F, GR_L = "E8F5E9", "2E7D32"
-FONT = "Arial"
+FONT = "Aptos"                       # the template's theme font (as in the reviewer's reference poster)
+TITLE_FONT = "Aptos"                 # Aptos Display is a cloud font in Office; Aptos Bold renders everywhere
 
 prs = Presentation(TEMPLATE)
 s = prs.slides[0]
@@ -42,12 +44,19 @@ def place(shape, x, y, w, h):
     shape.left, shape.top, shape.width, shape.height = Inches(x), Inches(y), Inches(w), Inches(h)
 
 
-def run(p, text, size, bold=False, colour=INK, italic=False):
+def run(p, text, size, bold=False, colour=INK, italic=False, underline=False, font=None):
     r = p.add_run()
     r.text = text
-    r.font.size, r.font.bold, r.font.italic, r.font.name = Pt(size), bold, italic, FONT
-    r.font.underline = False
+    r.font.size, r.font.bold, r.font.italic, r.font.name = Pt(size), bold, italic, font or FONT
+    r.font.underline = underline
     r.font.color.rgb = rgb(colour)
+    rpr = r._r.get_or_add_rPr()                 # same font for every script, English: the template's title box is
+    rpr.set("lang", "en-US")                    # tagged with a right-to-left language, so some renderers used its
+    for tag in ("ea", "cs"):                    # complex-script font (a serif) for the title
+        el = rpr.find(qn(f"a:{tag}"))
+        if el is None:
+            el = etree.SubElement(rpr, qn(f"a:{tag}"))
+        el.set("typeface", font or FONT)
     return r
 
 
@@ -69,21 +78,22 @@ def text(x, y, w, h, paras, size=26, colour=INK, align=PP_ALIGN.LEFT, anchor=MSO
         runs = para if isinstance(para, list) else [para]
         for rn in runs:
             t, f = (rn, {}) if isinstance(rn, str) else rn
-            run(p, t, f.get("size", size), f.get("bold", False), f.get("colour", colour), f.get("italic", False))
+            run(p, t, f.get("size", size), f.get("bold", False), f.get("colour", colour), f.get("italic", False),
+                f.get("underline", False), f.get("font"))
     return tb
 
 
 def bar(x, y, w, title):
     b = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(0.8))
     b.fill.solid(); b.fill.fore_color.rgb = rgb(RED); b.line.fill.background(); b.shadow.inherit = False
-    text(x, y, w, 0.8, [(title, {"bold": True, "colour": "FFFFFF", "size": 38})], align=PP_ALIGN.CENTER,
+    text(x, y, w, 0.8, [(title, {"bold": True, "colour": "FFFFFF", "size": 38, "underline": True})], align=PP_ALIGN.CENTER,
          anchor=MSO_ANCHOR.MIDDLE, shape=b)
     return b
 
 
 def header(idx, x, y, w, title):
     """One of the template's own section bars, moved, in the same sans style as bar()."""
-    text(x, y, w, 0.8, [(title, {"bold": True, "colour": "FFFFFF", "size": 38})], align=PP_ALIGN.CENTER,
+    text(x, y, w, 0.8, [(title, {"bold": True, "colour": "FFFFFF", "size": 38, "underline": True})], align=PP_ALIGN.CENTER,
          anchor=MSO_ANCHOR.MIDDLE, shape=P[idx])
 
 
@@ -132,8 +142,8 @@ def node(x, y, w, h, title, lines, icon, fill, line, icon_colour="blue", title_c
 
 
 # ------------------------------------------------------------------ title
-text(6.6, 1.1, 21.4, 3.4, [("QueryGenie", {"size": 96, "bold": True, "colour": NAVY}),
-                           ("A Self-Correcting, Confidence-Aware Natural Language to SQL Interface", {"size": 40, "colour": NAVY})],
+text(6.6, 1.1, 21.4, 3.4, [("QueryGenie", {"size": 100, "bold": True, "colour": NAVY, "font": TITLE_FONT}),
+                           ("A Self-Correcting, Confidence-Aware Natural Language to SQL Interface", {"size": 42, "bold": True, "colour": NAVY, "font": TITLE_FONT})],
      align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, shape=P[153], spacing=0.04)
 pic(BRAND, 29.0, 1.25, h=3.0)
 for shp in s.shapes:                                    # the template's STUDENTS / INNOVATION / ... labels: same sans font
@@ -148,18 +158,6 @@ for shp in s.shapes:
             for r_ in p_.runs:
                 r_.font.name = FONT; r_.font.bold = True
 
-# ------------------------------------------------------------------ tool strip (as in the example: the actual tools, with logos)
-TOOLS = [(BRANDI("python"), "Python 3.13"), (BRANDI("pytorch"), "PyTorch"), (BRANDI("huggingface"), "Hugging Face"),
-         (BRANDI("sqlite"), "SQLite"), (BRANDI("postgresql"), "PostgreSQL · MySQL"), (ICON("monitor-smartphone", "navy"), "macOS · Windows app"),
-         (ICON("badge-check", "green"), "45 tests"), (BRANDI("github"), "Open source · GitHub")]
-n, gap = len(TOOLS), 0.2
-cw = (31.7 - gap * (n - 1)) / n
-for k, (img, label) in enumerate(TOOLS):
-    cx = 0.7 + k * (cw + gap)
-    card(cx, 5.9, cw, 1.25, radius=0.18)
-    pic(img, cx + 0.15, 6.17, w=0.7)
-    text(cx + 0.9, 5.9, cw - 0.95, 1.25, [(label, {"size": 20, "bold": True, "colour": NAVY})], anchor=MSO_ANCHOR.MIDDLE, margin=0.04)
-
 # ------------------------------------------------------------------ left column
 L, W = 0.7, 15.6
 header(11, L, 7.5, W, "Abstract")
@@ -171,7 +169,7 @@ text(L + 0.15, 8.5, W - 0.3, 5.4, [
       "text-to-SQL model, to 77.8% execution accuracy on Spider (paper: 77.9%), and add confidence-aware abstention: "
       "the system runs every candidate query the model writes and checks whether they agree. When they don't, it asks "
       "the user instead of guessing. It answers 90.4% of questions and is right on 83.3% of them, with a third fewer "
-      "wrong answers — a statistically significant gain. It runs fully locally in a desktop app.", {})]], size=31)
+      "wrong answers — a statistically significant gain. It runs fully locally in a desktop app.", {})]], size=31, align=PP_ALIGN.JUSTIFY)
 hide(10)
 
 header(20, L, 14.25, W, "Objectives")
@@ -278,11 +276,12 @@ TX = FX + FW + 0.2
 header(29, TX, Y, TW, "Team Details")
 card(TX, Y + 0.95, TW, 5.6, dashed=True)
 text(TX + 0.1, Y + 1.05, TW - 0.2, 5.4, [
-    ("Supervisor", {"bold": True, "colour": NAVY, "size": 27}), ("M Parameswar", {}), ("Associate Professor", {"size": 22, "colour": MUTED}),
-    ("Team 18", {"bold": True, "colour": NAVY, "size": 27}),
-    ("2320090050", {"size": 21, "bold": True, "colour": MUTED}), ("N V V S S Jayakanth Kamisetti", {"size": 22}),
-    ("2320090009", {"size": 21, "bold": True, "colour": MUTED}), ("Boddupally Narendar", {"size": 22}),
-    ("2320090018", {"size": 21, "bold": True, "colour": MUTED}), ("M Praneeth Reddy", {"size": 22})], size=25, spacing=0.05)
+    [("❖ Project Guide: ", {"bold": True, "colour": NAVY}), ("M Parameswar, Associate Professor", {})],
+    [("❖ Project Coordinator: ", {"bold": True, "colour": NAVY}), ("Dr. Jagan Mohan Reddy Danda, Associate Professor", {})],
+    [("❖ Students (Team 18):", {"bold": True, "colour": NAVY})],
+    ("N V V S S Jayakanth Kamisetti", {"size": 23}), ("2320090050", {"size": 20, "colour": MUTED}),
+    ("Boddupally Narendar", {"size": 23}), ("2320090009", {"size": 20, "colour": MUTED}),
+    ("M Praneeth Reddy", {"size": 23}), ("2320090018", {"size": 20, "colour": MUTED})], size=24, spacing=0.06)
 hide(30)
 bar(TX, Y + 6.8, TW, "Future Work")
 text(TX, Y + 7.75, TW, 45.7 - Y - 7.75, [
