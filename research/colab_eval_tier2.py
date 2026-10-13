@@ -620,6 +620,17 @@ for i,ex in enumerate(dev):
 n=len(dev)
 PRED_FILE=f"/content/preds_{RUN_ID}.txt"
 open(PRED_FILE,"w").write("\n".join(PREDS)+"\n")
+# Save and download everything generated BEFORE the slow scoring steps (CN-008 was lost when the runtime
+# died while scoring 8,272 candidates). The raw dump has every candidate and its execution result; its
+# official correctness can be recomputed locally (research/score_dump.py) if the steps below fail.
+RAW_FILE=f"/content/dump_{RUN_ID}_raw.jsonl"
+with open(RAW_FILE,"w") as f:
+    for d in DUMP: f.write(json.dumps(d,ensure_ascii=False)+"\n")
+print(f"raw candidate dump saved to {RAW_FILE} | generation took {round(time.time()-t0)}s", flush=True)
+try:
+    from google.colab import files; files.download(RAW_FILE); files.download(PRED_FILE)
+except Exception as e:
+    print("auto-download unavailable:",e)
 # Official Spider evaluator (what the authors run: test_suite_sql_eval/evaluation.py --etype exec).
 # Order-sensitive when gold has ORDER BY, column-permutation tolerant, DISTINCT-insensitive.
 if not os.path.exists("/content/test-suite-sql-eval"):
@@ -665,7 +676,7 @@ with open(DUMP_FILE,"w") as f:
     for d in DUMP: f.write(json.dumps(d,ensure_ascii=False)+"\n")
 print(f"candidate dump saved to {DUMP_FILE}")
 try:
-    from google.colab import files; files.download(DUMP_FILE); files.download(PRED_FILE)
+    from google.colab import files; files.download(DUMP_FILE)
 except Exception as e:
     print("auto-download unavailable:",e)
 print(f"\n==== FULL CodeS prompt | Spider dev EX = {correct/n:.4f} ({correct}/{n}) | executes {pexec/n:.3f} | {round(time.time()-t0)}s ====")
