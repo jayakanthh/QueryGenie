@@ -51,6 +51,19 @@ repository, and its status. Update the status column as each item is completed a
 | 12 | Comparative results + significance test (20%) | `docs/Week12_Comparative_Results.docx`, `results/week12_comparative_results.md` | ✅ original 77.76% vs enhanced 83.32% at 90.4% coverage; wrong answers 230→156; t=24.4 p=7.7e-10, Wilcoxon W=55 p=9.8e-4, bootstrap CI [+4.5,+6.7] |
 | 12 | Weekly report | `docs/weekly-reports/Week 12/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 
+## Review-III feedback (examiner, Oct 2026) — follow-up experiments
+
+| Point raised | Run / artefact | Status |
+|---|---|---|
+| "Only 2 of the 4 candidates are unique" | AN-001 `results/agreement_v2.md` (`research/agreement_v2.py`) | ✅ confirmed: 4 truly different queries in 56% of questions. Agreement v2 (repeats counted once, column order ignored): 83.5% correct at 90% coverage, +5.66 pts, p=4e-11 (v1: +5.46) |
+| "Is every query executed?" | app: All 4 queries tab | ✅ yes, always; the tab now shows each candidate's result rows and marks repeats |
+| "Test with other models" | T2-004 (CodeS-3B), AN-002 `results/agreement_v2_T2-004.md` | ✅ 81.8% official EX (paper 83.4%, −1.6 pts); abstention +3.2 pts (p=2.9e-6), v2 +3.95 pts (p=1e-7) |
+| "Why limit to 4?" | CN-008 (8 beams) | 🟡 official EX 0.788 with 8 beams vs 0.778 with 4; run died while scoring, per-candidate dump lost — re-run pending (Colab GPU quota) |
+| Diversity of candidates | SM-008 (8 sampled, T=0.8) | ⬜ ready; waiting for Colab GPU quota |
+
+Harness now saves the raw candidate dump before scoring; `research/score_dump.py` scores it locally
+(reproduces T2-006 per-candidate scores exactly).
+
 ## Month 4 — Finalization
 
 | Week | SOP deliverable | Artefact | Status |
