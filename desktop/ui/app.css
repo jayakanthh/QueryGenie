@@ -683,3 +683,10 @@ dialog.wide { max-width: min(720px, 94vw); }
 .cand-res table.mini th { background: var(--bg-subtle); font-weight: 600; }
 .kbd.dup { color: var(--ink-3); }
 .cand.is-dup pre { opacity: 0.7; }
+
+/* candidate count next to the context switch */
+.n-pill { height: 26px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink-3);
+  font-size: var(--fs-xs); cursor: pointer; margin-right: 4px; font-family: inherit; }
+.n-pill:hover { background: var(--bg-hover); color: var(--ink-2); }
+.cells.dense i { width: 4px; }
+.cells.dense.lg i { width: 7px; }

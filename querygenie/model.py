@@ -47,6 +47,8 @@ class CodesSFTBackend:
 
     has_confidence = True
 
+    n_candidates = 4          # beams to return (the application raises or lowers it); 4 is the evaluated setting
+
     def __init__(self, model_id: str, label: str = "", distinct: bool = False):
         # distinct=True (the application): generate 8 beams and keep the 4 most likely DIFFERENT queries, so the
         # candidates the user sees are not repeats. distinct=False (every research script) is the measured
@@ -111,7 +113,8 @@ class CodesSFTBackend:
         import torch
         from .pipeline import decide, distinct_first, encode
 
-        beams = 8 if self.distinct else 4
+        n = self.n_candidates
+        beams = min(16, 2 * n) if self.distinct else n     # the application over-generates, then keeps n different
         self.last_context = (target, schema, prefix)       # for an optional repair step (querygenie/repair.py)
         self.load()
         ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
@@ -125,7 +128,7 @@ class CodesSFTBackend:
                                        clean_up_tokenization_spaces=False)
         scores = [float(x) for x in gen.sequences_scores]
         if self.distinct:
-            texts, scores = distinct_first(texts, scores, schema, 4)
+            texts, scores = distinct_first(texts, scores, schema, n)
         return decide(target, schema, texts, scores)
 
     def fix_sql(self, failed_sql: str, error: str, max_new_tokens: int = 256) -> str:

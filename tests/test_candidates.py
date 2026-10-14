@@ -104,3 +104,16 @@ def test_a_cloud_model_gets_top_up_requests_only_for_the_missing_queries(tmp_pat
     out = be.sample("Question: How many pets?\nSQLite query:")
     assert len({canonical_sql(t, be.current_schema) for t in out}) == 4
     assert len(be.prompts) == 4 + 3                                   # four parallel, three top-ups
+
+
+def test_the_number_of_candidates_is_a_setting(tmp_path):
+    from querygenie.providers.base import clamp_candidates
+    assert [clamp_candidates(x) for x in (1, 2, 6, 12, 99, "5", None, "x")] == [2, 2, 6, 12, 12, 5, 4, 4]
+    be = _Chat()
+    be.current_schema = _schema(tmp_path)
+    be.n_candidates = 7
+    out = be.diverse_candidates(be.once, "Question: How many pets?\nSQLite query:")
+    assert len(out) == 7 and len({canonical_sql(t, be.current_schema) for t in out}) == 4   # the fake knows only 4 ways
+    two = _Chat()
+    two.n_candidates = 2
+    assert len(two.distinct_candidates(lambda i: f"SELECT {i} FROM pets")) == 2

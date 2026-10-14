@@ -24,6 +24,7 @@ SETTINGS = os.path.join(st.app_dir(), "settings.json")
 DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-spider",
                     "engine": None,          # None = the evaluated CodeS model in "model"
                     "repair": True,          # send failed candidate queries back once with their error
+                    "candidates": 4,         # candidate queries per question (2-12); 4 is the evaluated setting
                     "context_on": True,      # use earlier questions of a chat as context for follow-ups
                     "context_turns": 3,      # how many (-1 = all that fit the model's window)
                     "context_results": "local",   # earlier result rows in the context: local / all / none
@@ -151,7 +152,11 @@ class Api:
             return dict(DEFAULT_SETTINGS)
 
     def settings_set(self, changes):
-        s = {**self.settings_get(), **{k: v for k, v in (changes or {}).items() if k in DEFAULT_SETTINGS}}
+        changes = dict(changes or {})
+        if "candidates" in changes:
+            from querygenie.providers.base import clamp_candidates
+            changes["candidates"] = clamp_candidates(changes["candidates"])
+        s = {**self.settings_get(), **{k: v for k, v in changes.items() if k in DEFAULT_SETTINGS}}
         json.dump(s, open(SETTINGS, "w"), indent=2)
         return s
 
@@ -690,6 +695,8 @@ class Api:
                     history = fit_history(history, window // 2 if window else None, max_turns=200 if window else 20)
                     if not rewritten:
                         model_history = history
+                from querygenie.providers.base import clamp_candidates
+                backend.n_candidates = clamp_candidates(self.settings_get().get("candidates"))
                 share = self.settings_get().get("context_results", "local")
                 backend.share_results = share == "all" or (share == "local" and not getattr(backend, "cloud", False))
                 if info.conn is not None:
@@ -807,7 +814,7 @@ class Api:
             cands.append(item)
         chosen = d.candidates[d.selected]
         return {"question": run.question, "mode": run.mode, "answered": bool(run.answered),
-                "agree": d.n_agree if chosen.runs else 0, "ran": chosen.runs,
+                "agree": d.n_agree if chosen.runs else 0, "ran": chosen.runs, "n": len(d.candidates),
                 "beam_prob": round(d.beam_prob, 3), "confidence": round(d.confidence, 4),
                 "selected": d.selected, "columns": list(chosen.columns), "rows": _rows(chosen.rows),
                 "rows_total": len(chosen.rows), "chart": chart_spec(list(chosen.columns), chosen.rows),
@@ -882,7 +889,8 @@ class Api:
         """Chats on one database, most recently used first, with their latest answer's confidence."""
         sql = ("SELECT c.id, c.title, c.created, c.updated, COUNT(h.id), "
                "(SELECT agree FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1), "
-               "(SELECT answered FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1) "
+               "(SELECT answered FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1), "
+               "(SELECT COALESCE(json_extract(result, '$.n'), 4) FROM history WHERE chat_id = c.id ORDER BY created DESC, rowid DESC LIMIT 1) "
                "FROM chats c LEFT JOIN history h ON h.chat_id = c.id WHERE c.db_id = ?")
         args = [db_id]
         if query:
@@ -892,7 +900,7 @@ class Api:
         rows = con.execute(sql + " GROUP BY c.id ORDER BY c.updated DESC LIMIT ?", args + [int(limit)]).fetchall()
         con.close()
         return [{"id": r[0], "title": r[1], "created": r[2], "updated": r[3], "questions": r[4],
-                 "agree": r[5] or 0, "answered": bool(r[6])} for r in rows]
+                 "agree": r[5] or 0, "answered": bool(r[6]), "n": r[7] or 4} for r in rows]
 
     def chat(self, chat_id):
         """Every question in a chat, oldest first, as full results."""

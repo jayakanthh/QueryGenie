@@ -18,7 +18,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 from ..pipeline import build_prefix, build_prefix_connected, decide
 
-N_CANDIDATES = 4
+N_CANDIDATES = 4              # the default; the application lets the user choose (MIN_CANDIDATES..MAX_CANDIDATES)
+MIN_CANDIDATES, MAX_CANDIDATES = 2, 12
+
+
+def clamp_candidates(n) -> int:
+    try:
+        return max(MIN_CANDIDATES, min(MAX_CANDIDATES, int(n)))
+    except (TypeError, ValueError):
+        return N_CANDIDATES
 
 SYSTEM_PROMPT = (
     "You translate a question about a database into one SQLite query. The database is described "
@@ -92,6 +100,7 @@ class CandidateBackend:
     calibrated = False           # agreement is shown, but its accuracy was never measured
     cloud = False                # True when the schema is sent to a third-party service
     chat = True                  # instruction model (chat prompt) vs CodeS-style completion model
+    n_candidates = N_CANDIDATES  # how many candidate queries to produce for a question
 
     def __init__(self, model: str, label: str = "", effort: str | None = None):
         self.model = model
@@ -107,14 +116,15 @@ class CandidateBackend:
             self.failures.append(exc)
 
     def sample(self, prompt):
-        """Candidates from a service that answers one sample per request: four in parallel (retrying a request the
+        """Candidates from a service that answers one sample per request: n in parallel, four at a time (retrying a request the
         service refused for a short rate limit - free tiers allow only a few per minute), then, if some came back
-        as the same query, up to four more requests one after another that ask for a different formulation."""
-        texts = [extract_sql(t) for t in parallel(lambda _i: with_retry(lambda: self.complete_once(prompt)),
+        as the same query, up to n more requests one after another that ask for a different formulation."""
+        n = self.n_candidates
+        texts = [extract_sql(t) for t in parallel(lambda _i: with_retry(lambda: self.complete_once(prompt)), n=n,
                                                   on_error=self.note_failure)]
         keys = {self._key(t) for t in texts if t}
         extra = 0
-        while len(keys) < N_CANDIDATES and extra < N_CANDIDATES and texts:
+        while len(keys) < n and extra < n and texts:
             extra += 1
             try:
                 text = extract_sql(with_retry(lambda: self.complete_once(
@@ -145,13 +155,14 @@ class CandidateBackend:
         rest = list(texts)
         for d in distinct:
             rest.remove(d)
-        return (distinct + rest)[:N_CANDIDATES]
+        return (distinct + rest)[:self.n_candidates]
 
-    def diverse_candidates(self, once, prompt, max_tries: int = 2 * N_CANDIDATES):
+    def diverse_candidates(self, once, prompt, max_tries: int | None = None):
         """For a model that runs here and can be asked one answer at a time (so only one copy is ever in memory):
         one greedy answer, then samples at a rising temperature; as soon as a query repeats, later requests also
         show the model the queries it has written and ask for a different one."""
         drawn = []
+        max_tries = max_tries or 2 * self.n_candidates
 
         def make(i):
             hinted = i > len(self._distinct_sql(drawn))      # something already repeated or failed
@@ -168,11 +179,13 @@ class CandidateBackend:
 
     current_schema = None            # set by _decide before generating, so samplers can tell repeats from new queries
 
-    def distinct_candidates(self, make, n: int = N_CANDIDATES, max_tries: int = 3 * N_CANDIDATES) -> list[str]:
+    def distinct_candidates(self, make, n: int | None = None, max_tries: int | None = None) -> list[str]:
         """Call make(i) (i = 0, 1, 2 ...; the caller raises the temperature with i) until n different queries have
         been drawn, or max_tries is reached; then fill with repeats so n are returned (a model that really answers
         one way shows that one query repeated, which is what agreement should see)."""
         from ..pipeline import canonical_sql
+        n = n or self.n_candidates
+        max_tries = max_tries or 3 * n
         out, repeats, seen = [], [], set()
         for i in range(max_tries):
             text = make(i)
@@ -236,9 +249,10 @@ class CandidateBackend:
         self.last_context = (target, schema, prompt)       # for the optional repair step
         self.current_schema = schema
         texts = [extract_sql(t) if self.chat else t for t in self.raw_candidates(prompt)]
-        texts = (texts + [""] * N_CANDIDATES)[:N_CANDIDATES]
+        n = self.n_candidates
+        texts = (texts + [""] * n)[:n]
         # No beam scores outside the evaluated model: equal scores, so the tie-break is neutral.
-        return decide(target, schema, texts, [0.0] * N_CANDIDATES)
+        return decide(target, schema, texts, [0.0] * n)
 
 
 def with_retry(fn, attempts: int = 3, max_wait_s: float = 65.0):
@@ -259,8 +273,8 @@ def with_retry(fn, attempts: int = 3, max_wait_s: float = 65.0):
 
 
 def parallel(fn, n: int = N_CANDIDATES, on_error=None) -> list[str]:
-    """Run n independent requests at once (used for services that sample one answer per call)."""
-    with ThreadPoolExecutor(max_workers=n) as pool:
+    """Run n independent requests, at most four at once (used for services that sample one answer per call)."""
+    with ThreadPoolExecutor(max_workers=min(n, 4)) as pool:
         futures = [pool.submit(fn, i) for i in range(n)]
         out, errors = [], []
         for f in futures:

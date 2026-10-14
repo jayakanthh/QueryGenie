@@ -27,16 +27,29 @@ function when(iso) {
   if (s < 172800) return "Yesterday";
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
-function cells(n, ran = true, lg = false) {
-  const lvl = ran ? n : 0;
-  return `<span class="cells lvl-${lvl}${lg ? " lg" : ""}" role="img" aria-label="${ran ? n : 0} of 4 candidate queries agree">${[0, 1, 2, 3].map((i) => `<i class="${i < lvl ? "on" : ""}"></i>`).join("")}</span>`;
+// `total` is how many candidate queries the question had (the user can choose 2-12; 4 is the evaluated setting).
+function levelOf(agree, total, ran = true) {
+  if (!ran || !agree) return 0;
+  if (agree >= total) return 4;
+  const f = agree / total;
+  return f >= 0.75 ? 3 : f >= 0.5 ? 2 : 1;
 }
-// The verdict says what was measured (how many of the four queries agree), not an abstract "confidence".
-const LEVEL = { 4: ["good", "circle-check", "4 of 4 queries agree", "All four candidate queries return this answer."],
-                3: ["warning", "circle-alert", "3 of 4 queries agree", "One candidate query returns something else."],
-                2: ["serious", "triangle-alert", "2 of 4 queries agree", "Only half of the candidate queries return this answer — check it."],
-                1: ["critical", "circle-x", "No two queries agree", "Each candidate query returns a different answer — treat this one with care."],
-                0: ["critical", "circle-x", "No query ran", "None of the candidate queries could run."] };
+function cells(n, ran = true, lg = false, total = 4) {
+  const lvl = levelOf(n, total, ran), on = ran ? n : 0;
+  return `<span class="cells lvl-${lvl}${lg ? " lg" : ""}${total > 6 ? " dense" : ""}" role="img" aria-label="${on} of ${total} candidate queries agree">${Array.from({ length: total }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}</span>`;
+}
+// The verdict says what was measured (how many of the queries agree), not an abstract "confidence".
+function levelText(agree, total, ran) {
+  const lvl = levelOf(agree, total, ran);
+  const left = total - agree;
+  return [["critical", "circle-x", "No query ran", "None of the candidate queries could run."],
+          ["critical", "circle-x", agree <= 1 ? "No two queries agree" : `${agree} of ${total} queries agree`, agree <= 1 ? "Each candidate query returns a different answer — treat this one with care." : `Only ${agree} of the ${total} candidate queries return this answer — treat it with care.`],
+          ["serious", "triangle-alert", `${agree} of ${total} queries agree`, agree * 2 === total ? "Only half of the candidate queries return this answer — check it." : "Fewer than three quarters of the candidate queries return this answer — check it."],
+          ["warning", "circle-alert", `${agree} of ${total} queries agree`, left === 1 ? "One candidate query returns something else." : `${left} candidate queries return something else.`],
+          ["good", "circle-check", `${total} of ${total} queries agree`, total === 4 ? "All four candidate queries return this answer." : `All ${total} candidate queries return this answer.`]][lvl];
+}
+const NQ = (it) => (it && (it.n || (it.candidates && it.candidates.length))) || 4;
+const wantN = () => (S.boot && S.boot.settings && +S.boot.settings.candidates) || 4;
 const isNum = (v) => typeof v === "number";
 const fmt = (v) => (v === null || v === undefined ? "—" : isNum(v) ? (Number.isInteger(v) ? v.toLocaleString() : (+v.toFixed(2)).toLocaleString()) : String(v));
 const mod = () => (S.os === "mac" ? "⌘" : "Ctrl+");
@@ -192,7 +205,7 @@ function renderChats() {
   $("#rows").innerHTML = S.chats.map((c) => `
     <button class="row" role="option" data-id="${c.id}" aria-selected="${S.chat && S.chat.id === c.id}">
       <div class="q">${esc(c.title)}</div>
-      <div class="meta">${cells(c.agree, c.agree > 0)}<span>${c.questions} question${c.questions === 1 ? "" : "s"}</span>${S.working && S.working.chat === c.id ? `<span>${icon("loader-circle", "i sm spin")}</span>` : ""}<span class="when">${when(c.updated)}</span></div>
+      <div class="meta">${cells(c.agree, c.agree > 0, false, c.n || 4)}<span>${c.questions} question${c.questions === 1 ? "" : "s"}</span>${S.working && S.working.chat === c.id ? `<span>${icon("loader-circle", "i sm spin")}</span>` : ""}<span class="when">${when(c.updated)}</span></div>
     </button>`).join("");
   $$("#rows [data-id]").forEach((b) => (b.onclick = () => { S.view = "chat"; openChat(b.dataset.id).then(showView); }));
 }
@@ -252,6 +265,14 @@ function renderThread(scroll = "end") {
 const engineChats = () => !!(S.boot && S.boot.engine && S.boot.engine.chat);    // CodeS answers each question alone
 const contextOn = () => engineChats() && !(S.boot && S.boot.settings.context_on === false);
 const contextTurns = () => { if (!contextOn()) return 0; const v = S.boot && S.boot.settings.context_turns; return v === undefined || +v === 0 ? 3 : +v; };
+async function setCandidates(n) {
+  await api.settings_set({ candidates: +n }); S.boot = await api.boot(); syncCandidates();
+  if ($("#mode-opts")) renderModeOpts();
+}
+function syncCandidates() {
+  const v = String(wantN());
+  ["#n-pill", "#n-opt"].forEach((id) => { const el = $(id); if (!el) return; if (![...el.options].some((o) => o.value === v)) el.add(new Option(`${v} queries`, v)); el.value = v; });
+}
 async function setContextOn(on) { await api.settings_set({ context_on: on }); S.boot = await api.boot(); renderContextBar(); syncContextSettings(); }
 function syncContextSettings() {
   const on = !(S.boot && S.boot.settings.context_on === false), box = $("#ctxon-opt"); if (!box) return;
@@ -259,6 +280,7 @@ function syncContextSettings() {
   $$(".ctx-dep").forEach((f) => { f.classList.toggle("off", !on); $$("select", f).forEach((x) => (x.disabled = !on)); });
 }
 function renderContextBar() {
+  syncCandidates();
   const bar = $("#ctx"), n = contextTurns(), turns = S.chat ? S.chat.turns.length : 0;
   const pill = $("#ctx-pill");
   pill.setAttribute("aria-pressed", contextOn());
@@ -310,7 +332,7 @@ async function submitQuestion(text) {
 }
 function workingHtml(q) {
   return `<div class="you"><div class="bubble">${esc(q)}</div></div><div class="bot">${botAvatar()}<div class="bot-body">
-    <div class="working"><div class="w-line">${icon("loader-circle", "i spin")}<span id="w-msg">Writing four candidate queries…</span><span class="mono" id="w-t" style="margin-left:auto;color:var(--ink-3)"></span></div>
+    <div class="working"><div class="w-line">${icon("loader-circle", "i spin")}<span id="w-msg">${"Writing " + wantN() + " candidate queries…"}</span><span class="mono" id="w-t" style="margin-left:auto;color:var(--ink-3)"></span></div>
     <div class="sk" style="width:62%"></div><div class="sk" style="width:88%"></div><div class="sk" style="width:74%"></div></div></div></div>`;
 }
 function failedHtml(f) {
@@ -322,7 +344,7 @@ function startTicker() {
     const el = $("#w-t"); if (!S.working || !el) return clearInterval(S.tick);
     const s = Math.round((Date.now() - S.working.t0) / 1000); el.textContent = s + " s";
     if (s >= 8 && s < 25) $("#w-msg").textContent = "Loading the model — only the first question takes this long…";
-    if (s >= 25) $("#w-msg").textContent = "Still working — checking whether the four candidates agree…";
+    if (s >= 25) $("#w-msg").textContent = `Still working — checking whether the ${wantN()} candidates agree…`;
   }, 1000);
 }
 
@@ -340,23 +362,23 @@ function turnHtml(it) {
   const meta = `<div class="bot-meta">${it.engine ? `<span>${esc(it.engine.label)}${it.engine.cloud ? " · cloud" : ""}</span>` : ""}<span>${modeName(it.mode)}</span></div>`;
   const head = you, bot = (inner) => `<div class="bot">${botAvatar()}<div class="bot-body">${meta}${inner}</div></div>`;
   const cal = it.engine && !it.engine.calibrated
-    ? `<p class="note engine-note">${icon("info")}<span>Agreement here is how many of ${esc(it.engine.label)}'s four answers match. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
-  // A question that names nothing in the database: ask "all of what?" - unless all four queries agree
+    ? `<p class="note engine-note">${icon("info")}<span>Agreement here is how many of ${esc(it.engine.label)}'s ${NQ(it)} answers match. How often that is right was measured only for CodeS-1B on Spider, not for this model.</span></p>` : "";
+  // A question that names nothing in the database: ask "all of what?" - unless all the queries agree
   // on one reading, in which case show it, saying that it is the model's reading.
-  const unanimous = it.ran && it.agree === 4;
+  const unanimous = it.ran && it.agree === NQ(it);
   const showGuess = t.guess ?? unanimous;
   if (it.unclear && !showGuess) return head + bot(clarifyHtml(it));
   const askedNote = it.context && it.context.asked_as ? `<p class="note">${icon("history")}<span>${it.context.rewritten
       ? (it.context.how === "resolved" ? `Read as: “${esc(it.context.asked_as)}”` : `Read as the earlier question with a different value: “${esc(it.context.asked_as)}”`)
       : `Asked as: “${esc(it.context.asked_as)}”`}</span></p>` : "";
   const fr = it.failed_requests;
-  const failNote = fr ? `<p class="note warn-note">${icon("triangle-alert")}<span>${fr.count} of the 4 requests to ${esc(it.engine ? it.engine.label : "the service")} failed (${esc(fr.reason)}), so only ${4 - fr.count} answer${4 - fr.count === 1 ? "" : "s"} could agree. Asking again in a minute usually gets all four.</span></p>` : "";
+  const failNote = fr ? `<p class="note warn-note">${icon("triangle-alert")}<span>${fr.count} of the ${NQ(it)} requests to ${esc(it.engine ? it.engine.label : "the service")} failed (${esc(fr.reason)}), so only ${NQ(it) - fr.count} answer${NQ(it) - fr.count === 1 ? "" : "s"} could agree. Asking again in a minute usually gets them all.</span></p>` : "";
   const errFixed = (it.repaired || 0) - (it.repaired_empty || 0);
   const repairNote = failNote + askedNote
-    + (errFixed > 0 ? `<p class="note">${icon("refresh-cw")}<span>${errFixed} candidate quer${errFixed === 1 ? "y" : "ies"} failed and ${errFixed === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All 4 queries).</span></p>` : "")
-    + (it.repaired_empty ? `<p class="note">${icon("refresh-cw")}<span>The first answer found no rows, though the question names values stored in the database, so ${it.repaired_empty === 1 ? "that query was" : "those queries were"} sent back to the model with the values (see All 4 queries).</span></p>` : "")
+    + (errFixed > 0 ? `<p class="note">${icon("refresh-cw")}<span>${errFixed} candidate quer${errFixed === 1 ? "y" : "ies"} failed and ${errFixed === 1 ? "was" : "were"} sent back to the model with the error to be repaired (see All ${NQ(it)} queries).</span></p>` : "")
+    + (it.repaired_empty ? `<p class="note">${icon("refresh-cw")}<span>The first answer found no rows, though the question names values stored in the database, so ${it.repaired_empty === 1 ? "that query was" : "those queries were"} sent back to the model with the values (see All ${NQ(it)} queries).</span></p>` : "")
     + (it.empty_hint ? `<p class="note warn-note">${icon("triangle-alert")}<span>No rows found — but the database does contain ${it.empty_hint.map((h) => `“${esc(h.value)}” in ${esc(h.column)}`).join(", ")}, which the query doesn't use. Try asking with those words.</span></p>` : "");
-  const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all four queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
+  const top = repairNote + (it.unclear ? `<p class="note">${icon("info")}<span>Your question doesn't name a table or column here, so this is the model's reading of it${unanimous ? " (all the queries agree on it)" : ""}. <button class="btn quiet link" data-unclear-back>Choose what you meant instead</button></span></p>` : "")
     + (it.answered ? verdictHtml(it) : unsureHtml(it, t)) + cal;
   let body;
   if (!it.answered && t.reading == null) body = "";
@@ -383,30 +405,30 @@ function clarifiedQuestion(q, table) {
   return `${m[1]} in the ${table} table${m[2] || ""}`;
 }
 function modeName(m) {
-  return { answer_all: "Answers everything", balanced: "Balanced", strict: "Strict (3 of 4 agree)", very_strict: "Very strict (all 4 agree)" }[m] || m;
+  return { answer_all: "Answers everything", balanced: "Balanced", strict: "Strict (¾ agree)", very_strict: "Very strict (all agree)" }[m] || m;
 }
 function verdictHtml(it) {
-  const [lvl, ic, word, line] = LEVEL[it.ran ? it.agree : 0];
-  const alt = it.interpretations.length > 1 ? `<div class="note" style="margin-top:-6px">${icon("info")}<span>Other readings give different results: ${it.interpretations.filter((r) => r.index !== it.selected).map((r) => `<button class="btn quiet" style="height:20px;padding:0 5px" data-reading="${r.index}">Reading ${r.letter} · ${r.support} of 4</button>`).join(" ")}</span></div>` : "";
-  return `<div class="verdict ${lvl}">${cells(it.agree, it.ran, true)}<div class="v-text"><strong>${word}</strong>
+  const [lvl, ic, word, line] = levelText(it.ran ? it.agree : 0, NQ(it), it.ran);
+  const alt = it.interpretations.length > 1 ? `<div class="note" style="margin-top:-6px">${icon("info")}<span>Other readings give different results: ${it.interpretations.filter((r) => r.index !== it.selected).map((r) => `<button class="btn quiet" style="height:20px;padding:0 5px" data-reading="${r.index}">Reading ${r.letter} · ${r.support} of ${NQ(it)}</button>`).join(" ")}</span></div>` : "";
+  return `<div class="verdict ${lvl}">${cells(it.agree, it.ran, true, NQ(it))}<div class="v-text"><strong>${word}</strong>
     <span>${line}</span></div>
     <span style="flex:1"></span>${icon(ic, "i v-icon")}</div>${alt}`;
 }
 function unsureHtml(it, t) {
   if (!it.interpretations.length) {
     return `<div class="unsure"><div class="unsure-head">${icon("circle-x")}<div><h2>I couldn't answer this reliably</h2>
-      <p>None of the four candidate queries ran on this database. Try naming the table or column you mean, or rephrase the question.</p></div></div></div>`;
+      <p>None of the candidate queries ran on this database. Try naming the table or column you mean, or rephrase the question.</p></div></div></div>`;
   }
   const ran = it.candidates.filter((c) => c.runs).length, onlyEmpty = it.interpretations.every((r) => r.rows_total === 0);
-  const why = ran < 4
-    ? `Only ${ran} of the 4 candidate queries ran${ran === 1 && onlyEmpty ? ", and it found no rows" : ""} — the others had errors (see All 4 queries).
-       ${ran === 1 ? "That's too little to trust" : it.interpretations.length > 1 ? "The ones that ran don't agree" : `The ones that ran agree, but that's only ${it.agree} of 4`}. Try naming what you want in a full question, e.g. "What is … of …?"`
+  const nq = NQ(it), why = ran < nq
+    ? `Only ${ran} of the ${nq} candidate queries ran${ran === 1 && onlyEmpty ? ", and it found no rows" : ""} — the others had errors (see All ${NQ(it)} queries).
+       ${ran === 1 ? "That's too little to trust" : it.interpretations.length > 1 ? "The ones that ran don't agree" : `The ones that ran agree, but that's only ${it.agree} of ${nq}`}. Try naming what you want in a full question, e.g. "What is … of …?"`
     : disagreeText(it);
   return `<div class="unsure"><div class="unsure-head">${icon("circle-help")}<div><h2>${ran === 1 ? "I couldn't answer this reliably" : "I'm not sure which you mean"}</h2>
     <p>${why}</p></div></div>
     <div class="readings">${it.interpretations.map((r) => `
       <button class="reading" data-reading="${r.index}" aria-pressed="${t.reading === r.index}">
-        <span class="r-top"><span class="letter">${r.letter}</span><span class="r-name">${esc(readingName(r))}</span><span style="margin-left:auto">${cells(r.support)}</span></span>
+        <span class="r-top"><span class="letter">${r.letter}</span><span class="r-name">${esc(readingName(r))}</span><span style="margin-left:auto">${cells(r.support, true, false, NQ(it))}</span></span>
         <span class="r-sub">${r.support === 1 ? "1 query" : `${r.support} queries`}${r.index === it.selected ? " · the model's first choice" : ""} · ${r.rows_total} row${r.rows_total === 1 ? "" : "s"}</span>
         <span class="r-prev">${r.preview.map((row) => esc(row.map(fmt).join(", "))).join("<br>") || "no rows"}${r.rows_total > 3 ? "<br>…" : ""}</span>
       </button>`).join("")}</div></div>`;
@@ -421,8 +443,8 @@ function disagreeText(it) {
   const top = it.interpretations.reduce((a, r) => (r.support > a.support ? r : a), it.interpretations[0]);
   const first = it.interpretations.find((r) => r.index === it.selected);
   if (first && top.support > first.support)
-    return `The model's first-choice query (${first.letter}) ${first.support === 1 ? "is the only one with its answer" : `has only ${first.support} of 4 behind it`}, while ${top.support} of the 4 return ${top.letter}. They answer different things, so pick the one you meant.`;
-  return `The four candidate queries return different answers, and none has more than ${top.support} of 4 behind it. Pick the one you meant.`;
+    return `The model's first-choice query (${first.letter}) ${first.support === 1 ? "is the only one with its answer" : `has only ${first.support} of ${NQ(it)} behind it`}, while ${top.support} of the ${NQ(it)} return ${top.letter}. They answer different things, so pick the one you meant.`;
+  return `The candidate queries return different answers, and none has more than ${top.support} of ${NQ(it)} behind it. Pick the one you meant.`;
 }
 function currentTable(it, t) {
   if (t.edited) return t.edited;
@@ -430,7 +452,7 @@ function currentTable(it, t) {
   return it;
 }
 function tabsHtml(it, t, list) {
-  const names = { table: ["Table", "table"], chart: ["Chart", "chart-column"], sql: ["SQL", "code"], candidates: ["All 4 queries", "rows-3"] };
+  const names = { table: ["Table", "table"], chart: ["Chart", "chart-column"], sql: ["SQL", "code"], candidates: [`All ${NQ(it)} queries`, "rows-3"] };
   if (!t.tab || !list.includes(t.tab)) t.tab = list[0];
   return `<div class="tabs" role="tablist">${list.map((x) => `<button role="tab" data-tab="${x}" aria-selected="${t.tab === x}">${icon(names[x][1], "i sm")}${names[x][0]}</button>`).join("")}</div>
     <div class="tab-body">${tabBody(it, t, t.tab)}</div>`;
@@ -846,6 +868,7 @@ function wireApp() {
   $("#model-pill").onclick = (e) => { e.preventDefault(); $("#usage-menu").hidden = true; openModelMenu(); };
   $("#usage-btn").onclick = (e) => { e.preventDefault(); toggleUsage(); };
   $("#ctx-pill").onclick = (e) => { e.preventDefault(); setContextOn(!contextOn()); };
+  $("#n-pill").onchange = (e) => setCandidates(e.target.value);
   $("#rename-chat").onclick = renameChat;
   $("#delete-chat").onclick = deleteChat;
   $("#schema-btn").onclick = () => setView("map");
@@ -909,15 +932,20 @@ function openConnect() {
     d.close(); S.dbs = await api.databases(); renderSources(); selectDb(r.id);
   };
 }
+let renderModeOpts = () => {};
 async function openSettings() {
   const d = $("#dlg-settings"); const ops = S.boot.operating_points || {};
   const modes = [["answer_all", "Answer everything", "answer_all"], ["balanced", "Balanced — recommended, the tested setting", "calibrated_90"],
-                 ["strict", "Strict — only when 3 of 4 queries agree", "min_3_of_4"], ["very_strict", "Very strict — only when all 4 agree", "all_4"]];
-  $("#mode-opts").innerHTML = modes.map(([k, label, op]) => { const o = ops[op];
+                 ["strict", "Strict — only when at least ¾ of the queries agree", "min_3_of_4"], ["very_strict", "Very strict — only when all queries agree", "all_4"]];
+  renderModeOpts = () => {
+    $("#mode-opts").innerHTML = modes.map(([k, label, op]) => { const o = ops[op];
     return `<label class="opt"><input type="radio" name="mode" value="${k}" ${S.mode === k ? "checked" : ""}><div><b>${label}</b>
-      <span>${o ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
-  $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
-  syncContextSettings();
+      <span>${o && wantN() === 4 ? `Answers about ${Math.round(o.coverage * 100)}% of questions; ${(o.accuracy * 100).toFixed(1)}% of those answers were correct.` : ""}</span></div></label>`; }).join("");
+    $$("#mode-opts input").forEach((i) => (i.onchange = () => { S.mode = i.value; api.settings_set({ mode: i.value }); }));
+  };
+  renderModeOpts();
+  syncContextSettings(); syncCandidates();
+  $("#n-opt").onchange = (e) => setCandidates(e.target.value);
   $("#ctxon-opt").onchange = (e) => setContextOn(e.target.checked);
   $("#ctx-opt").value = String((S.boot.settings.context_turns && +S.boot.settings.context_turns) || 3);
   $("#ctxres-opt").value = S.boot.settings.context_results || "local";
@@ -997,7 +1025,7 @@ function renderUsageMenu() {
       return `<div class="u-row"><span>${esc(name[0].toUpperCase() + name.slice(1))}</span><span>${reset != null ? `Resets in ${dur(reset)} · ` : ""}${Math.round(used * 100)}% used</span></div>
         ${usageBar(used, used > 0.8 ? "high" : "")}<p class="u-note">${kfmt(v.remaining)} of ${kfmt(v.limit)} left (per ${name === "requests" ? "minute" : "minute"} window, as reported with the last answer)</p>`;
     }).join("");
-  } else if (u.kind === "gemini") h += `<p class="u-note">Google doesn't tell apps how much quota is left — see ai.dev/rate-limit. QueryGenie sends 4 requests per question.</p>`;
+  } else if (u.kind === "gemini") h += `<p class="u-note">Google doesn't tell apps how much quota is left — see ai.dev/rate-limit. QueryGenie sends one request per candidate query (4 by default) and a few more if some repeat.</p>`;
   else h += `<p class="u-note">${last ? "This service didn't report rate limits." : "Shown after the first answer, if the service reports them."}</p>`;
   if (u.refused) {
     const r = u.refused.refusal || {};
@@ -1045,7 +1073,7 @@ async function openModelMenu() {
       ${o.evaluated === "codes-1b-spider" ? `<span class="mm-sub">Accuracy measured on Spider</span>` : ""}</span>${isCur(o) ? icon("check", "i sm") : ""}</button>`;
   }).join("")).join("");
   if (!cur.effort_levels && (cur.kind === "evaluated" || ["mlx", "gguf", "hf"].includes(cur.kind))) {
-    html += `<hr><p class="mm-note">CodeS models have no effort setting: every question gets four candidate queries${cur.calibrated ? " — the evaluated setup" : ""}.</p>`;
+    html += `<hr><p class="mm-note">CodeS models have no effort setting: every question gets ${wantN()} candidate queries${cur.calibrated ? " — the evaluated setup" : ""}.</p>`;
   }
   html += `<hr><button data-more>${icon("settings", "i sm")}<span class="mm-l"><span>More models…</span><span class="mm-sub">Switch models on or off, add cloud services</span></span></button>`;
   m.innerHTML = html; placeModelMenu();
@@ -1104,7 +1132,7 @@ async function renderModelPanel() {
   box.innerHTML = engineLine(o.current) + `
     <section class="mgroup"><h3>On this computer</h3><div class="ptiles">${o.tiles.filter((t) => t.group === "local").map(tile).join("")}</div></section>
     <section class="mgroup"><h3>Cloud services</h3>
-      <p class="gnote">These receive your database's schema, a few example values and the question — never result rows — and each question costs four requests on your account.</p>
+      <p class="gnote">These receive your database's schema, a few example values and the question — never result rows — and each question costs one request per candidate query (4 by default, more if some repeat).</p>
       <div class="ptiles">${o.tiles.filter((t) => t.group === "cloud").map(tile).join("")}</div></section>`;
   $$("[data-provider]", box).forEach((b) => (b.onclick = () => { S.provider = b.dataset.provider; renderProvider(S.provider); }));
 }
