@@ -58,8 +58,8 @@ repository, and its status. Update the status column as each item is completed a
 | "Only 2 of the 4 candidates are unique" | AN-001 `results/agreement_v2.md` (`research/enhancement/agreement_v2.py`) | ✅ confirmed: 4 truly different queries in 56% of questions. Agreement v2 (repeats counted once, column order ignored): 83.5% correct at 90% coverage, +5.66 pts, p=4e-11 (v1: +5.46) |
 | "Is every query executed?" | app: All 4 queries tab | ✅ yes, always; the tab now shows each candidate's result rows and marks repeats |
 | "Test with other models" | T2-004 (CodeS-3B), AN-002 `results/agreement_v2_T2-004.md` | ✅ 81.8% official EX (paper 83.4%, −1.6 pts); abstention +3.2 pts (p=2.9e-6), v2 +3.95 pts (p=1e-7) |
-| "Why limit to 4?" | CN-008 (8 beams) | 🟡 official EX 0.788 with 8 beams vs 0.778 with 4; run died while scoring, per-candidate dump lost — re-run pending (Colab GPU quota) |
-| Diversity of candidates | SM-008 (8 sampled, T=0.8) | ⬜ ready; waiting for Colab GPU quota |
+| "Why limit to 4?" | CN-008 (8 beams), SM-008 (8 samples) | 🟡 8 beams: official EX 0.788 vs 0.778 (run died while scoring; re-run in progress). 8 samples: see diversity row |
+| Diversity of candidates | SM-008 (8 sampled, T=0.8), AN-003 | ✅ plain EX 77.08% (4 beams 77.76%); abstention holds: +5.57 pts, p=1.7e-7; all 8 agree → 93.5% correct; a correct query among the 8 for 85.2% (4 beams: 83.1%) |
 
 Harness now saves the raw candidate dump before scoring; `research/reproduction/score_dump.py` scores it locally
 (reproduces T2-006 per-candidate scores exactly).
