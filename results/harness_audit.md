@@ -1,6 +1,6 @@
 # Tier-2 Harness Audit (2026-09-26)
 
-Line-by-line comparison of our Spider evaluation harness (`scripts/colab_eval_tier2.py`,
+Line-by-line comparison of our Spider evaluation harness (`research/reproduction/colab_eval_tier2.py`,
 `src/eval_spider_full.py`) against the authors' code in RUCKBReasoning/codes:
 `utils/load_sft_dataset.py`, `prepare_sft_datasets.py`, `build_contents_index.py`,
 `text2sql_zero_shot.py`, `utils/db_utils.py`. Every effect below was measured on the 1034

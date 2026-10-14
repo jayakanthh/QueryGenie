@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path[:0] = [ROOT, os.path.join(ROOT, "research")]
+sys.path[:0] = [ROOT, os.path.join(ROOT, "research", "enhancement")]
 
 from querygenie.pipeline import ABSTAIN_TAU, decide, post_process  # noqa: E402
 from querygenie.confidence import MODES, ConfidentRun  # noqa: E402

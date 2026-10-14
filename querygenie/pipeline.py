@@ -1,6 +1,6 @@
 """
 The CodeS inference pipeline as evaluated in the reproduction (harness v2), shared by
-the Spider evaluation (research/eval_spider_full.py) and the application.
+the Spider evaluation (research/reproduction/eval_spider_full.py) and the application.
 
   prompt     = schema sequence + matched contents + question (+ BOS), exactly as the
                authors' prepare_text2sql_prefix_sequence builds it

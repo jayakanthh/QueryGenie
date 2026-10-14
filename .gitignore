@@ -65,3 +65,4 @@ docs/report-latex/*.synctex.gz
 
 # other teams' posters, kept locally as style references only
 docs/Templates/poster_examples/
+.cn008_done

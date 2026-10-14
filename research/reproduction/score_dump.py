@@ -1,9 +1,9 @@
 """
 Score a raw candidate dump locally with the official Spider execution match - the same per-candidate
-step the Colab harness runs (research/colab_eval_tier2.py), so a run is not lost if Colab dies while
+step the Colab harness runs (research/reproduction/colab_eval_tier2.py), so a run is not lost if Colab dies while
 scoring. Writes results/dump_<RUN>.jsonl with official_correct and selected_official_correct.
 
-    python research/score_dump.py results/dump_CN-008_raw.jsonl --evaluator /path/to/test-suite-sql-eval
+    python research/reproduction/score_dump.py results/dump_CN-008_raw.jsonl --evaluator /path/to/test-suite-sql-eval
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import json
 import os
 import sys
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 
 

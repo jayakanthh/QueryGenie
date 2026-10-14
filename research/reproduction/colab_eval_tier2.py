@@ -622,7 +622,7 @@ PRED_FILE=f"/content/preds_{RUN_ID}.txt"
 open(PRED_FILE,"w").write("\n".join(PREDS)+"\n")
 # Save and download everything generated BEFORE the slow scoring steps (CN-008 was lost when the runtime
 # died while scoring 8,272 candidates). The raw dump has every candidate and its execution result; its
-# official correctness can be recomputed locally (research/score_dump.py) if the steps below fail.
+# official correctness can be recomputed locally (research/reproduction/score_dump.py) if the steps below fail.
 RAW_FILE=f"/content/dump_{RUN_ID}_raw.jsonl"
 with open(RAW_FILE,"w") as f:
     for d in DUMP: f.write(json.dumps(d,ensure_ascii=False)+"\n")

@@ -119,7 +119,7 @@ class SqlAlchemySource:
 
     def _sqlite_semantics(self, tree):
         """Rewrite the SQLite behaviours CodeS relies on (it learned on SQLite) so the query means
-        the same thing on the target server. Measured by research/check_postgres_translation.py."""
+        the same thing on the target server. Measured by research/app-checks/check_postgres_translation.py."""
         known = self._known_names()
 
         # 1. SQLite accepts "double-quoted" text as a string when no such column exists.

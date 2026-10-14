@@ -4,7 +4,7 @@ Download the Spider SQLite databases (and dev.json / tables.json) from Hugging F
 data/spider_full/spider_data/, where the app and the local evaluation look for them.
 
 Source: the Hugging Face dataset HAL-9001/spider-databases (spider_data.zip) — the same
-archive the Colab harness (research/colab_eval_tier2.py) uses. Hugging Face is an approved
+archive the Colab harness (research/reproduction/colab_eval_tier2.py) uses. Hugging Face is an approved
 data source under the department SOP.
 
     python scripts/download_spider_dbs.py

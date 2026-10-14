@@ -1,4 +1,4 @@
-# Review-III — Team 18, QueryGenie
+# Review-3 (Review-III) — Team 18, QueryGenie
 
 Everything for the Review-III presentation, in one place.
 
@@ -25,6 +25,9 @@ Everything for the Review-III presentation, in one place.
 
 - Report source: `docs/report-latex/` (`main.tex` and one file per chapter). The PDF here is a copy of
   `docs/report-latex/main.pdf`.
-- The deck is generated from the template in `docs/Templates/` by `scripts/build_review3_deck.py`;
+- The deck is generated from the template in `docs/Templates/` by `scripts/docs/build_review3_deck.py`;
   re-run it after a change (it overwrites the .pptx, so keep manual edits out of it).
 - Every number comes from `results/` (run log: `results/reproduction_log.csv`).
+
+`earlier-draft/` holds the deck made before the department's Review-III template arrived; it is kept for the record only.
+The project poster is not part of this pack: it lives in `docs/poster/`.

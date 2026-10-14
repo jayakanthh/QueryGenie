@@ -77,7 +77,7 @@ current look is binding.
 
 - Measured results: `results/reproduction_log.csv`, `results/week12_comparative_results.md`,
   `results/abstention_operating_points.json`, `results/postgres_translation_check.md`.
-- Real app screenshots: `docs/screenshots/`.
+- Real app screenshots: `docs/figures/screenshots/`.
 - No customers, testimonials, deployments or benchmarks beyond the above exist — do not fabricate
   any. Accuracy on non-SQLite engines and on real enterprise databases is not yet measured.
 

@@ -20,7 +20,7 @@ evaluation script; queries time out after 30 s.
 Data (Hugging Face): questions birdsql/bird_mini_dev (official, CC BY-SA 4.0, SQLite version);
 databases and dev_tables.json from nlile/BIRD-bench (a mirror of the BIRD dev release).
 
-    python research/bird_eval.py [--limit N] [--run-id BD-001]
+    python research/reality/bird_eval.py [--limit N] [--run-id BD-001]
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ import sqlite3
 import sys
 import time
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)
 BIRD = os.path.join(REPO, "data", "bird")
 DBDIR = os.path.join(BIRD, "dev_databases")

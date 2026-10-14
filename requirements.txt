@@ -19,7 +19,7 @@ sqlglot>=25
 psycopg[binary]>=3.1   # PostgreSQL
 pymysql>=1.1          # MySQL / MariaDB
 
-# Abstention analysis and figures (research/abstention.py)
+# Abstention analysis and figures (research/enhancement/abstention.py)
 numpy>=1.26
 scipy>=1.11
 matplotlib>=3.8

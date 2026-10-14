@@ -2,7 +2,7 @@
 
 **Original:** SFT CodeS-1B, reproduced (run T2-006; harness v2; official Spider evaluator).
 **Enhanced:** the same model and predictions, plus confidence-aware abstention (execution agreement
-among the 4 beam candidates; proposal `docs/Enhancement_Proposal_Week9.docx`).
+among the 4 beam candidates; proposal `docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx`).
 Both are evaluated on the same 1,034 Spider dev questions from one run, so the comparison is exactly
 paired. Numbers: `results/week12_comparison.json`, produced from `results/dump_T2-006.jsonl`.
 

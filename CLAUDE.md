@@ -98,12 +98,12 @@ Done and measured (all runs in `results/reproduction_log.csv`):
   value-retriever bug — see `results/harness_audit.md`. Test-suite accuracy: **TBD**.
 - **Ablation** (official metric): −0.9 to −1.9 pts per component (`results/week7_ablation_study.md`).
 - **Enhancement = confidence-aware abstention** (the ONE graded enhancement, Tier 4; proposal
-  `docs/Enhancement_Proposal_Week9.docx`). 83.3% on answered at 90.4% coverage vs 77.8%; t-test
+  `docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx`). 83.3% on answered at 90.4% coverage vs 77.8%; t-test
   p = 7.7e-10, Wilcoxon p = 9.8e-4, bootstrap CI [+4.5, +6.7] (`results/week12_comparative_results.md`).
   Self-correction and charts are app features, not graded enhancements.
 - **App** is the desktop app (`desktop/`, macOS + Windows, pywebview; chats, schema map, packaged via
   `desktop/QueryGenie.spec`). It runs the evaluated core (`querygenie/pipeline.py`) with confidence badge,
-  "Did you mean…?" and strictness modes. Final report draft: `docs/Final_Report_Draft.docx`.
+  "Did you mean…?" and strictness modes. Final report draft: `docs/weekly-reports/Week 14/Final_Report_Draft.docx`.
 - Weekly reports written through Week 12. **Signatures are collected at the end** (department
   decision) — don't flag them as blockers.
 
@@ -139,32 +139,38 @@ selected before driving it.
 ```
 QueryGenie/
 ├── CLAUDE.md                 # this file
-├── README.md
-├── docs/
-│   ├── DELIVERABLES.md       # live tracker: every SOP week -> artefact -> status
-│   ├── reference/            # department SOP + Phase-I guidelines
-│   ├── Templates/            # official university templates (fill, don't rebuild)
-│   ├── reviews/              # Week 1 shortlist, Review 1 pack
-│   ├── weekly-reports/
-│   │   ├── Week 1/           # Abstract, Weekly_Report, Team_21.pptx (submitted)
-│   │   ├── Week 2/           # Weekly_Report
-│   │   └── Week 3/           # Weekly_Report, Paper_Annotation_Worksheet, flowchart
-│   ├── architecture.png              # QueryGenie system workflow (used in the deck)
-│   └── codes_architecture_flowchart.png  # CodeS paper pipeline (Week 3 deliverable)
+├── README.md                 # run it, reproduce it, where things moved
 ├── querygenie/               # core package: evaluated pipeline, model, confidence, databases, connectors
 ├── desktop/                  # desktop app (native window + ui/), first-run setup, PyInstaller spec
-├── research/                 # Colab harness, abstention analysis, eval scripts, smoke test, notebooks/
+├── research/                 # how the numbers were produced
+│   ├── reproduction/         #   Colab harness, local evaluation, score_dump, dataset analysis, notebooks/
+│   ├── enhancement/          #   abstention, agreement v2, selection and repair analyses
+│   ├── reality/              #   Spider-Realistic and BIRD (benchmark-to-reality gap)
+│   └── app-checks/           #   PostgreSQL translation, "unclear" check, demo rehearsal
+├── results/                  # Reproduction_Log.xlsx + .csv, run dumps, analyses, figures (scripts write here)
+├── scripts/
+│   ├── (setup)               #   Spider download, PostgreSQL loader, Mac setup
+│   ├── docs/                 #   builders: Review-3 deck, speaker script
+│   └── poster/               #   builders: poster charts + pptx
 ├── legacy/                   # Gradio prototype (Reviews 1-2) + MLX/GGUF/base backends
-├── scripts/                  # setup: Spider download, Postgres loader, mac setup
-├── results/                  # Reproduction_Log.xlsx, run logs, figures
-└── tests/                    # model-free tests
+├── tests/                    # model-free tests
+└── docs/
+    ├── DELIVERABLES.md       # live tracker: every SOP week -> artefact -> status
+    ├── weekly-reports/       # Week 1-14: each week's report + the document due that week
+    ├── reviews/              # Review-1/, Review-2/, Review-3/ (Review-3 = the Review-III pack)
+    ├── poster/               # project poster (pptx + print PDF) + assets - not part of a review
+    ├── figures/              # pipeline / architecture diagrams, app screenshots
+    ├── report-latex/         # the LaTeX project report (source + PDF)
+    ├── Templates/            # official university templates (fill, don't rebuild)
+    └── reference/            # department SOP + Phase-I guidelines
 ```
 
-Files moved from `src/`, `scripts/` and `notebooks/` on 2026-09-30 — README has the old→new table;
-submitted documents keep the old paths.
+Files moved from `src/`, `scripts/` and `notebooks/` on 2026-09-30, and `research/`, `scripts/` and `docs/`
+regrouped on 2026-10-14 — README has the old→new tables; submitted documents (the printed report, the run
+log) keep the old paths. Never move `results/`: scripts and the Colab watcher write into it.
 
-The user reorganises files as submissions go out (e.g. `Week 1/` holds what was actually handed in,
-renamed to match what the department asked for). Check the tree before assuming a path.
+The user reorganises files as submissions go out (e.g. each review has its own folder holding what was
+actually handed in). Check the tree before assuming a path.
 
 ## Timeline
 

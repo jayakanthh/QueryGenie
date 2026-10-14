@@ -11,18 +11,18 @@ repository, and its status. Update the status column as each item is completed a
 
 | Week | SOP deliverable | Artefact in this repo | Status |
 |---|---|---|---|
-| 1 | Shortlist with feasibility matrix | `docs/reviews/Week1_Shortlist_Feasibility_Matrix.docx` | ✅ |
+| 1 | Shortlist with feasibility matrix | `docs/reviews/Review-1/Week1_Shortlist_Feasibility_Matrix.docx` | ✅ |
 | 1 | Weekly report | `docs/weekly-reports/Week 1/Weekly_Report.docx` | ✅ signed |
 | 1 | Abstract submission | `docs/weekly-reports/Week 1/Abstract.docx` | ✅ |
-| — | Review 1 pack (topic, 44-paper literature review, objectives, deliverables) | `docs/reviews/Review1_QueryGenie.docx` | ✅ presented |
+| — | Review 1 pack (topic, 44-paper literature review, objectives, deliverables) | `docs/reviews/Review-1/Review1_QueryGenie.docx` | ✅ presented |
 | — | Review 1 deck | `docs/weekly-reports/Week 1/Team_21.pptx` | ✅ presented |
 | 2 | Approved paper | CodeS confirmed at Review 1 (arXiv:2402.16347) | ✅ |
 | 2 | Dataset downloaded | `scripts/download_spider.py` → writes `results/dataset_provenance.json` | ✅ run 2026-08-14 (train 7000 / dev 1034; source `xlangai/spider`) |
 | 2 | Weekly report | `docs/weekly-reports/Week 2/Weekly_Report.docx` | 🟡 needs supervisor signature |
-| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` + **`docs/CodeS_Annotated_Paper.pdf`** | ✅ worksheet filled from the CodeS PDF; **annotated PDF** with highlights + margin notes on inputs/outputs, Eq 1–2, hyperparameters, metrics, and the 77.9% target |
-| 3 | Algorithm / architecture flowchart | `docs/weekly-reports/Week 3/CodeS_Architecture_Flowchart.png` (source: `docs/codes_architecture_flowchart.svg`) | ✅ **verified against Figure 3** — corrected metrics to EX/TS, added LCS value-match + prompt metadata |
+| 3 | Annotated paper (inputs, outputs, equations, hyperparameters) | `docs/weekly-reports/Week 3/Paper_Annotation_Worksheet.docx` + **`docs/weekly-reports/Week 3/CodeS_Annotated_Paper.pdf`** | ✅ worksheet filled from the CodeS PDF; **annotated PDF** with highlights + margin notes on inputs/outputs, Eq 1–2, hyperparameters, metrics, and the 77.9% target |
+| 3 | Algorithm / architecture flowchart | `docs/weekly-reports/Week 3/CodeS_Architecture_Flowchart.png` (source: `docs/figures/codes_architecture_flowchart.svg`) | ✅ **verified against Figure 3** — corrected metrics to EX/TS, added LCS value-match + prompt metadata |
 | 3 | Weekly report | `docs/weekly-reports/Week 3/Weekly_Report.docx` | 🟡 needs supervisor signature |
-| 4 | **Working environment + run log (RED-FLAG GATE)** | `research/notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
+| 4 | **Working environment + run log (RED-FLAG GATE)** | `research/reproduction/notebooks/01_week4_gate_codes_setup.ipynb` | ✅ **Tier 1 CLEARED 2026-08-14** — codes-1b loaded on Colab T4, generated valid SQL, executed against SQLite (`results/reproduction_log.csv` run T1-001) |
 | 4 | Weekly report | `docs/weekly-reports/Week 4/Weekly_Report.docx` | 🟡 written, needs supervisor signature |
 | 5 | Weekly report | `docs/weekly-reports/Week 5/Weekly_Report.docx` | 🟡 written (13 Sep), needs supervisor signature |
 
@@ -35,33 +35,33 @@ repository, and its status. Update the status column as each item is completed a
 | 6 | Weekly report | `docs/weekly-reports/Week 6/Weekly_Report.docx` | 🟡 written (20 Sep), needs supervisor signature |
 | 7 | Ablation study | `results/week7_ablation_study.md` | ✅ 4 ablations on harness v2, official metric: −0.9 to −1.9 pts vs 77.8 (retriever −1.9 largest); significance test pending |
 | 7 | Weekly report | `docs/weekly-reports/Week 7/Weekly_Report.docx` | 🟡 written (22 Sep), needs supervisor signature |
-| 8 | **Reproducibility Report (25%)** | `docs/Code_Reproducibility_Report_v2.docx` (v1 = Review-II submission, kept) | ✅ v2 (26 Sep): headline official EX 77.8% vs 77.9%, harness audit, ablation study; TS still TBD |
+| 8 | **Reproducibility Report (25%)** | `docs/weekly-reports/Week 8/Code_Reproducibility_Report_v2.docx` (v1 = Review-II submission, kept) | ✅ v2 (26 Sep): headline official EX 77.8% vs 77.9%, harness audit, ablation study; TS still TBD |
 | 8 | Weekly report | `docs/weekly-reports/Week 8/Weekly_Report.docx` | 🟡 written (26 Sep), needs supervisor signature |
 
 ## Month 3 — Enhancement
 
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
-| 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; signature collected at the end with the other documents (no separate approval step, per Jaikanth 2026-10-02) |
+| 9 | Enhancement proposal (10%) — 1 page, ONE tier, guide approval required | `docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx` | 🟡 written: **Tier 4, confidence-aware abstention** (hypothesis + t-test/Wilcoxon plan); switch from the abstract's self-correction justified with data; signature collected at the end with the other documents (no separate approval step, per Jaikanth 2026-10-02) |
 | 9 | Weekly report | `docs/weekly-reports/Week 9/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 | 10 | Fresh baseline on our hardware | `results/reproduction_log.csv` (T2-006), `results/week11_abstention.md` | ✅ T2-006 (28 Sep): official EX 804/1034 = 77.76%, identical to T2-005; full candidate dump saved |
 | 10 | Weekly report | `docs/weekly-reports/Week 10/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
-| 11 | Working enhanced code | `research/abstention.py`, `querygenie/pipeline.py`, `desktop/` (was `src/abstention.py`, `src/codes_prompt.py`, `src/app.py`) | ✅ abstention analysis + in the app (confidence badge, 'Did you mean…', strictness with measured coverage/accuracy) |
+| 11 | Working enhanced code | `research/enhancement/abstention.py`, `querygenie/pipeline.py`, `desktop/` (was `src/abstention.py`, `src/codes_prompt.py`, `src/app.py`) | ✅ abstention analysis + in the app (confidence badge, 'Did you mean…', strictness with measured coverage/accuracy) |
 | 11 | Weekly report | `docs/weekly-reports/Week 11/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
-| 12 | Comparative results + significance test (20%) | `docs/Week12_Comparative_Results.docx`, `results/week12_comparative_results.md` | ✅ original 77.76% vs enhanced 83.32% at 90.4% coverage; wrong answers 230→156; t=24.4 p=7.7e-10, Wilcoxon W=55 p=9.8e-4, bootstrap CI [+4.5,+6.7] |
+| 12 | Comparative results + significance test (20%) | `docs/weekly-reports/Week 12/Week12_Comparative_Results.docx`, `results/week12_comparative_results.md` | ✅ original 77.76% vs enhanced 83.32% at 90.4% coverage; wrong answers 230→156; t=24.4 p=7.7e-10, Wilcoxon W=55 p=9.8e-4, bootstrap CI [+4.5,+6.7] |
 | 12 | Weekly report | `docs/weekly-reports/Week 12/Weekly_Report.docx` | 🟡 written (28 Sep), needs supervisor signature |
 
 ## Review-III feedback (examiner, Oct 2026) — follow-up experiments
 
 | Point raised | Run / artefact | Status |
 |---|---|---|
-| "Only 2 of the 4 candidates are unique" | AN-001 `results/agreement_v2.md` (`research/agreement_v2.py`) | ✅ confirmed: 4 truly different queries in 56% of questions. Agreement v2 (repeats counted once, column order ignored): 83.5% correct at 90% coverage, +5.66 pts, p=4e-11 (v1: +5.46) |
+| "Only 2 of the 4 candidates are unique" | AN-001 `results/agreement_v2.md` (`research/enhancement/agreement_v2.py`) | ✅ confirmed: 4 truly different queries in 56% of questions. Agreement v2 (repeats counted once, column order ignored): 83.5% correct at 90% coverage, +5.66 pts, p=4e-11 (v1: +5.46) |
 | "Is every query executed?" | app: All 4 queries tab | ✅ yes, always; the tab now shows each candidate's result rows and marks repeats |
 | "Test with other models" | T2-004 (CodeS-3B), AN-002 `results/agreement_v2_T2-004.md` | ✅ 81.8% official EX (paper 83.4%, −1.6 pts); abstention +3.2 pts (p=2.9e-6), v2 +3.95 pts (p=1e-7) |
 | "Why limit to 4?" | CN-008 (8 beams) | 🟡 official EX 0.788 with 8 beams vs 0.778 with 4; run died while scoring, per-candidate dump lost — re-run pending (Colab GPU quota) |
 | Diversity of candidates | SM-008 (8 sampled, T=0.8) | ⬜ ready; waiting for Colab GPU quota |
 
-Harness now saves the raw candidate dump before scoring; `research/score_dump.py` scores it locally
+Harness now saves the raw candidate dump before scoring; `research/reproduction/score_dump.py` scores it locally
 (reproduces T2-006 per-candidate scores exactly).
 
 ## Month 4 — Finalization
@@ -69,11 +69,11 @@ Harness now saves the raw candidate dump before scoring; `research/score_dump.py
 | Week | SOP deliverable | Artefact | Status |
 |---|---|---|---|
 | 13 | Final figures + statistics | — | ⬜ |
-| 14 | Draft final report | `docs/Final_Report_Draft.docx` | ✅ draft (28 Sep, 14 pp): SOP structure Intro → Methodology → Results → Enhancement → Discussion → Conclusion; figures + appendices |
+| 14 | Draft final report | `docs/weekly-reports/Week 14/Final_Report_Draft.docx` | ✅ draft (28 Sep, 14 pp): SOP structure Intro → Methodology → Results → Enhancement → Discussion → Conclusion; figures + appendices |
 | 13–15 | Full-stack deliverable | `desktop/` (macOS + Windows app), `querygenie/` core, `desktop/build.md` | ✅ desktop app: chats, schema map, SQLite / PostgreSQL / MySQL, model choice (Ollama, cloud, own, legacy CodeS) with effort; macOS `.app` builds and self-tests. **Windows build untested; cloud providers untested (no keys) — TBD** |
 | 15 | Public GitHub repo + README (10%) | `README.md`, `LICENSE`, `NOTICE`, `tests/` | 🟡 README rewritten; repo reorganised (`querygenie/`, `desktop/`, `research/`, `legacy/`); Apache-2.0; 25 model-free tests. **Repo still private — visibility change pending. Only one member has commits — SOP needs all members committing under their own accounts; Praneeth not yet a collaborator** |
-| 16 | Final report + presentation (5%) | `docs/report-latex/main.pdf` (LaTeX, dept thesis template), `docs/reviews/Review3_QueryGenie.pptx`, `docs/Final_Report_Draft.docx` | 🟡 **LaTeX report done (30 Sep, 49 pp)**: abstract, 5 chapters (intro, literature survey, data + preliminary analysis, proposed approach, conclusion), 45 arXiv references; supervisor designation filled (Associate Professor). Review-3 deck needs desktop-app screenshots |
-| 16 | Review-III pack (report, deck, poster) | `docs/Review-III/` (report, deck, scripts; README lists every file); poster in `docs/poster/` | 🟡 report restructured to the required topics (21-page body, no code); deck on the Review-III template (17 slides, 16 papers, results quoted from arXiv abstracts); poster on the department template. supervisor designation filled (Associate Professor); Spider-Realistic done (RL-001: 69.5% vs paper 70.9%, wording gap −3.3 pts, McNemar p=0.016; `results/reality/spider_realistic_RL-001.md`); **BIRD Mini-Dev (BD-001) TBD** |
+| 16 | Final report + presentation (5%) | `docs/report-latex/main.pdf` (LaTeX, dept thesis template), `docs/reviews/Review-3/earlier-draft/Review3_QueryGenie.pptx`, `docs/weekly-reports/Week 14/Final_Report_Draft.docx` | 🟡 **LaTeX report done (30 Sep, 49 pp)**: abstract, 5 chapters (intro, literature survey, data + preliminary analysis, proposed approach, conclusion), 45 arXiv references; supervisor designation filled (Associate Professor). Review-3 deck needs desktop-app screenshots |
+| 16 | Review-III pack (report, deck, poster) | `docs/reviews/Review-3/` (report, deck, scripts; README lists every file); poster in `docs/poster/` | 🟡 report restructured to the required topics (21-page body, no code); deck on the Review-III template (17 slides, 16 papers, results quoted from arXiv abstracts); poster on the department template. supervisor designation filled (Associate Professor); Spider-Realistic done (RL-001: 69.5% vs paper 70.9%, wording gap −3.3 pts, McNemar p=0.016; `results/reality/spider_realistic_RL-001.md`); **BIRD Mini-Dev (BD-001) TBD** |
 
 ---
 

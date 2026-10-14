@@ -1,8 +1,8 @@
 """Speaker script for the Review-III presentation (who presents which slides, and what to say).
 
-    python scripts/build_speaker_script.py      # -> docs/Review-III/Speaker_Script.docx
+    python scripts/docs/build_speaker_script.py      # -> docs/reviews/Review-3/Speaker_Script.docx
 
-Every number here matches the deck (docs/Review-III/QueryGenie_Review-III.pptx) and results/.
+Every number here matches the deck (docs/reviews/Review-3/QueryGenie_Review-III.pptx) and results/.
 """
 import os
 
@@ -10,8 +10,8 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "docs", "Review-III", "Speaker_Script.docx")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, "docs", "reviews", "Review-3", "Speaker_Script.docx")
 
 NAREN, PRAN, JAI = "Boddupally Narendar", "M Praneeth Reddy", "Jayakanth Kamisetti"
 

@@ -1,6 +1,6 @@
 # Weeks 10–11 — Confidence-Aware Abstention: Baseline and Results
 
-Enhancement proposed in `docs/Enhancement_Proposal_Week9.docx` (Tier 4). Analysis code:
+Enhancement proposed in `docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx` (Tier 4). Analysis code:
 `src/abstention.py`. Raw data: `results/dump_T2-006.jsonl` (every question, all 4 candidates, beam
 scores, execution results, official correctness). Numbers: `results/abstention_T2-006.json`.
 Figure: `results/figures/accuracy_coverage_T2-006.png`.

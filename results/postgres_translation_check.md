@@ -4,7 +4,7 @@
 QueryGenie is connected to a PostgreSQL server, `src/connectors.py` translates each query with
 sqlglot and runs it read-only. Does the translated query return the same answer?
 
-**Method** (`scripts/check_postgres_translation.py`, no model needed): the 20 Spider dev databases
+**Method** (`research/app-checks/check_postgres_translation.py`, no model needed): the 20 Spider dev databases
 were copied into PostgreSQL 14 (`scripts/load_spider_into_postgres.py`; 2 foreign keys rejected by
 the data, all primary keys kept). For all 1,034 dev questions, the gold query and our saved T2-006
 prediction were run on SQLite and, translated, on PostgreSQL. Results are compared as multisets of

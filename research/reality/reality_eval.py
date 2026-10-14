@@ -11,7 +11,7 @@ query is scored with the official Spider execution match (taoyds/test-suite-sql-
 Data: data/spider_realistic/dev.json from Hugging Face (aherntech/spider-realistic, a copy of the
 authors' Zenodo release, CC BY-SA 4.0); databases from Spider (xlangai/spider).
 
-    python research/reality_eval.py --evaluator /path/to/test-suite-sql-eval [--limit N]
+    python research/reality/reality_eval.py --evaluator /path/to/test-suite-sql-eval [--limit N]
 
 Resumable: records go to results/reality/spider_realistic_<run>.jsonl, one line per question and
 version; a re-run skips what is there.
@@ -25,7 +25,7 @@ import platform
 import sys
 import time
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)
 SPIDER = os.path.join(REPO, "data", "spider_full", "spider_data")
 REALISTIC = os.path.join(REPO, "data", "spider_realistic", "dev.json")

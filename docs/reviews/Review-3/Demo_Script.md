@@ -3,7 +3,7 @@
 Every question below was asked through the app on 2 October (CodeS-1B, **Balanced**, Academic
 database) and checked against a hand-written correct query. CodeS gives the same answer every time
 for the same question, so these will behave the same on stage. Re-check after any change:
-`python research/demo_check.py` (about 1 minute; results in `results/demo_check.md`).
+`python research/app-checks/demo_check.py` (about 1 minute; results in `results/demo_check.md`).
 
 ## Before you start (5 minutes before)
 
@@ -74,4 +74,4 @@ graded enhancement.
 
 **"What about real-world databases (BIRD)?"** Started, stopped after 18 of 500 questions because a
 full run takes over four hours on a laptop; it's future work, with the setup ready
-(`research/bird_eval.py`).
+(`research/reality/bird_eval.py`).

@@ -16,8 +16,8 @@ Tier-2 runs belong on a CUDA machine. Record that distinction in the report.
 Usage
 -----
     source .venv/bin/activate
-    python research/smoke_test.py
-    python research/smoke_test.py --model seeklhy/codes-3b --beams 4
+    python research/reproduction/smoke_test.py
+    python research/reproduction/smoke_test.py --model seeklhy/codes-3b --beams 4
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import sqlite3
 import sys
 import time
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOG_PATH = os.path.join(REPO_ROOT, "results", "reproduction_log.csv")
 
 LOG_FIELDS = [

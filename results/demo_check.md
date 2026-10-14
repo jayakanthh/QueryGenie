@@ -1,4 +1,4 @@
-# Demo rehearsal (research/demo_check.py)
+# Demo rehearsal (research/app-checks/demo_check.py)
 
 Every demo question asked through the app (CodeS-1B, Balanced, no context) and compared with a hand-written correct query.
 

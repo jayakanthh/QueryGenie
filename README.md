@@ -16,7 +16,7 @@ queries disagree, it asks *“Did you mean…?”* instead of returning a confid
 Engineering Capstone Project (Phase I), Department of Computer Science & Information Technology,
 Koneru Lakshmaiah Education Foundation (KL University). Team 18 — supervisor M Parameswar, Associate Professor.
 
-![Pipeline](docs/final_pipeline.png)
+![Pipeline](docs/figures/final_pipeline.png)
 
 ## Results
 
@@ -90,7 +90,7 @@ In the app:
 - **Settings → when to decline**: answer everything (100% / 77.8%), balanced (90% / 83.3%),
   strict (63% / 86.1%), very strict (40% / 88.3%) — coverage and accuracy measured on Spider dev.
 
-![Abstention in the app: the candidates disagree, so it asks "Did you mean…?"](docs/screenshots/app_abstain.png)
+![Abstention in the app: the candidates disagree, so it asks "Did you mean…?"](docs/figures/screenshots/app_abstain.png)
 
 ### Connect your own database
 
@@ -117,9 +117,9 @@ http://127.0.0.1:7860). It uses the same evaluated core as the desktop app.
 ## Reproduce the results
 
 **1. Reproduction and the candidate record (GPU, about 1 hour).** Open
-[`research/notebooks/02_tier2_colab_eval.ipynb`](research/notebooks/02_tier2_colab_eval.ipynb) in Google Colab with a
+[`research/reproduction/notebooks/02_tier2_colab_eval.ipynb`](research/reproduction/notebooks/02_tier2_colab_eval.ipynb) in Google Colab with a
 T4 GPU runtime and run the Week-10 cell. It runs
-[`research/colab_eval_tier2.py`](research/colab_eval_tier2.py), which downloads Spider and the model
+[`research/reproduction/colab_eval_tier2.py`](research/reproduction/colab_eval_tier2.py), which downloads Spider and the model
 from Hugging Face, evaluates all 1,034 questions with the official evaluator, and saves
 `preds_<run>.txt` and `dump_<run>.jsonl` (all 4 candidates per question). Ablations are set with
 `QG_ABLATE` (`no_values`, `no_content`, `no_fk`, `no_select`); another model with `QG_MODEL`.
@@ -127,13 +127,13 @@ from Hugging Face, evaluates all 1,034 questions with the official evaluator, an
 **2. Enhancement analysis (CPU, seconds).**
 
 ```bash
-python research/abstention.py results/dump_T2-006.jsonl
+python research/enhancement/abstention.py results/dump_T2-006.jsonl
 ```
 
 This reproduces the significance tests, the operating points and the accuracy–coverage figure
 from the committed candidate record.
 
-**3. Tests (no model needed).** `python -m pytest tests/ -q` (23 tests)
+**3. Tests (no model needed).** `python -m pytest tests/ -q` (45 tests)
 
 **4. Dataset provenance.** `python scripts/download_spider.py` fetches Spider from Hugging Face
 (`xlangai/spider`) and records its provenance in `results/dataset_provenance.json`.
@@ -164,18 +164,25 @@ querygenie/           the core — what the app runs, and what was evaluated
 desktop/              the desktop app: native window (pywebview), interface (ui/), first-run setup,
                       packaging (QueryGenie.spec, build.md)
 research/             how the numbers were produced
-  colab_eval_tier2.py the Colab evaluation harness behind every Tier-2 run (official evaluator)
-  abstention.py       Week-11 analysis: tests, bootstrap, operating points, figure
-  eval_spider_full.py local (simple-metric) variant of the evaluation
-  eval_spider_v1.py   first harness, produced run T2-001
-  check_postgres_translation.py   PostgreSQL translation check
-  smoke_test.py       Week-4 gate smoke test
-  notebooks/          Week-4 gate notebook; Colab notebook for all Tier-2 runs
+  reproduction/       the Colab harness (colab_eval_tier2.py), local evaluation, score_dump.py, dataset analysis, notebooks/
+  enhancement/        abstention.py (tests, bootstrap, operating points), agreement_v2.py, selection and repair analyses
+  reality/            Spider-Realistic and BIRD evaluations (benchmark-to-reality gap)
+  app-checks/         PostgreSQL translation check, "unclear question" check, demo rehearsal
 legacy/               Gradio web prototype (Reviews 1–2) and its MLX / GGUF / base-CodeS backends
 scripts/              setup: Spider dataset and database download, PostgreSQL loader, Mac setup
+  docs/               builders for the Review-3 deck and speaker script
+  poster/             builders for the project poster (charts + pptx)
 results/              run log, audit, ablation, abstention results, figures, candidate record
 tests/                model-free tests: selection, agreement, abstention, databases, chats
-docs/                 reports, weekly reports, department SOP and templates, diagrams
+docs/                 everything written, sorted by purpose:
+  weekly-reports/     Week 1-14: each week's report and the document that was due that week
+  reviews/            Review-1, Review-2, Review-3 (one folder each; Review-3 is the Review-III pack)
+  poster/             the project poster (pptx + print PDF) and its assets
+  figures/            pipeline / architecture diagrams and app screenshots
+  report-latex/       the LaTeX project report (source + PDF)
+  Templates/          the department's templates (reference posters kept locally only)
+  reference/          department SOP and Phase-I guidelines
+  DELIVERABLES.md     the live tracker: every SOP week -> artefact -> status
 ```
 
 ### Where files moved (30 September 2026)
@@ -191,22 +198,49 @@ deck, `results/`) cite the old paths. The code is unchanged apart from imports.
 | `src/databases.py`, `src/connectors.py`, `src/vendor/` | `querygenie/` (same names) |
 | `src/build_sample_db.py` | `querygenie/sample_db.py` |
 | `src/app.py`, `src/charts.py`, `src/database.py` | `legacy/` (same names) |
-| `src/abstention.py`, `src/eval_spider_full.py` | `research/` (same names) |
-| `src/eval_spider.py` | `research/eval_spider_v1.py` |
-| `scripts/colab_eval_tier2.py`, `scripts/check_postgres_translation.py`, `scripts/smoke_test.py` | `research/` (same names) |
+| `src/abstention.py` | `research/enhancement/abstention.py` |
+| `src/eval_spider_full.py` | `research/reproduction/eval_spider_full.py` |
+| `src/eval_spider.py` | `research/reproduction/eval_spider_v1.py` |
+| `scripts/colab_eval_tier2.py`, `scripts/smoke_test.py` | `research/reproduction/` (same names) |
+| `scripts/check_postgres_translation.py` | `research/app-checks/check_postgres_translation.py` |
 | `scripts/convert_mlx.py` | `legacy/scripts/convert_mlx.py` |
-| `notebooks/` | `research/notebooks/` |
+| `notebooks/` | `research/reproduction/notebooks/` |
+
+### Where files moved (14 October 2026)
+
+Documents submitted earlier (the printed project report, the run log `results/reproduction_log.csv`) still
+cite the old paths below.
+
+| Old path | New path |
+|---|---|
+| `research/{colab_eval_tier2,eval_spider_full,eval_spider_v1,smoke_test,score_dump,dataset_analysis}.py`, `research/notebooks/` | `research/reproduction/` |
+| `research/{abstention,agreement_v2,selection_analysis,repair_eval}.py` | `research/enhancement/` |
+| `research/{reality_eval,reality_analysis,bird_eval}.py` | `research/reality/` |
+| `research/{check_postgres_translation,check_unclear,demo_check}.py` | `research/app-checks/` |
+| `scripts/{build_review3_deck,build_speaker_script}.py` | `scripts/docs/` |
+| `scripts/{build_poster,poster_charts}.py` | `scripts/poster/` |
+| `docs/Review-III/` (report, deck, speaker and demo scripts) | `docs/reviews/Review-3/` |
+| `docs/Review-III/{QueryGenie_Poster.pptx,.pdf,poster_assets/}` | `docs/poster/` (`assets/`) |
+| `docs/reviews/Review1_QueryGenie.docx`, `Week1_Shortlist_Feasibility_Matrix.docx` | `docs/reviews/Review-1/` |
+| `docs/reviews/Review2_QueryGenie.pptx`, `docs/Code_Reproducibility_Report_v1.docx` | `docs/reviews/Review-2/` |
+| `docs/reviews/Review3_QueryGenie.pptx` (earlier deck) | `docs/reviews/Review-3/earlier-draft/` |
+| `docs/Code_Reproducibility_Report_v2.docx` | `docs/weekly-reports/Week 8/` |
+| `docs/Enhancement_Proposal_Week9.docx` | `docs/weekly-reports/Week 9/` |
+| `docs/Week12_Comparative_Results.docx` | `docs/weekly-reports/Week 12/` |
+| `docs/Final_Report_Draft.docx` | `docs/weekly-reports/Week 14/` |
+| `docs/CodeS_Annotated_Paper.pdf` | `docs/weekly-reports/Week 3/` |
+| `docs/{architecture,final_pipeline,codes_architecture_flowchart}.*`, `docs/screenshots/` | `docs/figures/` |
 
 ## Documents
 
 | Document | File |
 |---|---|
 | Project report (LaTeX, department template) | [`docs/report-latex/main.pdf`](docs/report-latex/main.pdf) — source in [`docs/report-latex/`](docs/report-latex/) |
-| Final report (draft) | [`docs/Final_Report_Draft.docx`](docs/Final_Report_Draft.docx) |
-| Code reproducibility report v2 | [`docs/Code_Reproducibility_Report_v2.docx`](docs/Code_Reproducibility_Report_v2.docx) |
-| Enhancement proposal (Week 9) | [`docs/Enhancement_Proposal_Week9.docx`](docs/Enhancement_Proposal_Week9.docx) |
-| Comparative results (Week 12) | [`docs/Week12_Comparative_Results.docx`](docs/Week12_Comparative_Results.docx) |
-| Annotated CodeS paper (Week 3) | [`docs/CodeS_Annotated_Paper.pdf`](docs/CodeS_Annotated_Paper.pdf) |
+| Final report (draft) | [`docs/weekly-reports/Week 14/Final_Report_Draft.docx`](docs/weekly-reports/Week%2014/Final_Report_Draft.docx) |
+| Code reproducibility report v2 | [`docs/weekly-reports/Week 8/Code_Reproducibility_Report_v2.docx`](docs/weekly-reports/Week%208/Code_Reproducibility_Report_v2.docx) |
+| Enhancement proposal (Week 9) | [`docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx`](docs/weekly-reports/Week%209/Enhancement_Proposal_Week9.docx) |
+| Comparative results (Week 12) | [`docs/weekly-reports/Week 12/Week12_Comparative_Results.docx`](docs/weekly-reports/Week%2012/Week12_Comparative_Results.docx) |
+| Annotated CodeS paper (Week 3) | [`docs/weekly-reports/Week 3/CodeS_Annotated_Paper.pdf`](docs/weekly-reports/Week%203/CodeS_Annotated_Paper.pdf) |
 | Deliverables tracker | [`docs/DELIVERABLES.md`](docs/DELIVERABLES.md) |
 | Weekly status reports | [`docs/weekly-reports/`](docs/weekly-reports/) |
 

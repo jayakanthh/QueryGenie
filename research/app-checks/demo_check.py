@@ -3,7 +3,7 @@ Rehearse the Review-III demo: ask every demo question through the application ex
 (desktop/api.py, evaluated CodeS-1B, Balanced setting, no follow-up context), and compare the answer
 with a hand-written correct query run on the same database.
 
-    python research/demo_check.py            # writes results/demo_check.json and .md
+    python research/app-checks/demo_check.py            # writes results/demo_check.json and .md
 
 Questions are asked in a temporary chat that is deleted afterwards. CodeS is deterministic, so a
 question that passes here gives the same answer on stage (same model, database and setting).
@@ -16,7 +16,7 @@ import sqlite3
 import sys
 import time
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[:0] = [os.path.join(REPO, "desktop"), REPO]
 
 ACADEMIC = "academic (students & results)"
@@ -86,7 +86,7 @@ def main():
     finally:
         api.settings_set(saved)
     json.dump(out, open(os.path.join(REPO, "results", "demo_check.json"), "w"), indent=2)
-    md = ["# Demo rehearsal (research/demo_check.py)", "",
+    md = ["# Demo rehearsal (research/app-checks/demo_check.py)", "",
           "Every demo question asked through the app (CodeS-1B, Balanced, no context) and compared with a hand-written correct query.", "",
           "| # | Question | Shows | Queries agree | Result |", "|---|---|---|---|---|"]
     md += [f"| {i} | {o['question']} | {o['shows']} | {o['agree']} of 4 | {'✅' if o['ok'] else '❌'} {o['verdict']} |"

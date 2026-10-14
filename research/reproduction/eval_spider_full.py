@@ -4,11 +4,11 @@ Local (Apple Silicon / CPU) variant of the Tier-2 Spider evaluation.
 Runs the evaluated CodeS pipeline (querygenie/pipeline.py: full CodeS database prompt,
 4 beams, authors' first-executable selection) and scores with the *simple* sorted-rows
 metric only. The reported numbers (T2-005, T2-006, AB-10x) come from the Colab harness,
-research/colab_eval_tier2.py, which also runs the official Spider evaluator and records
+research/reproduction/colab_eval_tier2.py, which also runs the official Spider evaluator and records
 all candidates — use that for anything that goes in a report.
 
 Usage:
-    python research/eval_spider_full.py --limit 50 --run-id local-smoke
+    python research/reproduction/eval_spider_full.py --limit 50 --run-id local-smoke
 """
 from __future__ import annotations
 import argparse, csv, datetime, json, os, sqlite3, sys, time
@@ -16,7 +16,7 @@ import argparse, csv, datetime, json, os, sqlite3, sys, time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)
 from querygenie.pipeline import (build_prefix, check_sql_executability, clean_sql, encode,  # noqa: E402
                           get_db_schema, load_db_comments, post_process)
