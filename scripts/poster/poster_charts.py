@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "Review-III", "poster_assets")
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "docs", "poster", "assets")
 PAPER, OURS, INK, MUTED, GRID = "#C55A11", "#0070C0", "#1F2937", "#6B7280", "#E5E7EB"   # validated pair (dataviz)
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 15, "axes.edgecolor": MUTED, "axes.labelcolor": INK,
                      "xtick.color": INK, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False})

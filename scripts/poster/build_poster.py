@@ -3,8 +3,8 @@
 native architecture diagram on the right, Results + References + Team in a band at the bottom.
 Sans-serif throughout. Every number is a measured result (results/).
 
-    python scripts/poster_charts.py   # the four charts
-    python scripts/build_poster.py    # -> docs/Review-III/QueryGenie_Poster.pptx
+    python scripts/poster/poster_charts.py   # the four charts
+    python scripts/poster/build_poster.py    # -> docs/poster/QueryGenie_Poster.pptx
 """
 import os
 
@@ -17,10 +17,10 @@ from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEMPLATE = os.path.join(ROOT, "docs", "Templates", "project-poster-tempalte.pptx")
-OUT = os.path.join(ROOT, "docs", "Review-III", "QueryGenie_Poster.pptx")
-ASSETS = os.path.join(ROOT, "docs", "Review-III", "poster_assets")
+OUT = os.path.join(ROOT, "docs", "poster", "QueryGenie_Poster.pptx")
+ASSETS = os.path.join(ROOT, "docs", "poster", "assets")
 ICON = lambda name, colour="blue": os.path.join(ASSETS, "icons", f"{name}_{colour}.png")
 BRANDI = lambda name: os.path.join(ASSETS, "icons", f"brand_{name}.png")
 BRAND = os.path.join(ROOT, "desktop", "ui", "brand", "mark.png")
