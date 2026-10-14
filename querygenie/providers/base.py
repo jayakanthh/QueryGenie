@@ -58,6 +58,24 @@ def extract_sql(text: str) -> str:
     return _COMMENT.sub(" ", text).strip()
 
 
+SAMPLE_TEMPERATURE = 0.7
+
+
+def sample_temperature(i: int) -> float:
+    """Attempt 0 is greedy; later attempts sample, hotter each time, so a confident model still gives
+    different queries (up to temperature 1.3)."""
+    return 0.0 if i == 0 else min(1.3, SAMPLE_TEMPERATURE + 0.1 * (i - 1))
+
+
+def alternative_hint(written: list[str]) -> str:
+    """Appended to the prompt when a model keeps repeating itself: shows what it has written and asks for another way."""
+    listed = "\n".join(f"- {' '.join(q.split())}" for q in written)
+    return ("\n\nThese queries have already been written for this question:\n" + listed +
+            "\nWrite a different SQLite query that answers the same question and should return the same result - "
+            "for example another join order, a subquery instead of a join, or different aliases and ordering. "
+            "Reply with the SQL query only.\nSQLite query:")
+
+
 class ProviderError(RuntimeError):
     """A failure the user can act on (no key, server not running, unknown model...). `refusal` holds what a
     service said about an exceeded quota (providers/usage.google_refusal), when it said anything."""
@@ -89,9 +107,59 @@ class CandidateBackend:
             self.failures.append(exc)
 
     def sample(self, prompt):
-        """The four candidates from a service that answers one sample per request: in parallel, retrying a
-        request the service refused for a short rate limit (free tiers allow only a few per minute)."""
-        return parallel(lambda _i: with_retry(lambda: self.complete_once(prompt)), on_error=self.note_failure)
+        """Candidates from a service that answers one sample per request: four in parallel (retrying a request the
+        service refused for a short rate limit - free tiers allow only a few per minute), then, if some came back
+        as the same query, up to four more requests one after another that ask for a different formulation."""
+        texts = [extract_sql(t) for t in parallel(lambda _i: with_retry(lambda: self.complete_once(prompt)),
+                                                  on_error=self.note_failure)]
+        keys = {self._key(t) for t in texts if t}
+        extra = 0
+        while len(keys) < N_CANDIDATES and extra < N_CANDIDATES and texts:
+            extra += 1
+            try:
+                text = extract_sql(with_retry(lambda: self.complete_once(
+                    prompt + alternative_hint(self._distinct_sql(texts)))))
+            except ProviderError as exc:           # out of quota etc.: keep what we have
+                self.note_failure(exc)
+                break
+            if text and self._key(text) not in keys:
+                keys.add(self._key(text))
+                texts.append(text)
+        return self._distinct_first(texts)
+
+    def _key(self, text):
+        from ..pipeline import canonical_sql
+        return canonical_sql(text, self.current_schema) if self.current_schema else " ".join((text or "").split())
+
+    def _distinct_sql(self, texts):
+        seen, out = set(), []
+        for t in texts:
+            if t and self._key(t) not in seen:
+                seen.add(self._key(t))
+                out.append(t)
+        return out
+
+    def _distinct_first(self, texts):
+        """The different queries first, then the repeats, so cutting to four keeps as many different ones as possible."""
+        distinct = self._distinct_sql(texts)
+        rest = list(texts)
+        for d in distinct:
+            rest.remove(d)
+        return (distinct + rest)[:N_CANDIDATES]
+
+    def diverse_candidates(self, once, prompt, max_tries: int = 2 * N_CANDIDATES):
+        """For a model that runs here and can be asked one answer at a time (so only one copy is ever in memory):
+        one greedy answer, then samples at a rising temperature; as soon as a query repeats, later requests also
+        show the model the queries it has written and ask for a different one."""
+        drawn = []
+
+        def make(i):
+            hinted = i > len(self._distinct_sql(drawn))      # something already repeated or failed
+            ask = prompt + alternative_hint(self._distinct_sql(drawn)) if hinted else prompt
+            text = extract_sql(once(ask, sample_temperature(i)))
+            drawn.append(text)
+            return text
+        return self.distinct_candidates(make, max_tries=max_tries)
 
     def note(self, prompt_tokens=None, output_tokens=None, limits=None):
         """Record one request's reported token counts and rate-limit headers (requests run in parallel)."""

@@ -61,3 +61,46 @@ def test_sampling_gives_up_after_the_cap_and_fills_with_repeats(tmp_path):
     calls = []
     out = b.distinct_candidates(lambda i: (calls.append(i), "SELECT count(*) FROM pets")[1])
     assert len(out) == 4 and len(calls) == 12
+
+
+class _Chat(CandidateBackend):
+    """A chat model that repeats itself until it is shown what it has written, then writes something new."""
+
+    def __init__(self, stubborn=False):
+        super().__init__("fake")
+        self.stubborn, self.prompts, self.n = stubborn, [], 0
+
+    def once(self, prompt, temperature=0.0):
+        self.prompts.append((prompt, temperature))
+        if self.stubborn or "already been written" not in prompt:
+            return "```sql\nSELECT count(*) FROM pets\n```"
+        self.n += 1
+        return ["SELECT count(id) FROM pets", "SELECT count(kind) FROM pets", "SELECT count(age) FROM pets"][(self.n - 1) % 3]
+
+    complete_once = once
+
+
+def test_a_local_chat_model_is_asked_one_at_a_time_until_four_differ(tmp_path):
+    be = _Chat()
+    be.current_schema = _schema(tmp_path)
+    out = be.diverse_candidates(be.once, "Question: How many pets?\nSQLite query:")
+    assert len({canonical_sql(t, be.current_schema) for t in out}) == 4
+    asked = [p for p, _ in be.prompts]
+    # greedy, then a plain sample; that one repeated, so from the third request on the model is shown its queries
+    assert "already been written" not in asked[0] + asked[1] and "already been written" in asked[2]
+    assert be.prompts[0][1] == 0.0 and be.prompts[1][1] > 0
+
+
+def test_a_stubborn_model_stops_at_the_cap_and_is_repeated(tmp_path):
+    be = _Chat(stubborn=True)
+    be.current_schema = _schema(tmp_path)
+    out = be.diverse_candidates(be.once, "Question: How many pets?\nSQLite query:")
+    assert len(be.prompts) == 8 and len(out) == 4 and len({canonical_sql(t, be.current_schema) for t in out}) == 1
+
+
+def test_a_cloud_model_gets_top_up_requests_only_for_the_missing_queries(tmp_path):
+    be = _Chat()
+    be.current_schema = _schema(tmp_path)
+    out = be.sample("Question: How many pets?\nSQLite query:")
+    assert len({canonical_sql(t, be.current_schema) for t in out}) == 4
+    assert len(be.prompts) == 4 + 3                                   # four parallel, three top-ups

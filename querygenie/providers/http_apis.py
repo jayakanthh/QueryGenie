@@ -6,8 +6,10 @@ Models reached over HTTP (no vendor SDKs, so the app stays small):
                     OpenAI-compatible server (LM Studio, vLLM, llama.cpp server...)
   Gemini            Google's Generative Language API
 
-Claude is in anthropic_api.py (the official SDK). Every service is asked four times independently at
-its default sampling settings; the four answers are the candidates.
+Claude is in anthropic_api.py (the official SDK). A cloud service is asked four times independently at
+its default sampling settings; if some answers are the same query, a few more requests ask for a different
+formulation. Ollama runs one request at a time, raising the temperature and showing the model what it has
+already written, until there are four different queries.
 """
 
 from __future__ import annotations
@@ -95,8 +97,8 @@ class Ollama(CandidateBackend):
             pass
 
     def raw_candidates(self, prompt):
-        # Local and one model at a time: sequential avoids loading it four times over.
-        return [self._once(prompt, 0.0 if i == 0 else 0.7) for i in range(4)]
+        # Local, so one request at a time (the model is never loaded twice), until four different queries.
+        return self.diverse_candidates(self._once, prompt)
 
     def complete_once(self, prompt):
         return self._once(prompt, 0.0)

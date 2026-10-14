@@ -17,16 +17,9 @@ import gc
 
 from ..model import CodesSFTBackend
 from ..pipeline import encode
-from .base import N_CANDIDATES, CandidateBackend, ProviderError
+from .base import N_CANDIDATES, SAMPLE_TEMPERATURE, CandidateBackend, ProviderError, sample_temperature
 
 MAX_NEW_TOKENS = 256
-SAMPLE_TEMPERATURE = 0.7
-
-
-def sample_temperature(i: int) -> float:
-    """Attempt 0 is greedy; later attempts sample, hotter each time, so a confident model still gives
-    different queries (up to temperature 1.3)."""
-    return 0.0 if i == 0 else min(1.3, SAMPLE_TEMPERATURE + 0.1 * (i - 1))
 
 
 class CodesLocal(CodesSFTBackend):

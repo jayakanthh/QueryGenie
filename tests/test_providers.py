@@ -98,8 +98,11 @@ def test_openai_compatible_round_trip(tmp_path, fake_server):
     be = http_apis.OpenAICompatible("model-a", base_url=fake_server, api_key="test-key", cloud=False)
     d = be.decide(_db(tmp_path), "Which items cost more than 10?")
     assert d.n_agree == 4 and sorted(d.candidates[d.selected].rows) == [("bag",), ("book",)]
-    assert len(_FakeOpenAI.seen) == 4 and all(a == "Bearer test-key" for a, _ in _FakeOpenAI.seen)
+    # this fake always answers the same query: 4 requests, then 4 more asking for a different formulation
+    assert len(_FakeOpenAI.seen) == 8 and all(a == "Bearer test-key" for a, _ in _FakeOpenAI.seen)
     assert _FakeOpenAI.seen[0][1]["messages"][0]["role"] == "system"
+    asked = [r["messages"][-1]["content"] for _, r in _FakeOpenAI.seen]
+    assert sum("already been written" in a for a in asked) == 4 and "already been written" not in asked[0]
 
 
 def test_provider_errors_are_readable(tmp_path, fake_server):
