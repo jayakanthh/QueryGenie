@@ -120,7 +120,7 @@ def build(spec: dict, legacy_paths: dict):
             raise ProviderError(f"GGUF file not found: {path}")
         return local.GGUFCodes(path, label)
     if kind == "hf":
-        return local.CodesLocal(model, label)
+        return local.CodesLocal(model, label, distinct=True)
     if kind == "ollama":
         return http_apis.Ollama(model, label, spec.get("base_url") or http_apis.OLLAMA_URL, effort)
     if kind == "compat":

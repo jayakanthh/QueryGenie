@@ -75,6 +75,28 @@ def normalise_sql(sql):
     return s.strip().rstrip(";").strip()
 
 
+def canonical_sql(text, schema):
+    """What a candidate becomes after the evaluation's own clean-up, in a spacing/capitals-insensitive form:
+    two candidates with the same canonical form are the same query."""
+    return normalise_sql(clean_sql(post_process(text, schema["schema_items"])))
+
+
+def distinct_first(texts, scores, schema, n):
+    """The first n candidates (in the given order, i.e. most likely first) that are different queries.
+    If fewer than n different queries exist among them, the list is filled with the repeats in order,
+    so the answer count stays n and agreement keeps its meaning (a question the model answers one way
+    shows that one query, repeated). Returns (texts, scores)."""
+    chosen, repeats, seen = [], [], set()
+    for t, s in zip(texts, scores):
+        key = canonical_sql(t, schema)
+        (repeats if key in seen or not key else chosen).append((t, s))
+        seen.add(key)
+    if len(chosen) < n:
+        chosen = chosen + repeats
+    chosen = chosen[:n]
+    return [t for t, _ in chosen], [s for _, s in chosen]
+
+
 def clean_sql(text):
     text = text.strip().replace("```sql", "").replace("```", "").strip()
     return text.split(";")[0].strip()

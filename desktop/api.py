@@ -615,7 +615,7 @@ class Api:
                 self._backend = providers.build(spec, self._legacy_paths())
             else:
                 from querygenie.model import CodesSFTBackend
-                self._backend = CodesSFTBackend(st.model_path(s["model"]), label=st.MODELS[s["model"]][1])
+                self._backend = CodesSFTBackend(st.model_path(s["model"]), label=st.MODELS[s["model"]][1], distinct=True)
             self._backend_key = key
         return self._backend
 

@@ -98,6 +98,23 @@ class CandidateBackend:
         with self._calls_lock:
             self.calls.append({"prompt": prompt_tokens, "output": output_tokens, "limits": limits})
 
+    current_schema = None            # set by _decide before generating, so samplers can tell repeats from new queries
+
+    def distinct_candidates(self, make, n: int = N_CANDIDATES, max_tries: int = 3 * N_CANDIDATES) -> list[str]:
+        """Call make(i) (i = 0, 1, 2 ...; the caller raises the temperature with i) until n different queries have
+        been drawn, or max_tries is reached; then fill with repeats so n are returned (a model that really answers
+        one way shows that one query repeated, which is what agreement should see)."""
+        from ..pipeline import canonical_sql
+        out, repeats, seen = [], [], set()
+        for i in range(max_tries):
+            text = make(i)
+            key = canonical_sql(text, self.current_schema) if self.current_schema else " ".join((text or "").split())
+            (repeats if key in seen else out).append(text)
+            seen.add(key)
+            if len(out) >= n:
+                break
+        return (out + repeats)[:n]
+
     # ---- to implement
     def raw_candidates(self, prompt: str) -> list[str]:
         raise NotImplementedError
@@ -149,6 +166,7 @@ class CandidateBackend:
             last = last_result_text(history, self.share_results)
             prompt = (last + "\n\n" if last else "") + FOLLOW_UP_NOTE + "\n\n" + prompt
         self.last_context = (target, schema, prompt)       # for the optional repair step
+        self.current_schema = schema
         texts = [extract_sql(t) if self.chat else t for t in self.raw_candidates(prompt)]
         texts = (texts + [""] * N_CANDIDATES)[:N_CANDIDATES]
         # No beam scores outside the evaluated model: equal scores, so the tie-break is neutral.

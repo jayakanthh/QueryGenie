@@ -47,7 +47,11 @@ class CodesSFTBackend:
 
     has_confidence = True
 
-    def __init__(self, model_id: str, label: str = ""):
+    def __init__(self, model_id: str, label: str = "", distinct: bool = False):
+        # distinct=True (the application): generate 8 beams and keep the 4 most likely DIFFERENT queries, so the
+        # candidates the user sees are not repeats. distinct=False (every research script) is the measured
+        # setting: the top 4 beams as they come.
+        self.distinct = distinct
         self.model_id = model_id
         self.label = label or model_id
         self._tok = None
@@ -105,20 +109,24 @@ class CodesSFTBackend:
 
     def _generate_and_decide(self, target, schema, prefix, max_new_tokens):
         import torch
-        from .pipeline import decide, encode
+        from .pipeline import decide, distinct_first, encode
 
+        beams = 8 if self.distinct else 4
         self.last_context = (target, schema, prefix)       # for an optional repair step (querygenie/repair.py)
         self.load()
         ids = torch.tensor([encode(self._tok, prefix)], device=self.device)
         with torch.no_grad():
             gen = self._model.generate(input_ids=ids, attention_mask=torch.ones_like(ids),
-                                       max_new_tokens=max_new_tokens, num_beams=4,
-                                       num_return_sequences=4, pad_token_id=self._tok.eos_token_id,
+                                       max_new_tokens=max_new_tokens, num_beams=beams,
+                                       num_return_sequences=beams, pad_token_id=self._tok.eos_token_id,
                                        return_dict_in_generate=True, output_scores=True)
         self.calls = [{"prompt": int(ids.shape[1]), "output": int(gen.sequences.shape[1] - ids.shape[1]), "limits": None}]
         texts = self._tok.batch_decode(gen.sequences[:, ids.shape[1]:], skip_special_tokens=True,
                                        clean_up_tokenization_spaces=False)
-        return decide(target, schema, texts, [float(x) for x in gen.sequences_scores])
+        scores = [float(x) for x in gen.sequences_scores]
+        if self.distinct:
+            texts, scores = distinct_first(texts, scores, schema, 4)
+        return decide(target, schema, texts, scores)
 
     def fix_sql(self, failed_sql: str, error: str, max_new_tokens: int = 256) -> str:
         """One repair attempt for a query that failed (application feature, not part of the evaluated

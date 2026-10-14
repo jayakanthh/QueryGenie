@@ -7,7 +7,8 @@ Models that run on this computer besides the evaluated one.
   GGUFCodes   the GGUF CodeS checkpoints of the Gradio prototype (llama.cpp, Metal / CPU)
 
 All use the CodeS prompt (schema + matched values + question). MLX and GGUF cannot do beam search,
-so they draw the four candidates as one greedy answer plus three samples at temperature 0.7.
+so they draw candidates as one greedy answer plus samples (temperature from 0.7, rising) until there are four
+different queries (at most 12 tries).
 """
 
 from __future__ import annotations
@@ -20,6 +21,12 @@ from .base import N_CANDIDATES, CandidateBackend, ProviderError
 
 MAX_NEW_TOKENS = 256
 SAMPLE_TEMPERATURE = 0.7
+
+
+def sample_temperature(i: int) -> float:
+    """Attempt 0 is greedy; later attempts sample, hotter each time, so a confident model still gives
+    different queries (up to temperature 1.3)."""
+    return 0.0 if i == 0 else min(1.3, SAMPLE_TEMPERATURE + 0.1 * (i - 1))
 
 
 class CodesLocal(CodesSFTBackend):
@@ -55,9 +62,9 @@ class MLXCodes(CandidateBackend):
 
         self.load()
         ids = encode(getattr(self._tok, "_tokenizer", self._tok), prompt)   # the HF tokenizer inside the wrapper
-        return [generate(self._model, self._tok, prompt=ids, max_tokens=MAX_NEW_TOKENS, verbose=False,
-                         sampler=make_sampler(temp=0.0 if i == 0 else SAMPLE_TEMPERATURE))
-                for i in range(N_CANDIDATES)]
+        return self.distinct_candidates(lambda i: generate(
+            self._model, self._tok, prompt=ids, max_tokens=MAX_NEW_TOKENS, verbose=False,
+            sampler=make_sampler(temp=sample_temperature(i))))
 
     def complete_once(self, prompt):
         from mlx_lm import generate
@@ -93,10 +100,8 @@ class GGUFCodes(CandidateBackend):
         self.load()
         ids = self._llm.tokenize(prompt.encode("utf-8"), add_bos=True)
         ids = ids[-(4096 - MAX_NEW_TOKENS):]                      # keep the end (the question)
-        return [self._llm.create_completion(ids, max_tokens=MAX_NEW_TOKENS,
-                                            temperature=0.0 if i == 0 else SAMPLE_TEMPERATURE,
-                                            )["choices"][0]["text"]
-                for i in range(N_CANDIDATES)]
+        return self.distinct_candidates(lambda i: self._llm.create_completion(
+            ids, max_tokens=MAX_NEW_TOKENS, temperature=sample_temperature(i))["choices"][0]["text"])
 
     def complete_once(self, prompt):
         self.load()
