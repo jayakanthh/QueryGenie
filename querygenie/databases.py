@@ -89,7 +89,7 @@ def build_catalog() -> dict:
     return cat
 
 
-CONNECTED = {}   # label -> DbInfo for live connections (kept in memory only, never written to disk)
+CONNECTED = {}   # label -> DbInfo for live connections for open connections (memory only; saved profiles are kept by desktop/api.py: host and user in the settings, password in the OS keychain)
 
 
 def connect(kind, host, port, database, user, password) -> str:

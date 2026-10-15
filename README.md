@@ -101,7 +101,8 @@ QueryGenie reads the schema, builds a value index once, and answers on the live 
   the original;
 - only a single read-only query is accepted, run inside a **READ ONLY transaction** with a
   30-second timeout and a 1,000-row limit — use a read-only database user anyway;
-- the password is kept in memory only.
+- with "Remember this connection" (on by default) the host, database and user are saved and the password goes in your
+  system keychain (never in a file); the connection reappears in the sidebar and reconnects when you open it.
 
 On Spider's databases loaded into PostgreSQL, translated queries return the same answer as on
 SQLite for 94.4% of gold queries and 93.7% of model predictions
