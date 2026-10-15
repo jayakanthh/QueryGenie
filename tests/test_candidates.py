@@ -117,3 +117,13 @@ def test_the_number_of_candidates_is_a_setting(tmp_path):
     two = _Chat()
     two.n_candidates = 2
     assert len(two.distinct_candidates(lambda i: f"SELECT {i} FROM pets")) == 2
+
+
+def test_renamed_aliases_and_always_true_conditions_are_not_a_different_query(tmp_path):
+    from querygenie.pipeline import structural_key
+    schema = _schema(tmp_path)
+    same = ["SELECT DISTINCT kind FROM pets", "SELECT DISTINCT T1.kind FROM pets AS T1",
+            "SELECT DISTINCT T.kind FROM pets AS T", "SELECT DISTINCT kind FROM pets WHERE 1=1"]
+    assert len({structural_key(q, schema) for q in same}) == 1
+    different = ["SELECT kind FROM pets GROUP BY kind", "WITH k AS (SELECT kind FROM pets) SELECT DISTINCT kind FROM k"]
+    assert len({structural_key(q, schema) for q in same + different}) == 3

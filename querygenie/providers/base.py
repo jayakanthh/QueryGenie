@@ -75,12 +75,23 @@ def sample_temperature(i: int) -> float:
     return 0.0 if i == 0 else min(1.3, SAMPLE_TEMPERATURE + 0.1 * (i - 1))
 
 
-def alternative_hint(written: list[str]) -> str:
-    """Appended to the prompt when a model keeps repeating itself: shows what it has written and asks for another way."""
+# What to ask for, in turn, when a model keeps writing the same query: real structural alternatives, not renamings.
+STYLES = (
+    "use GROUP BY where you used DISTINCT (or DISTINCT where you used GROUP BY), or a different but equivalent way to count or aggregate",
+    "use a subquery (IN, EXISTS or a scalar subquery) where you joined, or a join where you used a subquery",
+    "write it as a common table expression (WITH ... AS (...) SELECT ...)",
+    "get the result another way: for example ORDER BY ... LIMIT 1 instead of a MAX/MIN subquery (or the reverse), or a different set of joins",
+)
+
+
+def alternative_hint(written: list[str], style: int = 0) -> str:
+    """Appended to the prompt when a model keeps repeating itself: shows what it has written and asks for a
+    structurally different query (the style rotates), not a renamed one."""
     listed = "\n".join(f"- {' '.join(q.split())}" for q in written)
     return ("\n\nThese queries have already been written for this question:\n" + listed +
-            "\nWrite a different SQLite query that answers the same question and should return the same result - "
-            "for example another join order, a subquery instead of a join, or different aliases and ordering. "
+            "\nWrite a structurally different SQLite query that answers the same question and should return the same result. "
+            f"Specifically, {STYLES[style % len(STYLES)]}. "
+            "Do not just rename aliases, reorder columns or add always-true conditions. "
             "Reply with the SQL query only.\nSQLite query:")
 
 
@@ -128,7 +139,7 @@ class CandidateBackend:
             extra += 1
             try:
                 text = extract_sql(with_retry(lambda: self.complete_once(
-                    prompt + alternative_hint(self._distinct_sql(texts)))))
+                    prompt + alternative_hint(self._distinct_sql(texts), extra - 1))))
             except ProviderError as exc:           # out of quota etc.: keep what we have
                 self.note_failure(exc)
                 break
@@ -138,8 +149,8 @@ class CandidateBackend:
         return self._distinct_first(texts)
 
     def _key(self, text):
-        from ..pipeline import canonical_sql
-        return canonical_sql(text, self.current_schema) if self.current_schema else " ".join((text or "").split())
+        from ..pipeline import structural_key
+        return structural_key(text, self.current_schema) if self.current_schema else " ".join((text or "").split())
 
     def _distinct_sql(self, texts):
         seen, out = set(), []
@@ -161,12 +172,14 @@ class CandidateBackend:
         """For a model that runs here and can be asked one answer at a time (so only one copy is ever in memory):
         one greedy answer, then samples at a rising temperature; as soon as a query repeats, later requests also
         show the model the queries it has written and ask for a different one."""
-        drawn = []
+        drawn, asked = [], [0]
         max_tries = max_tries or 2 * self.n_candidates
 
         def make(i):
             hinted = i > len(self._distinct_sql(drawn))      # something already repeated or failed
-            ask = prompt + alternative_hint(self._distinct_sql(drawn)) if hinted else prompt
+            if hinted:
+                asked[0] += 1
+            ask = prompt + alternative_hint(self._distinct_sql(drawn), asked[0] - 1) if hinted else prompt
             text = extract_sql(once(ask, sample_temperature(i)))
             drawn.append(text)
             return text
@@ -183,13 +196,12 @@ class CandidateBackend:
         """Call make(i) (i = 0, 1, 2 ...; the caller raises the temperature with i) until n different queries have
         been drawn, or max_tries is reached; then fill with repeats so n are returned (a model that really answers
         one way shows that one query repeated, which is what agreement should see)."""
-        from ..pipeline import canonical_sql
         n = n or self.n_candidates
         max_tries = max_tries or 3 * n
         out, repeats, seen = [], [], set()
         for i in range(max_tries):
             text = make(i)
-            key = canonical_sql(text, self.current_schema) if self.current_schema else " ".join((text or "").split())
+            key = self._key(text)
             (repeats if key in seen else out).append(text)
             seen.add(key)
             if len(out) >= n:

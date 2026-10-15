@@ -80,6 +80,36 @@ def canonical_sql(text, schema):
     two candidates with the same canonical form are the same query."""
     return normalise_sql(clean_sql(post_process(text, schema["schema_items"])))
 
+def structural_key(text, schema):
+    """A stricter 'same query' test than canonical_sql, used by the application when it asks a model for different
+    queries: table aliases, column qualifiers on a one-table query and a trivial WHERE 1 = 1 do not make a query
+    different. Falls back to canonical_sql when the text does not parse."""
+    base = canonical_sql(text, schema)
+    if not base:
+        return base
+    try:
+        import sqlglot
+        from sqlglot import exp
+        tree = sqlglot.parse_one(base, read="sqlite")
+        tables = list(tree.find_all(exp.Table))
+        names = [t.name for t in tables]
+        alias_of = {t.alias: t.name for t in tables if t.alias and names.count(t.name) == 1}
+        for col in tree.find_all(exp.Column):
+            if col.table in alias_of:
+                col.set("table", exp.to_identifier(alias_of[col.table]))
+            if len(tables) == 1 and col.table:
+                col.set("table", None)
+        for t in tables:
+            if t.alias in alias_of:
+                t.set("alias", None)
+        where = tree.args.get("where")
+        if where is not None and isinstance(where.this, exp.EQ) and where.this.left == where.this.right \
+                and isinstance(where.this.left, exp.Literal):
+            tree.set("where", None)
+        return tree.sql(dialect="sqlite").lower()
+    except Exception:  # noqa: BLE001 - an odd query must never stop an answer
+        return base
+
 
 def distinct_first(texts, scores, schema, n):
     """The first n candidates (in the given order, i.e. most likely first) that are different queries.
