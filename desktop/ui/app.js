@@ -167,9 +167,9 @@ function renderSources() {
     const body = items.length ? items.map((d) => `
       <button class="src" role="option" data-db="${esc(d.id)}" aria-selected="${S.db && S.db.id === d.id}">
         ${icon(d.live ? "server" : d.group === "Files" ? "file" : "database", "i src-icon")}
-        <span class="name">${esc(d.label)}</span>${d.live ? '<span class="live-dot" title="Connected"></span>' : ""}
+        <span class="name">${esc(d.label)}</span>${d.live ? '<span class="live-dot" title="Connected"></span>' : d.saved ? '<span class="count" title="Saved - connects when you open it">saved</span>' : ""}
         <span class="count" title="Chats">${(S.counts || {})[d.id] || ""}</span>
-        ${d.live || d.group === "Files" ? `<span class="src-x" role="button" tabindex="0" data-remove="${esc(d.id)}" title="${d.live ? "Disconnect" : "Remove from QueryGenie"}" aria-label="${d.live ? "Disconnect" : "Remove"} ${esc(d.label)}">${icon(d.live ? "x" : "trash-2", "i sm")}</span>` : ""}
+        ${d.live || d.saved || d.group === "Files" ? `<span class="src-x" role="button" tabindex="0" data-remove="${esc(d.id)}" title="${d.live ? "Disconnect (the saved connection stays)" : d.saved ? "Forget this saved connection" : "Remove from QueryGenie"}" aria-label="${d.live ? "Disconnect" : d.saved ? "Forget" : "Remove"} ${esc(d.label)}">${icon(d.live ? "x" : "trash-2", "i sm")}</span>` : ""}
       </button>`).join("") : `<button class="src" data-add-server>${icon("plug-zap", "i src-icon")}<span class="name" style="color:var(--ink-3)">Connect a server…</span></button>`;
     return `<div class="src-group"><h3>${g}</h3>${body}</div>`;
   }).join("");
@@ -181,6 +181,13 @@ function renderSources() {
 }
 async function selectDb(id) {
   if (!id) return;
+  const want = S.dbs.find((d) => d.id === id);
+  if (want && want.saved && !want.live) {                // a saved connection: reopen it first (password from the keychain)
+    $("#db-title").textContent = want.label; $("#db-meta").textContent = "Connecting…";
+    const r = await api.reconnect(id);
+    if (r.error) { $("#db-meta").textContent = "Not connected"; alert("Couldn't connect to " + want.label + ": " + r.error); return; }
+    S.dbs = await api.databases(); renderSources();
+  }
   S.db = S.dbs.find((d) => d.id === id); localStorage.setItem("qg.db", id);
   $$("#sources [data-db]").forEach((b) => b.setAttribute("aria-selected", b.dataset.db === id));
   $("#db-title").textContent = S.db.label; $("#db-title").title = S.db.label;
@@ -909,7 +916,7 @@ function dbMenu(e, id) {
 }
 async function removeDb(id) {
   const db = S.dbs.find((d) => d.id === id); if (!db) return;
-  await (db.live ? api.disconnect(id) : api.remove_file(id));
+  await (db.live ? api.disconnect(id) : db.saved ? api.forget_connection(id) : api.remove_file(id));
   S.dbs = await api.databases(); renderSources(); if (S.db.id === id) selectDb(S.dbs[0].id);
 }
 async function addFile() {
@@ -926,10 +933,11 @@ function openConnect() {
     if (e.submitter && e.submitter.value === "cancel") return;
     e.preventDefault();
     const go = $("#c-go"); go.disabled = true; $("#c-msg").className = "form-msg"; $("#c-msg").textContent = "Connecting and reading the schema…";
-    const r = await api.connect($("#c-kind").value, $("#c-host").value, $("#c-port").value, $("#c-db").value, $("#c-user").value, $("#c-pass").value);
+    const r = await api.connect($("#c-kind").value, $("#c-host").value, $("#c-port").value, $("#c-db").value, $("#c-user").value, $("#c-pass").value, $("#c-remember").checked);
     go.disabled = false; $("#c-pass").value = "";
     if (r.error) { $("#c-msg").className = "form-msg bad"; $("#c-msg").textContent = "Couldn't connect: " + r.error; return; }
     d.close(); S.dbs = await api.databases(); renderSources(); selectDb(r.id);
+    if (r.password_not_saved) alert("The connection was saved, but this computer has no keychain available for the password, so you'll be asked for it next time.");
   };
 }
 let renderModeOpts = () => {};

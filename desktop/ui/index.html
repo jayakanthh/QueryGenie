@@ -146,7 +146,7 @@
     <form class="sheet" method="dialog" id="connect-form">
       <div class="sheet-body">
         <h2>Connect to a database server</h2>
-        <p>Queries run in a read-only transaction. For safety, use a database user that can only read. The password is kept in memory while the app is open and never saved.</p>
+        <p>Queries run in a read-only transaction. For safety, use a database user that can only read. Choose below whether to remember the connection: the host and user are saved on this computer, and the password goes in your system keychain, never in a file.</p>
         <div class="field"><label for="c-kind">Type</label>
           <select class="input" id="c-kind"><option>PostgreSQL</option><option>MySQL / MariaDB</option></select></div>
         <div class="grid-2">
@@ -158,6 +158,8 @@
           <div class="field"><label for="c-user">User</label><input class="input" id="c-user" autocomplete="off"></div>
           <div class="field"><label for="c-pass">Password</label><input class="input" id="c-pass" type="password" autocomplete="off"></div>
         </div>
+        <label class="opt"><input type="checkbox" id="c-remember" checked><div><b>Remember this connection</b>
+          <span>It comes back in the sidebar after a restart and reconnects when you open it. Forget it any time with the trash icon.</span></div></label>
         <div class="form-msg" id="c-msg"></div>
       </div>
       <div class="sheet-foot" data-order>

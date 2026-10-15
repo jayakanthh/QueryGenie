@@ -28,6 +28,7 @@ DEFAULT_SETTINGS = {"layout": "answer", "mode": "balanced", "model": "codes-1b-s
                     "context_on": True,      # use earlier questions of a chat as context for follow-ups
                     "context_turns": 3,      # how many (-1 = all that fit the model's window)
                     "context_results": "local",   # earlier result rows in the context: local / all / none
+                    "connections": [],       # saved server connections (no passwords: those are in the OS keychain)
                     "recent_engines": []}    # last few models chosen (for the quick picker)
 
 # Models of the earlier Gradio prototype. Looked for in the app's models folder and, when running
@@ -195,6 +196,11 @@ class Api:
             out.append({"id": label, "label": nice,
                         "group": self._group(info), "source": info.source,
                         "examples": info.examples[:6], "live": info.conn is not None})
+        have = {d["id"] for d in out}
+        for p in self._profiles():                     # saved connections that are not open yet
+            if p["label"] not in have:
+                out.append({"id": p["label"], "label": p["label"], "group": "Live connections", "source": "Saved connection",
+                            "examples": [], "live": False, "saved": True})
         return out
 
     def schema(self, db_id):
@@ -219,12 +225,48 @@ class Api:
         except ValueError as exc:
             return {"error": str(exc)}
 
-    def connect(self, kind, host, port, database, user, password):
+    def _profiles(self):
+        return list(self.settings_get().get("connections") or [])
+
+    def connect(self, kind, host, port, database, user, password, remember=False):
+        """Open a live connection. With `remember`, keep host/port/database/user in the settings and the password
+        in the operating system's keychain (never in a file), so the connection comes back after a restart."""
         from querygenie.databases import connect
         try:
-            return {"id": connect(kind, host, port, database, user, password)}
+            label = connect(kind, host, port, database, user, password)
         except Exception as exc:  # noqa: BLE001 - shown to the user
             return {"error": str(exc).splitlines()[0][:300]}
+        out = {"id": label}
+        if remember:
+            profile = {"label": label, "kind": kind, "host": host, "port": port, "database": database, "user": user}
+            self.settings_set({"connections": [p for p in self._profiles() if p["label"] != label] + [profile]})
+            try:
+                from querygenie.providers import key_set
+                key_set("db:" + label, password or None)
+            except Exception:  # noqa: BLE001 - no keychain: the connection is saved, the password is asked again
+                out["password_not_saved"] = True
+        return out
+
+    def reconnect(self, db_id):
+        """Reopen a saved connection (its password comes from the keychain)."""
+        profile = next((p for p in self._profiles() if p["label"] == db_id), None)
+        if profile is None:
+            return {"error": "No saved connection by that name."}
+        from querygenie.providers import key_get
+        password = key_get("db:" + db_id) or ""
+        r = self.connect(profile["kind"], profile["host"], profile["port"], profile["database"], profile["user"], password)
+        if r.get("error") and not password:
+            r["error"] += " (no password is saved for this connection - connect again from Add database)"
+        return r
+
+    def forget_connection(self, db_id):
+        self.settings_set({"connections": [p for p in self._profiles() if p["label"] != db_id]})
+        try:
+            from querygenie.providers import key_set
+            key_set("db:" + db_id, None)
+        except Exception:  # noqa: BLE001
+            pass
+        return self.disconnect(db_id)
 
     def disconnect(self, db_id):
         from querygenie.databases import CONNECTED
