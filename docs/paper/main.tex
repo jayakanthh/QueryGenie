@@ -1,5 +1,8 @@
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
+\usepackage{fontspec}   % Times text as in the IEEE sample (Tectonic/XeTeX has no Type-1 Times)
+\setmainfont{Times New Roman}
+\setmonofont{Courier New}[Scale=0.9]
 \usepackage{cite}
 \usepackage{amsmath}
 \usepackage{graphicx}
@@ -14,16 +17,30 @@
 
 \begin{document}
 
-\title{QueryGenie: A Natural-Language-to-SQL Interface that Knows When It Does Not Know}
+\title{QueryGenie: Confidence-Aware Abstention for\\Open-Weight Text-to-SQL}
 
-\author{\IEEEauthorblockN{N V V S S Jayakanth Kamisetti, Boddupally Narendar, M Praneeth Reddy}
-\IEEEauthorblockA{\textit{Department of Computer Science \& Information Technology} \\
-\textit{Koneru Lakshmaiah Education Foundation (KL University)}, Hyderabad, India \\
-Team 18 \,$\cdot$\, IDs 2320090050, 2320090009, 2320090018}
+\author{\IEEEauthorblockN{1\textsuperscript{st} N V V S S Jayakanth Kamisetti}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and IT} \\
+\textit{KL University}\\
+Hyderabad, India \\
+2320090050}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Boddupally Narendar}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and IT} \\
+\textit{KL University}\\
+Hyderabad, India \\
+2320090009}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} M Praneeth Reddy}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and IT} \\
+\textit{KL University}\\
+Hyderabad, India \\
+2320090018}
 \and
 \IEEEauthorblockN{Supervisor: M Parameswar}
-\IEEEauthorblockA{\textit{Associate Professor, Department of CSIT} \\
-\textit{Koneru Lakshmaiah Education Foundation (KL University)}, Hyderabad, India}}
+\IEEEauthorblockA{\textit{Associate Professor, Dept. of Computer Science and IT} \\
+\textit{KL University}\\
+Hyderabad, India}}
 
 \maketitle
 
