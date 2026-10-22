@@ -38,3 +38,12 @@ arXiv papers only. Papers that appeared only as search snippets were not cited.
 Test-suite accuracy, BIRD Mini-Dev (run BD-001 stopped), the 8-beam run CN-008 (the first attempt printed
 0.788 before it failed while saving; the re-run's results had not arrived when the paper was written),
 MySQL, end-to-end PostgreSQL accuracy, CodeS-7B/15B. Fill these in only from logged runs.
+
+## Originality check (2026-10-22)
+
+`scripts/similarity_check.py` (open, local; word n-gram shingles, citation markers and the reference list excluded) compared the
+paper with the arXiv PDFs of the cited works. 33 of the 38 cited papers were readable and compared: no shared run of 8 or more
+words with any of them; the only 6-word overlaps are the stock phrase "semantic parsing and text to SQL" and two technical wordings
+that echoed abstracts (reworded). Not compared (the downloads were truncated): Self-Consistency (2203.11171), BIRD (2305.03111),
+CHESS (2405.16755) and the surveys 2407.15186 and 2408.05109. This is a check against the cited sources only, not a web-wide
+or institutional check (Turnitin / iThenticate), which is what the department counts.
