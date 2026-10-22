@@ -20,6 +20,15 @@ All figures are from the repository's results, none estimated: `results/reproduc
 `results/selection_analysis.md`, `results/repair_eval.md`, `results/reality/spider_realistic_RL-001.md`,
 `results/postgres_translation_check.md`, `results/dataset_analysis.md`.
 
+## Audit (2026-10-22)
+
+Every number was recomputed from the raw run dumps (`results/dump_*.jsonl`) and the per-split trials (counts, accuracies,
+t-tests, Wilcoxon, paired comparison, majority votes). The comparison figures of the CodeS paper (Table 5: 77.9 / 83.4 EX,
+72.2 TS; Table 7: Spider-Realistic 70.9; 4 beams; 8 A800 GPUs) were read from the arXiv PDF. All 26 references were checked
+against the arXiv API; three venue errors were corrected (MAC-SQL is COLING 2025; Shi et al. is ACM Computing Surveys; the
+unsupported TKDE note on Qin et al. was removed). Prior work on confidence/abstention for text-to-SQL ([7]-[9], [25], [26])
+was added and the novelty claim narrowed accordingly.
+
 ## Marked TBD in the paper (not measured)
 
 Test-suite accuracy, BIRD Mini-Dev (run BD-001 stopped), the 8-beam run CN-008 (the first attempt printed
