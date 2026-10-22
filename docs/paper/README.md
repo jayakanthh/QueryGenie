@@ -6,9 +6,9 @@ A short research paper, separate from the department thesis report in `docs/repo
 
 | File | Content |
 |---|---|
-| `main.tex` | the paper (5 pages) |
+| `main.tex` | the paper (7 pages, IEEE two-column) |
 | `main.pdf` | compiled |
-| `figures/` | architecture, accuracy–coverage curve, ablation chart (copies of `results/figures/`) |
+| `figures/` | architecture, accuracy–coverage curves (copies of `results/figures/`), app screenshot (very strict, not-sure case) |
 
 Compile: `tectonic -X compile main.tex` (or upload the folder to Overleaf).
 

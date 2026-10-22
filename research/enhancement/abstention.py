@@ -118,6 +118,10 @@ def analyse(rows):
     return out, correct, sig
 
 
+# What each logged run is, for the figure title (T2-004 is the 3B model; SM-008 draws 8 samples instead of 4 beams).
+RUN_LABEL = {"T2-006": "CodeS-1B", "T2-004": "CodeS-3B", "SM-008": "CodeS-1B, 8 sampled candidates"}
+
+
 def plot(correct, sig, path, run_id):
     import matplotlib
     matplotlib.use("Agg")
@@ -131,6 +135,8 @@ def plot(correct, sig, path, run_id):
     ax.axhline(base * 100, color=MUTED, lw=1.5, ls=(0, (4, 3)), zorder=1)
     ax.text(75, base * 100 + 0.3, f"Random abstention / answer everything: {base*100:.1f}%",
             color=INK2, fontsize=8, va="bottom", ha="center")
+    if run_id == "SM-008":       # beam probability of sampled candidates is not a comparable score: do not draw it
+        SERIES = {k: v for k, v in SERIES.items() if k == "agreement"}
     for name, (col, label) in SERIES.items():
         conf = np.array([s[name] for s in sig])
         cov, acc = curve(conf, correct)
@@ -143,7 +149,7 @@ def plot(correct, sig, path, run_id):
     ax.set_xlim(50, 100); ax.invert_xaxis(); ax.set_ylim(bottom=base * 100 - 1.5)
     ax.set_xlabel("Coverage — share of questions answered (%)", color=INK2, fontsize=9)
     ax.set_ylabel("Execution accuracy on answered questions (%)", color=INK2, fontsize=9)
-    ax.set_title(f"Accuracy vs coverage, CodeS-1B on Spider dev ({run_id})", color=INK, fontsize=10,
+    ax.set_title(f"Accuracy vs coverage, {RUN_LABEL.get(run_id, 'CodeS')} on Spider dev ({run_id})", color=INK, fontsize=10,
                  loc="left", pad=10)
     ax.grid(axis="y", color=GRID, lw=0.6); ax.set_axisbelow(True)
     for s in ("top", "right"): ax.spines[s].set_visible(False)
