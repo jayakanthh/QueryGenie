@@ -242,6 +242,7 @@ cite the old paths below.
 | Enhancement proposal (Week 9) | [`docs/weekly-reports/Week 9/Enhancement_Proposal_Week9.docx`](docs/weekly-reports/Week%209/Enhancement_Proposal_Week9.docx) |
 | Comparative results (Week 12) | [`docs/weekly-reports/Week 12/Week12_Comparative_Results.docx`](docs/weekly-reports/Week%2012/Week12_Comparative_Results.docx) |
 | Annotated CodeS paper (Week 3) | [`docs/weekly-reports/Week 3/CodeS_Annotated_Paper.pdf`](docs/weekly-reports/Week%203/CodeS_Annotated_Paper.pdf) |
+| Research paper (IEEE format) | [`docs/paper/main.pdf`](docs/paper/main.pdf) |
 | Deliverables tracker | [`docs/DELIVERABLES.md`](docs/DELIVERABLES.md) |
 | Weekly status reports | [`docs/weekly-reports/`](docs/weekly-reports/) |
 

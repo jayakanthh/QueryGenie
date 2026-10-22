@@ -107,7 +107,7 @@ Done and measured (all runs in `results/reproduction_log.csv`):
 - Weekly reports written through Week 12. **Signatures are collected at the end** (department
   decision) — don't flag them as blockers.
 
-Remaining: Week 15 public repo (ask before changing visibility), Week 16 final deck; optional TS
+Repo made public 2026-10-22 (https://github.com/jayakanthh/QueryGenie); research paper in `docs/paper/`. Remaining: Week 16 final deck, supervisor as collaborator and the other members' own commits; optional TS
 scoring and CodeS-3B evaluation.
 
 ## The Colab MCP

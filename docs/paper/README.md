@@ -27,7 +27,11 @@ t-tests, Wilcoxon, paired comparison, majority votes). The comparison figures of
 72.2 TS; Table 7: Spider-Realistic 70.9; 4 beams; 8 A800 GPUs) were read from the arXiv PDF. All 26 references were checked
 against the arXiv API; three venue errors were corrected (MAC-SQL is COLING 2025; Shi et al. is ACM Computing Surveys; the
 unsupported TKDE note on Qin et al. was removed). Prior work on confidence/abstention for text-to-SQL ([7]-[9], [25], [26])
-was added and the novelty claim narrowed accordingly.
+was added and the novelty claim narrowed accordingly. A second, wider search (2026-10-22: ambiguity, answerability,
+uncertainty, execution-based voting, semantic-parsing calibration) added eight more references, each checked on arXiv:
+Stengel-Eskin & Van Durme (two papers), EHRSQL, Maleki et al., Borchmann & Wydmuch, Liu et al. (sub-clause calibration),
+AMBROSIA, AmbiQT. Xin et al. (ACL 2021, selective prediction) was left out: it is not on arXiv and the department accepts
+arXiv papers only. Papers that appeared only as search snippets were not cited.
 
 ## Marked TBD in the paper (not measured)
 
