@@ -47,3 +47,8 @@ words with any of them; the only 6-word overlaps are the stock phrase "semantic 
 that echoed abstracts (reworded). Not compared (the downloads were truncated): Self-Consistency (2203.11171), BIRD (2305.03111),
 CHESS (2405.16755) and the surveys 2407.15186 and 2408.05109. This is a check against the cited sources only, not a web-wide
 or institutional check (Turnitin / iThenticate), which is what the department counts.
+
+Web phrase search (2026-10-22): 18 exact 9-10-word phrases taken at random from the paper's prose were searched as quoted
+strings on Bing through Chrome. No result contained any of them (at most 3 consecutive words in common, i.e. loose matches
+on unrelated pages). Nothing from the paper was uploaded to any checker. This only shows that the wording is not already
+published verbatim on pages Bing indexes; it is not a substitute for the university's Turnitin / iThenticate report.
